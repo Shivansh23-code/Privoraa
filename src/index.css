@@ -1,0 +1,50 @@
+/* src/index.css */
+
+/* 1. Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500&display=swap');
+
+/* 2. Define CSS Variables (Color Palette & Fonts) */
+:root {
+  --font-heading: 'Poppins', sans-serif;
+  --font-body: 'Inter', sans-serif;
+
+  --color-background: #F8F9FA; /* Off-white */
+  --color-text: #212529; /* Dark Gray */
+  --color-primary: #4C6EF5; /* A nice, modern blue */
+  --color-primary-dark: #364FC7;
+  --color-white: #FFFFFF;
+  --color-border: #DEE2E6;
+  --color-success: #28a745;
+  --color-error: #dc3545;
+}
+
+/* 3. Global Resets and Base Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+.fade-in-section {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.fade-in-section.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
