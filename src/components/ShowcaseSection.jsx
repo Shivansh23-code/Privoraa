@@ -1,4 +1,4 @@
-import showcaseImg from '../assets/showcase-1.png';
+import showcaseImg from '../assets/echomind-mockup-2.jpg';
 import styles from './ShowcaseSection.module.css';
 
 const ShowcaseSection = () => {

@@ -1,7 +1,7 @@
 import Header from '../components/Header';
 import HeroSection from '../components/HeroSection';
 import ShowcaseSection from '../components/ShowcaseSection';
-import UseCasesSection from '../components/UseCasesSection'; // New
+import ValuePropsSection from '../components/ValuePropsSection'; // New
 import TestimonialsSection from '../components/TestimonialsSection';
 import FaqSection from '../components/FaqSection';
 import Footer from '../components/Footer';
@@ -13,7 +13,7 @@ const LandingPage = () => {
       <main>
         <HeroSection />
         <ShowcaseSection />
-        <UseCasesSection />
+        <ValuePropsSection />
         <TestimonialsSection />
         <FaqSection />
       </main>
