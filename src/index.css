@@ -1,24 +1,24 @@
-/* src/index.css */
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-/* 1. Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Inter:wght@400;500&display=swap');
-
-/* 2. Define CSS Variables (Color Palette & Fonts) */
+/* Define CSS Variables (Color Palette & Fonts) */
 :root {
-  --font-heading: 'Poppins', sans-serif;
   --font-body: 'Inter', sans-serif;
 
-  --color-background: #F8F9FA; /* Off-white */
-  --color-text: #212529; /* Dark Gray */
-  --color-primary: #4C6EF5; /* A nice, modern blue */
-  --color-primary-dark: #364FC7;
-  --color-white: #FFFFFF;
-  --color-border: #DEE2E6;
-  --color-success: #28a745;
-  --color-error: #dc3545;
+  /* New, professional color palette */
+  --color-background: #F9FAFB; /* Off-white */
+  --color-surface: #FFFFFF;   /* White for cards */
+  --color-primary: #4338CA;   /* A deeper, more confident blue/indigo */
+  --color-primary-light: #E0E7FF; /* Light accent for backgrounds */
+  --color-text-heading: #111827; /* Near-black for headlines */
+  --color-text-body: #374151;    /* Dark gray for body text */
+  --color-text-muted: #6B7280;   /* Lighter gray for sub-text */
+  --color-border: #E5E7EB;
+  --color-success: #16A34A;
+  --color-error: #DC2626;
 }
 
-/* 3. Global Resets and Base Styles */
+/* Global Resets and Base Styles */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -28,22 +28,24 @@
 body {
   font-family: var(--font-body);
   background-color: var(--color-background);
-  color: var(--color-text);
+  color: var(--color-text-body);
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-heading);
+/* Typography Hierarchy */
+h1, h2, h3 {
+  color: var(--color-text-heading);
   line-height: 1.2;
-  margin-bottom: 1rem;
 }
 
+/* Global Animation Styles (from before) */
 .fade-in-section {
   opacity: 0;
   transform: translateY(20px);
   transition: opacity 0.6s ease-out, transform 0.6s ease-out;
 }
-
 .fade-in-section.is-visible {
   opacity: 1;
   transform: translateY(0);
