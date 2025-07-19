@@ -1,6 +1,6 @@
 // src/components/Header.jsx
 import styles from './Header.module.css';     // 1. Import the CSS module
-import logo from '../assets/logo-1.png';     // 2. Keep your logo import
+import logo from '../assets/echomind-icon-1.jpg';     // 2. Keep your logo import
 
 const Header = () => {
   // 3. All inline style objects are now removed.
