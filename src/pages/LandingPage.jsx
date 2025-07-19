@@ -1,30 +1,32 @@
 // src/pages/LandingPage.jsx
+
+// --- Core Components ---
 import Header from '../components/Header';
 import HeroSection from '../components/HeroSection';
 import ShowcaseSection from '../components/ShowcaseSection';
 import FeaturesSection from '../components/FeaturesSection';
-import Footer from '../components/Footer';
 import FaqSection from '../components/FaqSection';
+import Footer from '../components/Footer';
+
+// --- NEWLY ADDED SECTIONS ---
+import AudienceSection from '../components/AudienceSection';
+import TestimonialsSection from '../components/TestimonialsSection';
 
 const LandingPage = () => {
-  const pageStyles = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    width: '100%'
-  };
-
+  // This main component assembles all the sections of the page in a logical narrative.
   return (
-    <div style={pageStyles}>
+    <>
       <Header />
-      <main style={{width: '100%'}}>
+      <main>
         <HeroSection />
         <ShowcaseSection />
+        <AudienceSection />
         <FeaturesSection />
+        <TestimonialsSection />
+        <FaqSection />
       </main>
-      <FaqSection />
       <Footer />
-    </div>
+    </>
   );
 };
 

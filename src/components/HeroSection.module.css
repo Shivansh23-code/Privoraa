@@ -6,31 +6,28 @@
     flex-direction: column;
     align-items: center;
 }
-
 .container {
     max-width: 800px;
 }
-
 .title {
     font-size: 3.5rem;
     color: var(--color-text);
-    /* Responsive font size for smaller screens */
-    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    font-size: clamp(2.8rem, 6vw, 4rem); /* Responsive font size */
+    line-height: 1.1;
 }
-
 .subtitle {
     font-size: 1.25rem;
     color: #6C757D;
     margin: 1.5rem 0 2.5rem 0;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
 }
-
 .form {
     display: flex;
-    flex-wrap: wrap; /* Allow wrapping on small screens */
     gap: 1rem;
     justify-content: center;
 }
-
 .input {
     padding: 1rem;
     font-size: 1rem;
@@ -39,13 +36,11 @@
     border: 1px solid var(--color-border);
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-
 .input:focus {
     outline: none;
     border-color: var(--color-primary);
     box-shadow: 0 0 0 3px hsla(var(--hue, 221), 90%, 60%, 0.3);
 }
-
 .button {
     padding: 1rem 2rem;
     font-size: 1rem;
@@ -57,20 +52,37 @@
     font-weight: 500;
     transition: background-color 0.2s ease;
 }
-
 .button:hover {
     background-color: var(--color-primary-dark);
 }
-
-.message {
+.ctaSubtext {
     margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #6C757D;
+}
+.message {
+    margin-top: 1.5rem;
     font-weight: 500;
 }
-
 .message.error {
     color: var(--color-error);
 }
-
 .message.success {
     color: var(--color-success);
+}
+
+/* --- MOBILE OPTIMIZATION --- */
+@media (max-width: 768px) {
+    .section {
+        padding: 4rem 1.5rem;
+    }
+    .form {
+        flex-direction: column;
+        width: 100%;
+        max-width: 380px;
+        align-items: center;
+    }
+    .input, .button {
+        width: 100%;
+    }
 }
