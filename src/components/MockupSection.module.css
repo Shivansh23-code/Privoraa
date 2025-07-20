@@ -1,36 +1,45 @@
-.mockupSection {
-  padding: 4rem 2rem;
-  background-color: var(--background-color);
-  color: var(--text-color);
+/* src/components/MockupSection.module.css */
+.mockup {
+  padding: 5rem 2rem;
+  background-color: #0f0f0f;
   text-align: center;
+  color: #fff;
 }
 
-.container {
-  max-width: 960px;
-  margin: 0 auto;
-}
-
-h2 {
-  font-size: 2.25rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  font-family: 'Orbitron', sans-serif;
-}
-
-.subtext {
-  font-size: 1rem;
-  color: var(--text-muted);
+.heading {
+  font-size: 2.5rem;
   margin-bottom: 2rem;
-}
-
-.imageWrapper {
-  display: flex;
-  justify-content: center;
+  font-family: 'Orbitron', sans-serif;
 }
 
 .image {
   max-width: 100%;
   height: auto;
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border-radius: 1rem;
+  box-shadow: 0 0 30px rgba(0, 255, 204, 0.1);
+
+  opacity: 0;
+  transform: translateY(30px);
+  animation: fadeInImage 1.2s ease forwards;
+  animation-delay: 0.2s;
+}
+
+/* ✨ Fade-in Animation */
+@keyframes fadeInImage {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .heading {
+    font-size: 2rem;
+  }
+
+  .image {
+    width: 100%;
+    max-width: 90vw;
+  }
 }

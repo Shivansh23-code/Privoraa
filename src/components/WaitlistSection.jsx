@@ -3,64 +3,91 @@ import styles from './WaitlistSection.module.css';
 
 const WaitlistSection = () => {
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState(null);
+  const [status, setStatus] = useState(''); // 'error' | 'success' | ''
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Basic email validation regex
+  const validateEmail = (email) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setStatus('');
+    setMessage('');
 
-    try {
-      const res = await fetch('http://localhost:8081/api/waitlist', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
-
-      if (res.ok) {
-        setStatus('success');
-        setEmail('');
-      } else {
-        const data = await res.json();
-        if (data.message?.includes('already exists')) {
-          setStatus('exists');
-        } else {
-          setStatus('error');
-        }
-      }
-    } catch (err) {
-      console.error(err);
+    if (!validateEmail(email)) {
       setStatus('error');
+      setMessage('Please enter a valid email address.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Simulate API call delay
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // TODO: Replace above with actual API call to submit waitlist email
+
+      setStatus('success');
+      setMessage('Thank you for joining the waitlist!');
+      setEmail('');
+    } catch (err) {
+      setStatus('error');
+      setMessage('Oops! Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBlur = () => {
+    if (email && !validateEmail(email)) {
+      setStatus('error');
+      setMessage('Please enter a valid email address.');
+    } else {
+      setStatus('');
+      setMessage('');
     }
   };
 
   return (
-    <section className={styles.waitlistSection}>
-      <div className={styles.container}>
-        <h2>Join the Waitlist</h2>
-        <p className={styles.subtext}>
-          Be the first to know when Privoraa launches. Get early access and updates!
+    <section className={styles.waitlist}>
+      <h2>Join Our Waitlist</h2>
+      <p>Be the first to get exclusive access to Privoraa’s AI assistant.</p>
+      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+        <input
+          type="email"
+          name="email"
+          placeholder="Enter your email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onBlur={handleBlur}
+          className={`${styles.input} ${status === 'error' ? styles.error : ''}`}
+          aria-invalid={status === 'error'}
+          aria-describedby="email-status"
+          required
+        />
+        <button type="submit" disabled={loading} className={styles.button}>
+          {loading ? (
+            <>
+              Submitting
+              <span className={styles.spinner} aria-hidden="true"></span>
+            </>
+          ) : (
+            'Join Waitlist'
+          )}
+        </button>
+        <p
+          id="email-status"
+          className={`${styles.message} ${
+            status === 'error' ? styles.error : status === 'success' ? styles.success : ''
+          }`}
+          role={status === 'error' ? 'alert' : 'status'}
+        >
+          {message}
         </p>
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <input
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <button type="submit">Join Now</button>
-        </form>
-        {status === 'success' && (
-          <p className={styles.success}>🎉 You’ve been added to the waitlist!</p>
-        )}
-        {status === 'exists' && (
-          <p className={styles.exists}>⚠️ This email is already on the list.</p>
-        )}
-        {status === 'error' && (
-          <p className={styles.error}>❌ Something went wrong. Please try again.</p>
-        )}
-      </div>
+      </form>
     </section>
   );
 };
