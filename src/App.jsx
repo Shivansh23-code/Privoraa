@@ -1,10 +1,11 @@
-// src/App.jsx
 import LandingPage from './pages/LandingPage';
-import './index.css';
+import { ThemeProvider } from './context/ThemeContext';
 
 function App() {
   return (
-    <LandingPage />
+    <ThemeProvider>
+      <LandingPage />
+    </ThemeProvider>
   );
 }
 

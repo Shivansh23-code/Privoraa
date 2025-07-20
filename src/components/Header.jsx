@@ -1,5 +1,6 @@
 import styles from './Header.module.css';
-import logo from '../assets/logo.png';
+import logo from '../assets/privoraa-logo.png';
+import ThemeToggle from './ThemeToggle'; // Import the new component
 
 const Header = () => {
   return (
@@ -9,9 +10,9 @@ const Header = () => {
           <img src={logo} alt="Privoraa Logo" className={styles.logoImage} />
           <span className={styles.brandName}>Privoraa</span>
         </a>
+        <ThemeToggle /> {/* Add the toggle button */}
       </div>
     </header>
   );
 };
-
 export default Header;

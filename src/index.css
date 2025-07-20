@@ -2,15 +2,23 @@
 
 :root {
   --font-body: 'Inter', sans-serif;
+  --bg-color: #111827; /* Dark Gray */
+  --surface-color: #1F2937; /* Lighter Dark Gray */
+  --text-color: #F9FAFB; /* Off-white */
+  --text-muted-color: #9CA3AF; /* Gray */
+  --button-bg: #4F46E5; /* Indigo */
+  --button-hover: #4338CA; /* Darker Indigo */
+  --border-color: #374151;
+}
 
-  /* Your new color palette */
-  --color-primary: #0f766e;   /* The bold teal accent */
-  --color-background: #f9fafb; /* Soft background */
-  --color-surface: #FFFFFF;   /* White for cards/inputs */
-  --color-text-heading: #1f2937;
-  --color-text-body: #374151;
-  --color-text-muted: #6b7280;
-  --color-border: #d1d5db;
+[data-theme='light'] {
+  --bg-color: #FFFFFF;
+  --surface-color: #F9FAFB;
+  --text-color: #111827;
+  --text-muted-color: #6B7280;
+  --button-bg: #4F46E5;
+  --button-hover: #4338CA;
+  --border-color: #E5E7EB;
 }
 
 * {
@@ -21,10 +29,9 @@
 
 body {
   font-family: var(--font-body);
-  background-color: var(--color-background);
-  color: var(--color-text-body);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  transition: background-color 0.3s, color 0.3s;
 }
 
 h1, h2, h3 {

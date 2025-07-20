@@ -9,7 +9,10 @@ const Footer = () => {
             <a href="mailto:contact@privoraa.com">Contact</a>
         </div>
         <p className={styles.copyright}>
-            &copy; {new Date().getFullYear()} Privoraa
+            &copy; {new Date().getFullYear()} Privoraa •
+            All rights reserved.
+            <br />
+            {/* Made with ❤️ by the Privoraa Co-Founder */}
         </p>
     </footer>
   );
