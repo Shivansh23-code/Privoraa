@@ -1,0 +1,14 @@
+.section {
+    padding: 4rem 1.5rem 6rem;
+    background-color: var(--color-background);
+    display: flex;
+    justify-content: center;
+}
+
+.mockup {
+    max-width: 100%;
+    width: 350px; /* Adjust size as needed */
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.1);
+}

@@ -3,14 +3,14 @@
 :root {
   --font-body: 'Inter', sans-serif;
 
-  /* Final, professional color palette */
-  --color-primary: #0B57D0;   /* A deep, trustworthy blue */
-  --color-background: #FFFFFF;
-  --color-surface: #F8F9FA;   /* Subtle gray for section backgrounds */
-  --color-text-heading: #18181B;
-  --color-text-body: #3F3F46;
-  --color-text-muted: #71717A;
-  --color-border: #E4E4E7;
+  /* Your new color palette */
+  --color-primary: #0f766e;   /* The bold teal accent */
+  --color-background: #f9fafb; /* Soft background */
+  --color-surface: #FFFFFF;   /* White for cards/inputs */
+  --color-text-heading: #1f2937;
+  --color-text-body: #374151;
+  --color-text-muted: #6b7280;
+  --color-border: #d1d5db;
 }
 
 * {
@@ -34,4 +34,5 @@ h1, h2, h3 {
 
 p {
   line-height: 1.6;
+  font-size: 1rem;
 }
