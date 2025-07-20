@@ -1,18 +1,16 @@
 import styles from './Header.module.css';
-import logo from '../assets/privoraa-logo.png';
-import ThemeToggle from './ThemeToggle'; // Import the new component
+import ThemeToggle from './ThemeToggle';
 
 const Header = () => {
   return (
     <header className={styles.header}>
-      <div className={styles.container}>
-        <a href="/" className={styles.logoLink}>
-          <img src={logo} alt="Privoraa Logo" className={styles.logoImage} />
-          <span className={styles.brandName}>Privoraa</span>
-        </a>
-        <ThemeToggle /> {/* Add the toggle button */}
+      <div className={styles.logo}>
+        <img src="/logo.png" alt="Privoraa Logo" />
+        <span>Privoraa</span>
       </div>
+      <ThemeToggle />
     </header>
   );
 };
+
 export default Header;

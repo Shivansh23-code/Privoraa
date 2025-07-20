@@ -1,15 +1,20 @@
+import React from 'react';
+import Header from '../components/Header';
 import HeroSection from '../components/HeroSection';
-import BenefitsSection from '../components/BenefitsSection';
+import FeaturesSection from '../components/FeaturesSection';
 import MockupSection from '../components/MockupSection';
+import WaitlistSection from '../components/WaitlistSection';
 import Footer from '../components/Footer';
 
 const LandingPage = () => {
   return (
     <>
+      <Header />
       <main>
         <HeroSection />
-        <BenefitsSection />
+        <FeaturesSection />
         <MockupSection />
+        <WaitlistSection />
       </main>
       <Footer />
     </>

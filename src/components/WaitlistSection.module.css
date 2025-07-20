@@ -1,0 +1,72 @@
+.waitlistSection {
+  padding: 4rem 1rem;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  text-align: center;
+  border-top: 1px solid var(--color-border);
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.subtext {
+  font-size: 1rem;
+  color: var(--color-muted);
+  margin-bottom: 2rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+input[type="email"] {
+  padding: 0.75rem 1rem;
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  font-size: 1rem;
+  outline: none;
+  background-color: var(--color-input);
+  color: var(--color-text);
+}
+
+button {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  background-color: var(--color-accent);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: var(--color-accent-hover);
+}
+
+.success {
+  margin-top: 1rem;
+  color: #10b981;
+}
+
+.exists {
+  margin-top: 1rem;
+  color: #f59e0b;
+}
+
+.error {
+  margin-top: 1rem;
+  color: #ef4444;
+}

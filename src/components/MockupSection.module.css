@@ -1,14 +1,36 @@
-.section {
-    padding: 4rem 1.5rem 6rem;
-    background-color: var(--color-background);
-    display: flex;
-    justify-content: center;
+.mockupSection {
+  padding: 4rem 2rem;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  text-align: center;
 }
 
-.mockup {
-    max-width: 100%;
-    width: 350px; /* Adjust size as needed */
-    height: auto;
-    border-radius: 12px;
-    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.1);
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+h2 {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  font-family: 'Orbitron', sans-serif;
+}
+
+.subtext {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.imageWrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }

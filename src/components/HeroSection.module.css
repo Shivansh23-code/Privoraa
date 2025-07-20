@@ -1,159 +1,43 @@
-/* Animation Keyframes */
-@keyframes slideInUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+.hero {
+  padding: 100px 20px;
+  text-align: center;
+  background: linear-gradient(135deg, #0f172a, #1e293b);
+  color: #ffffff;
 }
 
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
-    70% { box-shadow: 0 0 0 10px rgba(79, 70, 229, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+.content {
+  max-width: 800px;
+  margin: 0 auto;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
+.content h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  font-family: 'Orbitron', sans-serif;
+  margin-bottom: 1rem;
+  line-height: 1.2;
 }
 
-/* Base Section Styles */
-.section {
-    padding: 6rem 1.5rem;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background-color: var(--surface-color);
+.content p {
+  font-size: 1.2rem;
+  font-weight: 400;
+  margin-bottom: 2rem;
+  font-family: 'Inter', sans-serif;
 }
 
-.container {
-    max-width: 800px;
-    margin: 0 auto;
+.ctaButton {
+  display: inline-block;
+  background-color: #3b82f6;
+  color: #ffffff;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.3s ease;
 }
 
-/* Applying slide-in animation to child elements */
-.animated > * {
-    animation: slideInUp 0.8s ease-out forwards;
-    opacity: 0;
-}
-.animated .tagline { animation-delay: 0.2s; }
-.animated .subheadline { animation-delay: 0.4s; }
-.animated .form { animation-delay: 0.6s; }
-.animated .successMessage { animation-delay: 0.6s; }
-
-/* Typography Styles */
-.headline {
-    font-size: clamp(2.5rem, 6vw, 3.75rem);
-    font-weight: 800;
-}
-
-.tagline {
-    font-size: 1.25rem;
-    font-weight: 500;
-    color: var(--button-bg); /* Uses button color for a nice accent */
-    margin-top: 1rem;
-}
-
-.subheadline {
-    margin: 1.5rem auto 2.5rem;
-    max-width: 600px;
-    font-size: 1.25rem;
-    color: var(--text-muted-color);
-}
-
-/* Form Styles */
-.form {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    width: 100%;
-    max-width: 450px;
-    margin: 0 auto;
-}
-
-.input {
-    flex-grow: 1;
-    padding: 0.75rem 1rem;
-    font-size: 1rem;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    transition: border-color 0.3s, box-shadow 0.3s;
-}
-
-.input:focus {
-    border-color: var(--button-bg);
-    box-shadow: 0 0 0 3px var(--button-hover);
-    outline: none;
-}
-
-.button {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    background-color: var(--button-bg);
-    color: #FFFFFF;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.3s, transform 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 130px; /* Ensures button doesn't shrink when showing spinner */
-}
-
-.button:hover:not(:disabled) {
-    background-color: var(--button-hover);
-    animation: pulse 1.5s infinite;
-}
-
-.button:disabled {
-    background-color: var(--text-muted-color);
-    cursor: not-allowed;
-}
-
-.spinner {
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #fff;
-    border-radius: 50%;
-    width: 1.25rem;
-    height: 1.25rem;
-    animation: spin 1s linear infinite;
-}
-
-/* Form Feedback Message Styles */
-.successMessage, .errorMessage {
-    margin-top: 1.5rem;
-    padding: 1rem;
-    border-radius: 8px;
-    font-weight: 500;
-    max-width: 450px;
-    margin-left: auto;
-    margin-right: auto;
-}
-
-.successMessage {
-    background-color: #D1FAE5;
-    color: #065F46;
-    border: 1px solid #6EE7B7;
-}
-
-.errorMessage {
-    background-color: #FEE2E2;
-    color: #991B1B;
-    border: 1px solid #FCA5A5;
-}
-
-/* Improved Mobile Responsiveness */
-@media (max-width: 420px) {
-    .section {
-        padding-top: 4rem;
-        padding-bottom: 4rem;
-    }
-    .form {
-        flex-direction: column;
-    }
-    .input, .button {
-        width: 100%;
-    }
+.ctaButton:hover {
+  background-color: #2563eb;
 }

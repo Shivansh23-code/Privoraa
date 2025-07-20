@@ -1,12 +1,19 @@
+import React from 'react';
 import styles from './MockupSection.module.css';
-import mockupImg from '../assets/privoraa-mockup-2.jpg';
+import mockup from '../assets/privoraa-mockup-1.jpg';
 
 const MockupSection = () => {
-    return (
-        <section className={styles.section}>
-            <img src={mockupImg} alt="Privoraa App Screenshot" className={styles.mockup} />
-        </section>
-    );
+  return (
+    <section className={styles.mockupSection}>
+      <div className={styles.container}>
+        <h2>See Privoraa in Action</h2>
+        <p className={styles.subtext}>Preview how Privoraa simplifies your digital life with a private AI experience.</p>
+        <div className={styles.imageWrapper}>
+          <img src={mockup} alt="Privoraa App Mockup" className={styles.image} />
+        </div>
+      </div>
+    </section>
+  );
 };
 
 export default MockupSection;
