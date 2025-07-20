@@ -3,15 +3,14 @@
 :root {
   --font-body: 'Inter', sans-serif;
 
-  /* Refined, professional color palette */
+  /* Final, professional color palette */
+  --color-primary: #0B57D0;   /* A deep, trustworthy blue */
   --color-background: #FFFFFF;
-  --color-surface: #F9FAFB;   /* A very light gray for cards/sections */
-  --color-primary: #4338CA;   /* A stronger, more confident indigo */
-  --color-primary-light: #E0E7FF;
-  --color-text-heading: #1F2937; /* A softer, near-black */
-  --color-text-body: #374151;
-  --color-text-muted: #6B7280;
-  --color-border: #E5E7EB;
+  --color-surface: #F8F9FA;   /* Subtle gray for section backgrounds */
+  --color-text-heading: #18181B;
+  --color-text-body: #3F3F46;
+  --color-text-muted: #71717A;
+  --color-border: #E4E4E7;
 }
 
 * {
@@ -28,18 +27,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1, h2, h3 {
   color: var(--color-text-heading);
   line-height: 1.2;
 }
 
-/* Global Animation Styles */
-.fade-in-section {
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-}
-.fade-in-section.is-visible {
-  opacity: 1;
-  transform: translateY(0);
+p {
+  line-height: 1.6;
 }

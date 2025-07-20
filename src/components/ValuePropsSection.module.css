@@ -2,7 +2,6 @@
     padding: 6rem 1.5rem;
     background-color: var(--color-surface);
 }
-
 .container {
     max-width: 1100px;
     margin: 0 auto;
@@ -10,35 +9,27 @@
     grid-template-columns: repeat(3, 1fr);
     gap: 2rem;
 }
-
-.card {
+.prop {
     text-align: center;
     padding: 2rem;
 }
-
 .icon {
     font-size: 2.5rem;
     margin-bottom: 1.5rem;
+    display: block;
 }
-
 .title {
     font-size: 1.25rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
 }
-
 .description {
     color: var(--color-text-muted);
     line-height: 1.6;
 }
-
-/* --- MOBILE OPTIMIZATION --- */
 @media (max-width: 768px) {
     .container {
         grid-template-columns: 1fr;
         gap: 3rem;
-    }
-    .section {
-        padding: 4rem 1.5rem;
     }
 }

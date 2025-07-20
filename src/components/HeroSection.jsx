@@ -1,26 +1,27 @@
-import { useState } from 'react';
 import styles from './HeroSection.module.css';
 
 const HeroSection = () => {
-    const [email, setEmail] = useState('');
-    // ... same form submission logic as before ...
+    // Note: The form is visually present but logic can be added here
+    const handleJoinWaitlist = (e) => {
+        e.preventDefault();
+        alert("Thank you for joining the waitlist!");
+    };
 
     return (
         <section className={styles.section}>
             <div className={styles.container}>
-                <h1 className={styles.headline}>Meet EchoMind</h1>
-                <h2 className={styles.subheadline}>Your second brain — remembers what matters, even offline.</h2>
-                <p className={styles.description}>
-                    The private AI assistant designed to help you focus, stay organized, and never forget a thing — even when life goes offline.
+                <h1 className={styles.headline}>Privoraa — Your Private AI Companion</h1>
+                <p className={styles.subheadline}>
+                    Built to help you focus, remember, and feel safe — even offline.
                 </p>
-                
-                <form className={styles.form}>
-                    <button className={styles.button}>Join the Waitlist</button>
-                </form>
-
-                <p className={styles.ctaSubtext}>
-                    Early access invites going out soon. Don’t miss yours.
-                </p>
+                <div className={styles.ctaContainer}>
+                    <form onSubmit={handleJoinWaitlist}>
+                        <button type="submit" className={styles.button}>Join Early Access</button>
+                    </form>
+                    <p className={styles.ctaSubtext}>
+                        Limited invites going out soon. Secure yours.
+                    </p>
+                </div>
             </div>
         </section>
     );

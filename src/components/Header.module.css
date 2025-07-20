@@ -1,37 +1,32 @@
-/* src/components/Header.module.css */
-
 .header {
     width: 100%;
-    padding: 1.5rem 2rem;
+    padding: 1.25rem 1.5rem;
     display: flex;
     justify-content: center;
-    background-color: var(--color-white);
     border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    backdrop-filter: blur(8px);
+    background-color: rgba(255, 255, 255, 0.85);
 }
-
 .container {
     width: 100%;
     max-width: 1100px;
 }
-
-/* This style makes the logo and text act as a single clickable unit */
 .logoLink {
     display: inline-flex;
     align-items: center;
-    gap: 12px; /* Creates space between the image and the text */
-    text-decoration: none; /* Removes the link underline */
+    gap: 10px;
+    text-decoration: none;
 }
-
-/* This controls the size of your logo image */
 .logoImage {
-    height: 40px; /* You can adjust this value */
+    height: 36px;
     width: auto;
 }
-
-/* This styles the "EchoMind" text next to the logo */
 .logoText {
-    font-family: var(--font-heading);
-    font-weight: 700;
     font-size: 1.5rem;
-    color: var(--color-text);
+    font-weight: 700;
+    color: var(--color-text-heading);
+    line-height: 1;
 }

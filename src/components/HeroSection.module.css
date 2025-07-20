@@ -1,76 +1,56 @@
 .section {
-    position: relative; /* For background image positioning */
+    padding: 8rem 1.5rem;
     text-align: center;
-    padding: 9rem 1.5rem; /* Increased padding */
-    background-color: #0c0a27; /* Fallback color */
-    background-image: url('../assets/hero-background.jpg');
-    background-size: cover;
-    background-position: center;
-    overflow: hidden;
+    background-color: var(--color-surface);
 }
-
-.section::before { /* Adds a subtle overlay */
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(12, 10, 39, 0.6);
-}
-
 .container {
-    position: relative; /* Ensures content is above the overlay */
     max-width: 800px;
     margin: 0 auto;
 }
-
 .headline {
-    color: #E0E7FF; /* Light indigo for the top headline */
-    font-size: 1.125rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    font-size: clamp(2.5rem, 6vw, 3.75rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
 }
-
 .subheadline {
-    color: var(--color-surface);
-    font-size: clamp(2.5rem, 6vw, 4rem); /* Much larger font size */
-    font-weight: 800; /* Bolder */
-    letter-spacing: -0.025em;
-    margin-top: 1rem;
-}
-
-.description {
     margin: 1.5rem auto 2.5rem;
     max-width: 600px;
     font-size: 1.25rem;
-    color: #D1D5DB; /* Lighter text color for contrast */
-    line-height: 1.6;
+    color: var(--color-text-muted);
 }
-
-.form {
-    margin-bottom: 1rem;
+.ctaContainer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
 }
-
 .button {
-    padding: 1rem 2.5rem; /* Bigger button */
+    padding: 1rem 2.5rem;
     font-size: 1.125rem;
-    background-color: var(--color-surface);
-    color: var(--color-primary);
+    background-color: var(--color-primary);
+    color: #FFFFFF;
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    font-weight: 700; /* Bolder text */
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    font-weight: 600;
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
-
 .button:hover {
+    background-color: #0A4AB5;
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(249, 250, 251, 0.1);
 }
-
 .ctaSubtext {
-    color: #9CA3AF;
-    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+}
+@media (max-width: 768px) {
+    .section {
+        padding: 6rem 1rem;
+    }
+    .headline {
+        font-size: 2.25rem;
+    }
+    .subheadline {
+        font-size: 1.1rem;
+    }
 }

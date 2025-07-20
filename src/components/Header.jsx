@@ -1,17 +1,13 @@
-// src/components/Header.jsx
-import styles from './Header.module.css';     // 1. Import the CSS module
-import logo from '../assets/echomind-icon.png';     // 2. Keep your logo import
+import styles from './Header.module.css';
+import logo from '../assets/privoraa-icon-1.png'; // Using your final chosen icon
 
 const Header = () => {
-  // 3. All inline style objects are now removed.
-
   return (
     <header className={styles.header}>
       <div className={styles.container}>
-        {/* 4. The link now includes the image and text for better branding */}
         <a href="/" className={styles.logoLink}>
-          <img src={logo} alt="EchoMind Logo" className={styles.logoImage} />
-          <span className={styles.logoText}>EchoMind</span>
+          <img src={logo} alt="Privoraa Logo" className={styles.logoImage} />
+          <span className={styles.logoText}>Privoraa</span>
         </a>
       </div>
     </header>
