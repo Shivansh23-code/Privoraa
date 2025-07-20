@@ -1,5 +1,5 @@
 import styles from './HeroSection.module.css';
-import logo from '../assets/privoraa-logo.png';
+import logo from '../assets/logo.png';
 
 const HeroSection = () => {
     // Placeholder for form submission logic
