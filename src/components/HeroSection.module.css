@@ -1,70 +1,46 @@
 .section {
-    padding: 8rem 1.5rem 6rem; /* Increased top padding */
+    padding: 6rem 1.5rem;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
     background-color: var(--color-surface);
 }
-
 .container {
     max-width: 800px;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    margin: 0 auto;
 }
-
-.headlineContainer {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.logo {
-    height: 48px; /* Control the size of the logo here */
-    width: auto;
-}
-
 .headline {
-    font-size: 3.5rem;
+    font-size: clamp(2.5rem, 6vw, 3.75rem);
     font-weight: 800;
-    letter-spacing: -0.02em;
-    font-family: 'Orbitron', sans-serif; /* Using the brand font */
 }
-
+.tagline {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--color-primary);
+    margin-top: 1rem;
+}
 .subheadline {
-    max-width: 550px;
+    margin: 1.5rem auto 2.5rem;
+    max-width: 600px;
     font-size: 1.25rem;
     color: var(--color-text-muted);
-    margin-bottom: 2.5rem;
-    line-height: 1.6;
 }
-
 .form {
     display: flex;
     gap: 0.75rem;
+    justify-content: center;
     width: 100%;
-    max-width: 450px; /* Constrain form width */
-    margin-bottom: 2rem;
+    max-width: 450px;
+    margin: 0 auto;
 }
-
 .input {
-    flex-grow: 1; /* Allows input to take available space */
+    flex-grow: 1;
     padding: 0.75rem 1rem;
     font-size: 1rem;
     border-radius: 8px;
     border: 1px solid var(--color-border);
-    transition: box-shadow 0.2s ease;
 }
-
-.input:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px var(--color-primary-light); /* Added focus glow */
-}
-
 .button {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
@@ -74,44 +50,33 @@
     border-radius: 8px;
     cursor: pointer;
     font-weight: 500;
-    transition: background-color 0.2s ease; /* Added transition for hover */
 }
-
-.button:hover {
-    background-color: #0A4AB5; /* Darker shade for hover */
+.button:disabled {
+    background-color: #A5B4FC;
+    cursor: not-allowed;
 }
-
-.valueProps {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    color: var(--color-text-muted);
-    font-size: 0.9rem;
+/* Styles for the success/error messages */
+.successMessage, .errorMessage {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border-radius: 8px;
+    font-weight: 500;
     max-width: 450px;
-    text-align: left; /* Aligns the bullets nicely */
+    margin-left: auto;
+    margin-right: auto;
 }
-
-.prop {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+.successMessage {
+    background-color: #D1FAE5;
+    color: #065F46;
+    border: 1px solid #6EE7B7;
 }
-
-/* --- MOBILE OPTIMIZATION --- */
+.errorMessage {
+    background-color: #FEE2E2;
+    color: #991B1B;
+    border: 1px solid #FCA5A5;
+}
 @media (max-width: 640px) {
-    .section {
-        padding: 5rem 1rem;
-    }
-    .headline {
-        font-size: 2.5rem; /* Reduced headline size */
-    }
-    .subheadline {
-        font-size: 1.1rem;
-    }
     .form {
         flex-direction: column;
-    }
-    .valueProps {
-        text-align: center;
     }
 }
