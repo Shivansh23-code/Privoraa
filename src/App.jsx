@@ -1,13 +1,15 @@
 import React from 'react';
 import LandingPage from './pages/LandingPage';
-import { ThemeProvider } from './context/ThemeContext';
+import Footer from './components/Footer';
+import './index.css';
 
-const App = () => {
+function App() {
   return (
-    <ThemeProvider>
+    <>
       <LandingPage />
-    </ThemeProvider>
+      <Footer />
+    </>
   );
-};
+}
 
 export default App;

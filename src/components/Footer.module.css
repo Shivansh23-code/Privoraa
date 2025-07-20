@@ -1,26 +1,42 @@
+/* src/components/Footer.module.css */
+
 .footer {
-  padding: 2rem 1rem;
-  background-color: var(--background);
-  color: var(--text);
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text);
+  padding: 3rem 1.5rem;
   text-align: center;
-  font-size: 0.9rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--color-border);
+}
+
+.content {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.description {
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
 }
 
 .links {
-  margin-top: 0.75rem;
-  display: flex;
-  justify-content: center;
-  gap: 1.5rem;
-  flex-wrap: wrap;
+  margin-bottom: 1.2rem;
 }
 
 .links a {
-  color: var(--accent);
+  color: var(--color-accent);
   text-decoration: none;
-  transition: color 0.3s ease;
+  margin: 0 0.75rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
 }
 
 .links a:hover {
-  color: var(--text);
+  color: var(--color-accent-hover);
+}
+
+.copy {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
 }
