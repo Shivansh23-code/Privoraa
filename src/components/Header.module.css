@@ -1,25 +1,112 @@
+/* src/components/Header.module.css */
+
 .header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem 2rem;
-  background-color: var(--bg-primary);
-  border-bottom: 1px solid var(--border-color);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  transition: background-color 0.3s ease, border-bottom 0.3s ease, backdrop-filter 0.3s ease;
+  z-index: 1000;
 }
 
-.logo {
+/* This class is applied on scroll */
+.header.scrolled {
+  background-color: hsla(0, 0%, 100%, 0.8);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+html.dark .header.scrolled {
+  background-color: hsla(222, 47%, 11%, 0.8); 
+}
+
+.logoLink {
   display: flex;
   align-items: center;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  text-decoration: none; 
 }
 
-.logo img {
-  height: 40px;
-  margin-right: 0.5rem;
+.logoImage {
+  height: 40px; 
+  width: auto; 
+  border-radius: 50px;
+  transition: opacity 0.3s ease;
+}
+
+.logoImage:hover {
+  opacity: 0.9;
+}
+
+.logoName {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-left: 0.75rem; /* 12px */
+}
+
+.logo a {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+
+.nav {
+  display: flex;
+  gap: 2rem;
+}
+
+.nav a {
+  text-decoration: none;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: color 0.2s ease;
+}
+
+.nav a:hover {
+  color: var(--color-text-primary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+}
+
+/* --- Responsive Design --- */
+@media (max-width: 768px) {
+  .nav {
+    display: none;
+  }
+  .header {
+    padding: 1rem;
+  }
+}
+
+.header .menu-toggle {
+  display: none; 
+  cursor: pointer;
+} 
+.header .menu-toggle.active {
+  display: block; 
+}
+
+.header .mobile-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  padding: 1rem 0;
+  z-index: 1000;
+}
+
+.header .mobile-menu.active {
+  display: block; /* Show when active */
 }

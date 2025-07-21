@@ -1,22 +1,35 @@
 // src/context/ThemeContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export const ThemeContext = createContext();
+import React, { createContext, useState, useEffect } from 'react';
 
-export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState('light');
+const ThemeContext = createContext();
+
+const ThemeProvider = ({ children }) => {
+  // Initialize state from localStorage or user's system preference
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      return savedTheme;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    setTheme(savedTheme);
-    document.documentElement.setAttribute('data-theme', savedTheme);
-  }, []);
+    const root = window.document.documentElement;
+    
+    // Remove the other class to ensure only one is active
+    const oldTheme = theme === 'dark' ? 'light' : 'dark';
+    root.classList.remove(oldTheme);
+    
+    // Add the current theme class to the <html> element
+    root.classList.add(theme);
+    
+    // Save the user's preference to localStorage
+    localStorage.setItem('theme', theme);
+  }, [theme]);
 
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
-    setTheme(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('theme', newTheme);
+    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
   return (
@@ -26,5 +39,4 @@ export const ThemeProvider = ({ children }) => {
   );
 };
 
-// Optional helper
-export const useTheme = () => useContext(ThemeContext);
+export { ThemeContext, ThemeProvider };

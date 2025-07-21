@@ -2,24 +2,37 @@
 
 /* CSS Variables for Light and Dark Theme */
 :root {
+  --color-primary: #4f46e5;
+  --color-primary-dark: #4338ca;
+  --color-primary-light: rgba(79, 70, 229, 0.1);
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
   --color-bg: #ffffff;
-  --color-text: #111827;
-  --color-primary: #6366f1;
-  --color-secondary: #4b5563;
-  --color-accent: #f59e0b;
+  --color-bg-secondary: #f9fafb;
   --color-border: #e5e7eb;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  --color-error: #ef4444;
+
+  /* For the toggle button */
+  --toggle-bg: #e5e7eb;
+  --toggle-fg: #ffffff;
 }
 
-[data-theme='dark'] {
+html.dark {
+  --color-primary: #6366f1;
+  --color-primary-dark: #4f46e5;
+  --color-primary-light: #3730a3;
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #9ca3af;
   --color-bg: #111827;
-  --color-text: #f9fafb;
-  --color-primary: #818cf8;
-  --color-secondary: #9ca3af;
-  --color-accent: #fbbf24;
+  --color-bg-secondary: #1f2937;
   --color-border: #374151;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  --color-error: #f87171;
+
+  /* For the toggle button */
+  --toggle-bg: #4b5563;
+  --toggle-fg: #111827;
 }
+
 
 /* Global Reset and Base Styles */
 * {
@@ -33,7 +46,7 @@ body {
   height: 100%;
   font-family: 'Inter', sans-serif;
   background-color: var(--color-bg);
-  color: var(--color-text);
+  color: var(--color-text-primary);
   scroll-behavior: smooth;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
