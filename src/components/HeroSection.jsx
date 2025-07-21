@@ -12,12 +12,17 @@ const HeroSection = () => {
       <div className={styles.overlay}>
         <div className={styles.content}>
           <h1 className={styles.title}>Privoraa</h1>
+          
+          {/* 🔹 Clear Subheadline */}
           <p className={styles.subtitle}>
-            Your Offline-First, Privacy-Focused AI Assistant
+            Your Private, Offline-First AI Companion
           </p>
-          <p className={styles.tagline}>
-            Built to help you focus, remember, and feel secure — even without the internet.
+
+          {/* 🔹 Supporting Line for Clarity */}
+          <p className={styles.description}>
+            Stay productive, secure, and informed — even when you're offline. From notes to health to logic, Privoraa keeps thinking with you.
           </p>
+
           <a href="#waitlist" className={styles.cta}>Join the Waitlist</a>
         </div>
       </div>
