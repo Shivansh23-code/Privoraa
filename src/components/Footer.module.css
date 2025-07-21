@@ -1,5 +1,3 @@
-/* src/components/Footer.module.css */
-
 .footer {
   background-color: var(--color-bg-secondary);
   color: var(--color-text);
@@ -21,14 +19,14 @@
 }
 
 .links {
-  margin-bottom: 1.2rem;
+  margin-bottom: 1.5rem; /* increased spacing */
 }
 
 .links a {
   color: var(--color-accent);
   text-decoration: none;
-  margin: 0 0.75rem;
-  font-weight: 500;
+  margin: 0 1rem; /* increased margin for spacing */
+  font-weight: 600; /* slightly bolder for contrast */
   transition: color 0.2s ease;
 }
 

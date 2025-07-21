@@ -1,30 +1,45 @@
-/* src/components/MockupSection.module.css */
 .mockup {
   padding: 5rem 2rem;
-  background-color: #0f0f0f;
+  background-color: var(--bg-section);
   text-align: center;
-  color: #fff;
+  color: var(--text-primary);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
 
 .heading {
   font-size: 2.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   font-family: 'Orbitron', sans-serif;
+}
+
+.subtext {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: 2.5rem;
+}
+
+.imageWrapper {
+  display: flex;
+  justify-content: center;
 }
 
 .image {
   max-width: 100%;
   height: auto;
   border-radius: 1rem;
-  box-shadow: 0 0 30px rgba(0, 255, 204, 0.1);
-
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
   opacity: 0;
   transform: translateY(30px);
-  animation: fadeInImage 1.2s ease forwards;
-  animation-delay: 0.2s;
+  animation: fadeInImage 1s ease forwards;
+  animation-delay: 0.3s;
 }
 
-/* ✨ Fade-in Animation */
+/* Fade-in Animation */
 @keyframes fadeInImage {
   to {
     opacity: 1;
@@ -38,8 +53,7 @@
     font-size: 2rem;
   }
 
-  .image {
-    width: 100%;
-    max-width: 90vw;
+  .subtext {
+    font-size: 1rem;
   }
 }

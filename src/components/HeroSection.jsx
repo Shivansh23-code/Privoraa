@@ -1,4 +1,3 @@
-// src/components/HeroSection.jsx
 import React from 'react';
 import styles from './HeroSection.module.css';
 

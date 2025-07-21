@@ -1,15 +1,13 @@
-.toggleButton {
-  background-color: transparent;
-  color: var(--text-color);
-  border: 2px solid var(--accent-color);
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 1rem;
+.toggleBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
   cursor: pointer;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: transform 0.3s ease, color 0.3s ease;
 }
-
-.toggleButton:hover {
-  background-color: var(--accent-color);
-  /* color: #16c52e; */
+.toggleBtn:hover {
+  transform: scale(1.2);
+  color: var(--accent-color);
 }

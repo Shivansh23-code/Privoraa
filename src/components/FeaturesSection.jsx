@@ -1,4 +1,3 @@
-// src/components/FeaturesSection.jsx
 import React from 'react';
 import styles from './FeaturesSection.module.css';
 
@@ -23,7 +22,7 @@ const FeaturesSection = () => {
       <h2 className={styles.heading}>Why Choose Privoraa?</h2>
       <div className={styles.grid}>
         {features.map((feature, index) => (
-          <div key={index} className={`${styles.card} fade-in`}>
+          <div key={index} className={`${styles.card} fade-in`} style={{animationDelay: `${0.2 * index}s`}}>
             <h3 className={styles.title}>{feature.title}</h3>
             <p className={styles.description}>{feature.description}</p>
           </div>
