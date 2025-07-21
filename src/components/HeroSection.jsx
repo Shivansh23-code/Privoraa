@@ -1,29 +1,22 @@
+// src/components/HeroSection.jsx
 import React from 'react';
 import styles from './HeroSection.module.css';
 
 const HeroSection = () => {
   return (
     <section className={styles.hero}>
-      {/* ✅ Hidden SEO Text */}
-      <div className={styles["visually-hidden"]}>
-        Privoraa is an offline-first, privacy-focused AI assistant that helps you stay productive, secure, and informed across education, health, fitness, and more — without relying on the internet.
-      </div>
-
       <div className={styles.overlay}>
         <div className={styles.content}>
           <h1 className={styles.title}>Privoraa</h1>
-          
-          {/* 🔹 Clear Subheadline */}
           <p className={styles.subtitle}>
-            Your Private, Offline-First AI Companion
+            Where intelligent chat meets complete privacy — and works even offline.
           </p>
-
-          {/* 🔹 Supporting Line for Clarity */}
-          <p className={styles.description}>
-            Stay productive, secure, and informed — even when you're offline. From notes to health to logic, Privoraa keeps thinking with you.
+          <p className={styles.tagline}>
+            Built for those who value control, speed, and secure communication.
           </p>
-
-          <a href="#waitlist" className={styles.cta}>Join the Waitlist</a>
+          <a href="#waitlist" className={styles.cta}>
+            Join Waitlist 🚀
+          </a>
         </div>
       </div>
     </section>

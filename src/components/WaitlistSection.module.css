@@ -31,10 +31,9 @@
   font-size: 1rem;
   border: 2px solid var(--border-light);
   border-radius: 8px;
-  outline-offset: 2px;
-  transition: border-color 0.3s ease;
-  color: var(--text-primary);
   background-color: var(--input-bg);
+  color: var(--text-primary);
+  transition: border-color 0.3s ease, background-color 0.3s ease;
 }
 
 .input:focus {
@@ -51,12 +50,16 @@
   padding: 0.85rem 1rem;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--btn-text);
-  background-color: var(--color-primary);
   border: none;
   border-radius: 8px;
   cursor: pointer;
+  background-color: var(--color-primary);
+  color: var(--btn-text);
   transition: background-color 0.3s ease;
+}
+
+.button:hover:not(:disabled) {
+  background-color: var(--color-primary-dark);
 }
 
 .button:disabled {
@@ -64,11 +67,7 @@
   cursor: not-allowed;
 }
 
-.button:hover:not(:disabled) {
-  background-color: var(--color-primary-dark);
-}
-
-/* Inline message styles */
+/* Feedback Message */
 .message {
   font-size: 0.9rem;
   min-height: 1.2rem;
@@ -85,17 +84,17 @@
   color: var(--color-success);
 }
 
-/* Loading spinner inside button */
+/* Spinner */
 .spinner {
   border: 2px solid var(--btn-text-light);
   border-top: 2px solid var(--btn-text);
   border-radius: 50%;
   width: 18px;
   height: 18px;
-  animation: spin 0.8s linear infinite;
   display: inline-block;
   vertical-align: middle;
   margin-left: 0.5rem;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
@@ -104,9 +103,22 @@
   }
 }
 
-/* Responsive tweaks */
+/* Responsive */
 @media (max-width: 480px) {
   .waitlist {
     padding: 2rem 1rem;
+  }
+}
+@media (max-width: 320px) {
+  .waitlist h2 {
+    font-size: 1.6rem;
+  }
+
+  .waitlist p {
+    font-size: 0.9rem;
+  }
+
+  .input, .button {
+    font-size: 0.9rem;
   }
 }

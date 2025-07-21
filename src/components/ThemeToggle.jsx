@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
-import { Sun, Moon } from 'lucide-react';
 import styles from './ThemeToggle.module.css';
-import { ThemeContext } from '../context/ThemeContext.jsx';
+import { ThemeContext } from '../context/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
 
 const ThemeToggle = () => {
   const { theme, toggleTheme } = useContext(ThemeContext);
@@ -9,14 +9,14 @@ const ThemeToggle = () => {
   return (
     <button
       onClick={toggleTheme}
+      className={`${styles.toggle} ${theme === 'dark' ? styles.dark : ''}`}
       aria-label="Toggle theme"
-      className={styles.toggleBtn}
     >
-      {theme === 'dark' ? (
-        <Sun size={22} />
-      ) : (
-        <Moon size={22} />
-      )}
+      <div className={styles.iconWrapper}>
+        <Sun className={styles.sun} />
+        <Moon className={styles.moon} />
+      </div>
+      <div className={styles.slider}></div>
     </button>
   );
 };

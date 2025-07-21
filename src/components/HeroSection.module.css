@@ -1,134 +1,116 @@
 .hero {
   position: relative;
   height: 100vh;
-  background: linear-gradient(145deg, #0f0f0f, #1a1a1a);
   display: flex;
-  justify-content: center;
   align-items: center;
-  text-align: center;
-  padding: 2rem;
+  justify-content: center;
+  background: linear-gradient(to bottom, #0f0f0f, #1a1a1a);
   overflow: hidden;
 }
 
-/* Responsive fix for small mobile screens */
-@media (max-width: 480px) {
-  .hero {
-    height: auto;
-    padding: 3rem 1.5rem; /* increased padding top & bottom for breathing space */
-  }
-}
-
 .overlay {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  padding: 3rem;
-  border-radius: 1rem;
-  width: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 4rem;
+  border-radius: 1.5rem;
+  text-align: center;
   max-width: 800px;
-  animation: fadeIn 1.2s ease-in;
+  animation: fadeIn 1s ease-in-out;
 }
 
 .content {
-  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .title {
   font-size: 4rem;
   font-family: 'Orbitron', sans-serif;
   margin-bottom: 1rem;
+  background: linear-gradient(to right, #00ffd5, #ffffff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   animation: fadeUp 1s ease forwards;
 }
 
 .subtitle {
-  font-size: 1.25rem;
+  font-size: 1.3rem;
   font-weight: 500;
-  color: #b0b0b0;
+  color: #d1d1d1;
   margin-bottom: 0.5rem;
+  line-height: 1.6;
   animation: fadeUp 1.2s ease forwards;
 }
 
 .tagline {
   font-size: 1.1rem;
-  color: #d3d3d3;
+  color: #bbbbbb;
   margin-bottom: 2rem;
-  animation: floatIn 1.5s ease-in-out forwards;
+  animation: fadeUp 1.4s ease forwards;
 }
 
 .cta {
-  display: inline-block;
-  background-color: #00ffcc;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #00ffd5, #00bfa5);
   color: #000;
-  padding: 0.8rem 1.6rem;
-  border-radius: 50px;
-  font-weight: bold;
+  padding: 0.85rem 1.8rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 1.05rem;
   text-decoration: none;
-  transition: all 0.3s ease;
-  animation: fadeUp 1.7s ease forwards;
+  box-shadow: 0 4px 20px rgba(0, 255, 204, 0.25);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .cta:hover {
-  background-color: #00ccaa;
   transform: scale(1.05);
+  box-shadow: 0 6px 24px rgba(0, 255, 204, 0.35);
 }
 
-/* Animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(25px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-@keyframes floatIn {
-  0% { transform: translateY(40px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-
-/* Text and CTA scaling for tablets */
 @media (max-width: 768px) {
+  .hero {
+    height: auto;
+    padding: 4rem 1rem;
+  }
+
+  .overlay {
+    padding: 2rem;
+  }
+
   .title {
-    font-size: 2.5rem;
+    font-size: 2.8rem;
   }
 
   .subtitle {
-    font-size: 1rem;
+    font-size: 1.1rem;
   }
 
   .tagline {
     font-size: 1rem;
-  }
-
-  .cta {
-    font-size: 1rem;
-    padding: 0.6rem 1.4rem;
-  }
-}
-
-/* Hidden SEO text */
-.visually-hidden {
-  position: absolute;
-  left: -9999px;
-  top: auto;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-}
-.description {
-  font-size: 1.05rem;
-  color: #cfcfcf;
-  margin-bottom: 2rem;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-  animation: floatIn 1.4s ease-in-out forwards;
-}
-
-/* Responsive font size */
-@media (max-width: 768px) {
-  .description {
-    font-size: 0.95rem;
   }
 }

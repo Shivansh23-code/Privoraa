@@ -1,13 +1,51 @@
-.toggleBtn {
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
+.toggle {
+  position: relative;
+  width: 60px;
+  height: 30px;
+  border: 2px solid var(--accent-color);
+  border-radius: 50px;
+  background-color: var(--bg-secondary);
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  transition: transform 0.3s ease, color 0.3s ease;
+  transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  overflow: hidden;
 }
-.toggleBtn:hover {
-  transform: scale(1.2);
+
+.iconWrapper {
+  position: absolute;
+  top: 50%;
+  left: 5px;
+  transform: translateY(-50%);
+  display: flex;
+  width: 50px;
+  justify-content: space-between;
+  align-items: center;
   color: var(--accent-color);
+  transition: left 0.3s ease;
+}
+
+.sun,
+.moon {
+  width: 16px;
+  height: 16px;
+}
+
+.slider {
+  position: absolute;
+  height: 22px;
+  width: 22px;
+  background-color: var(--accent-color);
+  border-radius: 50%;
+  left: 4px;
+  transition: left 0.3s ease;
+}
+
+.dark .slider {
+  left: 34px;
+}
+
+.dark .iconWrapper {
+  left: 5px;
 }

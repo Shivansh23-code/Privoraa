@@ -3,14 +3,11 @@ import styles from './WaitlistSection.module.css';
 
 const WaitlistSection = () => {
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState(''); // 'error' | 'success' | ''
+  const [status, setStatus] = useState(''); // '', 'success', 'error'
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Basic email validation regex
-  const validateEmail = (email) => {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  };
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,17 +22,16 @@ const WaitlistSection = () => {
 
     setLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise((r) => setTimeout(r, 1500));
+      // Simulate API
+      await new Promise((res) => setTimeout(res, 1500));
 
-      // TODO: Replace above with actual API call to submit waitlist email
-
+      // TODO: Replace with actual submission logic
       setStatus('success');
-      setMessage('Thank you for joining the waitlist!');
+      setMessage('You’ve successfully joined the waitlist!');
       setEmail('');
-    } catch (err) {
+    } catch (error) {
       setStatus('error');
-      setMessage('Oops! Something went wrong. Please try again.');
+      setMessage('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -52,37 +48,36 @@ const WaitlistSection = () => {
   };
 
   return (
-    <section className={styles.waitlist}>
-      <h2>Join Our Waitlist</h2>
-      <p>Be the first to get exclusive access to Privoraa’s AI assistant.</p>
-      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+    <section className={styles.waitlist} aria-labelledby="waitlist-heading">
+      <h2 id="waitlist-heading">Join Our Waitlist</h2>
+      <p>Be the first to experience a secure, offline-first AI assistant.</p>
+      <form onSubmit={handleSubmit} className={styles.form} noValidate>
         <input
           type="email"
           name="email"
-          placeholder="Enter your email"
           value={email}
+          placeholder="Enter your email"
           onChange={(e) => setEmail(e.target.value)}
           onBlur={handleBlur}
+          required
           className={`${styles.input} ${status === 'error' ? styles.error : ''}`}
           aria-invalid={status === 'error'}
-          aria-describedby="email-status"
-          required
+          aria-describedby="email-feedback"
         />
-        <button type="submit" disabled={loading} className={styles.button}>
+
+        <button type="submit" className={styles.button} disabled={loading}>
           {loading ? (
             <>
-              Submitting
-              <span className={styles.spinner} aria-hidden="true"></span>
+              Submitting<span className={styles.spinner} aria-hidden="true"></span>
             </>
           ) : (
             'Join Waitlist'
           )}
         </button>
+
         <p
-          id="email-status"
-          className={`${styles.message} ${
-            status === 'error' ? styles.error : status === 'success' ? styles.success : ''
-          }`}
+          id="email-feedback"
+          className={`${styles.message} ${status === 'error' ? styles.error : status === 'success' ? styles.success : ''}`}
           role={status === 'error' ? 'alert' : 'status'}
         >
           {message}

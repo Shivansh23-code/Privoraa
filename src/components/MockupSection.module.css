@@ -21,15 +21,21 @@
   font-size: 1.1rem;
   color: var(--text-secondary);
   margin-bottom: 2.5rem;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .imageWrapper {
   display: flex;
   justify-content: center;
+  align-items: center;
+  padding: 1rem;
 }
 
 .image {
-  max-width: 100%;
+  width: 100%;
+  max-width: 1000px;
   height: auto;
   border-radius: 1rem;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
@@ -55,5 +61,24 @@
 
   .subtext {
     font-size: 1rem;
+    padding: 0 1rem;
+  }
+
+  .imageWrapper {
+    padding: 0.5rem;
+  }
+
+  .image {
+    border-radius: 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .heading {
+    font-size: 1.75rem;
+  }
+
+  .subtext {
+    font-size: 0.95rem;
   }
 }

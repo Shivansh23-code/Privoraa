@@ -8,6 +8,7 @@
   --color-secondary: #4b5563;
   --color-accent: #f59e0b;
   --color-border: #e5e7eb;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 [data-theme='dark'] {
@@ -17,6 +18,7 @@
   --color-secondary: #9ca3af;
   --color-accent: #fbbf24;
   --color-border: #374151;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Global Reset and Base Styles */

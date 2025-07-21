@@ -6,27 +6,34 @@
   border-top: 1px solid var(--color-border);
 }
 
-.content {
-  max-width: 1000px;
+.container {
+  max-width: 960px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .description {
   font-size: 0.95rem;
-  margin-bottom: 1rem;
   line-height: 1.6;
   color: var(--color-text-secondary);
+  margin-bottom: 1.5rem;
+  padding: 0 1rem;
 }
 
 .links {
-  margin-bottom: 1.5rem; /* increased spacing */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .links a {
   color: var(--color-accent);
+  font-weight: 600;
   text-decoration: none;
-  margin: 0 1rem; /* increased margin for spacing */
-  font-weight: 600; /* slightly bolder for contrast */
   transition: color 0.2s ease;
 }
 
