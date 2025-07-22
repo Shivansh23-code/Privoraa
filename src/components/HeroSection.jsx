@@ -1,6 +1,5 @@
-// src/components/HeroSection.jsx
-
 import React from 'react';
+import { Link } from 'react-router-dom'; // <-- 1. Import Link
 import styles from './HeroSection.module.css';
 
 const HeroSection = () => {
@@ -31,9 +30,11 @@ const HeroSection = () => {
           secure your digital life, giving you peace of mind without the
           complexity.
         </p>
-        <a href="#waitlist" className={styles.ctaButton}>
-          Join the Waitlist &rarr;
-        </a>
+
+        {/* --- 2. Changed <a> to <Link> and updated text/destination --- */}
+        <Link to="/signup" className={styles.ctaButton}>
+          Get Started for Free &rarr;
+        </Link>
       </div>
     </section>
   );

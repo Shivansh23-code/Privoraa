@@ -72,9 +72,53 @@ html.dark .header.scrolled {
   color: var(--color-text-primary);
 }
 
+/* Add this new style to your CSS file */
+.navAction {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit; 
+  font-size: inherit; 
+  line-height: inherit; 
+  text-decoration: none;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: color 0.2s ease;
+}
+
+/* Add a matching hover effect */
+.navAction:hover {
+  color: var(--color-text-primary);
+}
+
 .actions {
   display: flex;
   align-items: center;
+}
+
+/* Add to Header.module.css */
+.signUpButton {
+  background-color: var(--color-primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.logoutButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: color 0.2s ease;
+}
+
+.logoutButton:hover {
+  color: var(--color-text-primary);
 }
 
 /* --- Responsive Design --- */
@@ -84,6 +128,108 @@ html.dark .header.scrolled {
   }
   .header {
     padding: 1rem;
+  }
+  .logoImage {
+    height: 30px; 
+  }
+  .logoName {
+    font-size: 1.25rem; 
+  }
+  .actions {
+    display: none; 
+  }
+  .menu-toggle {
+    display: block; 
+  }
+  .mobile-menu {
+    display: block; 
+  }
+  .mobile-menu.active {
+    display: block; /* Show when active */
+  }
+  .mobile-menu a {
+    display: block;
+    padding: 0.5rem 1rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .mobile-menu a:hover {
+    color: var(--color-text-primary);
+  }
+  .mobile-menu .logoutButton {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.5rem 1rem;
+    border-top: 1px solid var(--border-color);
+  }
+  .mobile-menu .logoutButton:hover {
+    color: var(--color-text-primary);
+  }
+  .mobile-menu .signUpButton {
+    display: block;
+    width: 100%;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+  }
+  .mobile-menu .signUpButton:hover {
+    background-color: var(--color-primary-hover);
+  }
+  .mobile-menu .logoLink {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .mobile-menu .logoImage {
+    height: 30px; 
+    margin-right: 0.5rem; 
+  } 
+  .mobile-menu .logoName {
+    font-size: 1.25rem; 
+  }
+  .mobile-menu .logo a {
+    font-size: 1.25rem; 
+    font-weight: 700;
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+  .mobile-menu .logo a:hover {
+    color: var(--color-primary-hover);
+  }
+  .mobile-menu .nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .mobile-menu .nav a {
+    padding: 0.5rem 1rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .mobile-menu .nav a:hover {
+    color: var(--color-text-primary);
+  }
+  .mobile-menu .nav a.active {
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+  .mobile-menu .nav a.active:hover {
+    color: var(--color-text-primary-hover);
+  }
+  .mobile-menu .nav a.active:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary);
+  }
+  .mobile-menu .nav a.active:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary);
   }
 }
 
