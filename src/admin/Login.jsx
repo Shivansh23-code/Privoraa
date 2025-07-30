@@ -6,13 +6,24 @@ function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, isAuthenticated } = useAdminAuth();
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await login(email, password);
+
+    // Mock credentials (you can change this)
+    const mockAdmin = {
+      email: 'admin@privoraa.com',
+      password: 'admin123'
+    };
+
+    if (email === mockAdmin.email && password === mockAdmin.password) {
+      login(email); // store login in context/localStorage
+    } else {
+      setError('Invalid credentials');
+    }
   };
 
-  // If already authenticated, redirect to the dashboard
   if (isAuthenticated) {
     return <Navigate to="/admin/dashboard" />;
   }
@@ -41,7 +52,19 @@ function Login() {
             style={{ width: '100%', padding: '8px', boxSizing: 'border-box' }}
           />
         </div>
-        <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+        {error && <p style={{ color: 'red', marginBottom: '10px' }}>{error}</p>}
+        <button
+          type="submit"
+          style={{
+            width: '100%',
+            padding: '10px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
           Login
         </button>
       </form>

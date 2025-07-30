@@ -21,28 +21,20 @@ const Header = () => {
 
   return (
     <header className={`${styles.header} ${isScrolled ? styles.scrolled : ''}`}>
-      
       <Link to="/" className={styles.logoLink}>
         <img src={logoImage} alt="Privoraa Logo" className={styles.logoImage} />
         <span className={styles.logoName}>Privoraa</span>
       </Link>
-      
+
       <nav className={styles.nav}>
         <a href="/#features">Features</a>
-        
+
         {isAuthenticated ? (
           <>
             <Link to="/dashboard">Dashboard</Link>
-            {/* Use a button styled like a link for the logout action */}
-            <button onClick={logout} className={styles.navAction}>Logout</button>
+            <button onClick={logout} className={styles.logoutButton}>Logout</button>
           </>
-        ) : (
-          <>
-            <Link to="/login">Login</Link>
-            {/* REMOVED the special className to make it a standard link */}
-            <Link to="/signup">Sign Up</Link>
-          </>
-        )}
+        ) : null}
       </nav>
 
       <div className={styles.actions}>

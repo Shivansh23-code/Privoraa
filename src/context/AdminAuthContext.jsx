@@ -1,5 +1,5 @@
+// src/admin/context/AdminAuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { login as apiLogin, logout as apiLogout } from '../admin/adminApi';
 import { useNavigate } from 'react-router-dom';
 
 const AdminAuthContext = createContext(null);
@@ -10,7 +10,6 @@ export const AdminAuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for a token in localStorage on initial load
     const token = localStorage.getItem('adminToken');
     if (token) {
       setIsAuthenticated(true);
@@ -19,22 +18,15 @@ export const AdminAuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    try {
-      const response = await apiLogin({ email, password });
-      if (response.data.token) {
-        localStorage.setItem('adminToken', response.data.token);
-        setIsAuthenticated(true);
-        navigate('/admin/dashboard');
-      }
-    } catch (error) {
-      console.error('Login failed:', error);
-      alert('Login failed. Please check your credentials.');
-    }
+    // Frontend-only dummy login
+    console.log(`Pretending to login as admin: ${email}`);
+    localStorage.setItem('adminToken', 'dummy-admin-token');
+    setIsAuthenticated(true);
+    navigate('/admin/dashboard');
   };
 
   const logout = () => {
-    // We can call the backend logout endpoint if needed
-    // apiLogout();
+    // Frontend-only dummy logout
     localStorage.removeItem('adminToken');
     setIsAuthenticated(false);
     navigate('/admin/login');
@@ -49,7 +41,4 @@ export const AdminAuthProvider = ({ children }) => {
   );
 };
 
-// Custom hook to use the auth context
-export const useAdminAuth = () => {
-  return useContext(AdminAuthContext);
-};
+export const useAdminAuth = () => useContext(AdminAuthContext);

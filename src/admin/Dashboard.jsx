@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getWaitlist } from './adminApi';
+// Removed: import { getWaitlist } from './adminApi';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
 function Dashboard() {
@@ -8,12 +8,13 @@ function Dashboard() {
   const { logout } = useAdminAuth();
 
   useEffect(() => {
-    const fetchWaitlist = async () => {
+    const fetchWaitlist = () => {
       try {
-        const response = await getWaitlist();
-        setWaitlist(response.data);
+        const stored = localStorage.getItem('waitlist');
+        const data = stored ? JSON.parse(stored) : [];
+        setWaitlist(data);
       } catch (err) {
-        setError('Failed to fetch waitlist. Please try again.');
+        setError('Failed to load waitlist from localStorage.');
         console.error(err);
       }
     };
@@ -24,8 +25,18 @@ function Dashboard() {
   return (
     <div style={{ padding: '20px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Admin Dashboard - Waitlist</h2>
-        <button onClick={logout} style={{ padding: '8px 16px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+        <h2>Admin Dashboard - Waitlist (Local)</h2>
+        <button
+          onClick={logout}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
           Logout
         </button>
       </div>
@@ -40,8 +51,8 @@ function Dashboard() {
         </thead>
         <tbody>
           {waitlist.length > 0 ? (
-            waitlist.map((item) => (
-              <tr key={item.id}>
+            waitlist.map((item, index) => (
+              <tr key={index}>
                 <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.email}</td>
                 <td style={{ border: '1px solid #ddd', padding: '8px' }}>
                   {new Date(item.created_at).toLocaleString()}

@@ -1,35 +1,26 @@
-import axios from 'axios';
+// src/pages/userApi.js
 
-const API_URL = 'http://localhost:8086/api/users';
+// Dummy: Simulates user registration
+export const signUp = async (userData) => {
+  console.log("Dummy signUp called with:", userData);
+  return { token: "dummy-token", user: { name: userData.name, email: userData.email } };
+};
 
-const api = axios.create({
-  baseURL: API_URL, 
-});
+// Dummy: Simulates user login
+export const login = async (credentials) => {
+  console.log("Dummy login called with:", credentials);
+  return { token: "dummy-token", user: { name: "Demo User", email: credentials.email } };
+};
 
-api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('userToken');
-    if( token ) {
-        config.headers.Authorization = `Bearer ${token}`;
+// Dummy: Simulates user profile fetch
+export const getUserProfile = async () => {
+  return {
+    data: {
+      name: "Demo User",
+      email: "demo@example.com",
+      role: "user"
     }
-    return config;
-})
+  };
+};
 
-/**
- * Register a new user.
- * @param {object} userData - { name, email, password }
- */
-export const signUp = (userData) => api.post('/register', userData);
-
-/**
- * Logs in a user.
- * @param {object} credentials - { email, password }
- */
-export const login = (credentials) => api.post('/login', credentials);
-
-/**
- * Fetches the user's profile data (example for a protected route).
- */
-export const getUserProfile = () => api.get('/profile');
-
-
-export default api;
+export default {};
