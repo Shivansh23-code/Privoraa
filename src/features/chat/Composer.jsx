@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowUp, Paperclip, Square } from 'lucide-react';
+import { ArrowUp, BookOpenCheck, Paperclip, Square } from 'lucide-react';
+import { useChatStore } from '../../store/chatStore';
 
 export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }) {
+  const useRag = useChatStore((s) => s.useRag);
+  const setUseRag = useChatStore((s) => s.setUseRag);
+  const hasReadyDocs = useChatStore((s) => s.documents.some((d) => d.status === 'READY'));
   const [value, setValue] = useState('');
   const taRef = useRef(null);
 
@@ -38,6 +42,27 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg"
           >
             <Paperclip size={18} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setUseRag(!useRag)}
+            disabled={!hasReadyDocs}
+            title={
+              hasReadyDocs
+                ? useRag
+                  ? 'Answers grounded on your notes — click to disable'
+                  : 'Ground answers on your uploaded notes'
+                : 'Upload a document first to use your notes'
+            }
+            className={`flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+              useRag && hasReadyDocs
+                ? 'bg-brand-500/15 text-brand-600 dark:text-brand-300'
+                : 'text-muted hover:bg-surface-2 hover:text-fg'
+            }`}
+          >
+            <BookOpenCheck size={16} />
+            <span className="hidden sm:inline">My notes</span>
           </button>
 
           <textarea

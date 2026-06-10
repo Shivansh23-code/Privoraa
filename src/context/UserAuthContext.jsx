@@ -22,22 +22,30 @@ export const UserAuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email) => {
     const fakeUser = { name: 'Demo User', email };
     localStorage.setItem('userToken', 'dummy-token');
     localStorage.setItem('userData', JSON.stringify(fakeUser));
     setUser(fakeUser);
     setIsAuthenticated(true);
-    navigate('/dashboard');
+    navigate('/app');
   };
 
-  const signUp = async (name, email, password) => {
+  const signUp = async (name, email) => {
     const fakeUser = { name: name || 'New User', email };
     localStorage.setItem('userToken', 'dummy-token');
     localStorage.setItem('userData', JSON.stringify(fakeUser));
     setUser(fakeUser);
     setIsAuthenticated(true);
-    navigate('/dashboard');
+    navigate('/app');
+  };
+
+  const updateProfile = (patch) => {
+    setUser((prev) => {
+      const next = { ...prev, ...patch };
+      localStorage.setItem('userData', JSON.stringify(next));
+      return next;
+    });
   };
 
   // 🔥 Renamed logout → logOut
@@ -50,7 +58,9 @@ export const UserAuthProvider = ({ children }) => {
   };
 
   return (
-    <UserAuthContext.Provider value={{ user, isAuthenticated, loading, login, signUp, logOut }}>
+    <UserAuthContext.Provider
+      value={{ user, isAuthenticated, loading, login, signUp, logOut, updateProfile }}
+    >
       {!loading && children}
     </UserAuthContext.Provider>
   );

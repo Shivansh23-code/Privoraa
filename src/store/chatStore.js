@@ -35,6 +35,7 @@ export const useChatStore = create(
       model: 'auto',
       mode: DEFAULT_MODE,
       documents: [],
+      useRag: false, // "Use my notes" composer toggle
 
       // transient (not persisted)
       isStreaming: false,
@@ -170,6 +171,8 @@ export const useChatStore = create(
       setStreaming: (isStreaming, streamingMessageId = null) =>
         set({ isStreaming, streamingMessageId }),
 
+      setUseRag: (useRag) => set({ useRag }),
+
       /* ----------------------------- documents ---------------------------- */
       addDocument: (doc) =>
         set((s) => ({
@@ -193,6 +196,7 @@ export const useChatStore = create(
         model: s.model,
         mode: s.mode,
         documents: s.documents,
+        useRag: s.useRag,
       }),
     }
   )

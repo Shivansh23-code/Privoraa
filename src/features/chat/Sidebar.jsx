@@ -9,8 +9,11 @@ import {
   MessageSquare,
   X,
   Check,
+  Settings,
 } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
+import { useUserAuth } from '../../context/UserAuthContext';
+import SettingsModal from './SettingsModal';
 
 function ConversationItem({ convo, active, onSelect, onRename, onDelete, onTogglePin }) {
   const [editing, setEditing] = useState(false);
@@ -96,9 +99,11 @@ export default function Sidebar({ onNavigate }) {
   const deleteConversation = useChatStore((s) => s.deleteConversation);
   const togglePin = useChatStore((s) => s.togglePin);
 
+  const { user } = useUserAuth();
   const [query, setQuery] = useState('');
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const { pinned, recent } = useMemo(() => {
+  const { pinned, today, previous } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = conversations.filter((c) =>
       !q ? true : c.title.toLowerCase().includes(q)
@@ -106,9 +111,13 @@ export default function Sidebar({ onNavigate }) {
     const sorted = [...filtered].sort(
       (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
     );
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const unpinned = sorted.filter((c) => !c.pinned);
     return {
       pinned: sorted.filter((c) => c.pinned),
-      recent: sorted.filter((c) => !c.pinned),
+      today: unpinned.filter((c) => new Date(c.updatedAt) >= startOfDay),
+      previous: unpinned.filter((c) => new Date(c.updatedAt) < startOfDay),
     };
   }, [conversations, query]);
 
@@ -123,9 +132,15 @@ export default function Sidebar({ onNavigate }) {
 
   return (
     <div className="flex h-full flex-col gap-3 p-3">
-      <div className="flex items-center gap-2 px-1 pt-1">
-        <span className="font-display text-lg font-bold text-brand-500">Privoraa</span>
-        <span className="rounded bg-brand-500/12 px-1.5 py-0.5 text-[10px] font-semibold text-brand-500">
+      <div className="flex items-center gap-2.5 px-1 pt-1">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-brand-600 shadow-[0_6px_18px_rgba(43,224,190,.25)]">
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#070b14]" aria-hidden="true">
+            <path fill="none" stroke="currentColor" strokeWidth="2.2" d="M7 11V8a5 5 0 0 1 10 0v3" />
+            <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />
+          </svg>
+        </span>
+        <span className="font-display text-lg font-bold tracking-tight text-fg">Privoraa</span>
+        <span className="rounded bg-accent-500/12 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent-500">
           2.0
         </span>
       </div>
@@ -170,9 +185,9 @@ export default function Sidebar({ onNavigate }) {
           </Section>
         )}
 
-        {recent.length > 0 && (
-          <Section label={pinned.length ? 'Recent' : 'Chats'}>
-            {recent.map((c) => (
+        {today.length > 0 && (
+          <Section label="Today">
+            {today.map((c) => (
               <ConversationItem
                 key={c.id}
                 convo={c}
@@ -186,10 +201,46 @@ export default function Sidebar({ onNavigate }) {
           </Section>
         )}
 
-        {query && pinned.length + recent.length === 0 && (
+        {previous.length > 0 && (
+          <Section label="Previous">
+            {previous.map((c) => (
+              <ConversationItem
+                key={c.id}
+                convo={c}
+                active={c.id === currentId}
+                onSelect={select}
+                onRename={renameConversation}
+                onDelete={deleteConversation}
+                onTogglePin={togglePin}
+              />
+            ))}
+          </Section>
+        )}
+
+        {query && pinned.length + today.length + previous.length === 0 && (
           <p className="px-2 py-6 text-center text-xs text-faint">No matches.</p>
         )}
       </div>
+
+      {/* Footer: user + settings */}
+      <div className="flex items-center gap-2 border-t border-line pt-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-xs font-bold text-white">
+          {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{user?.name || 'User'}</p>
+          <p className="truncate text-[11px] text-faint">{user?.email}</p>
+        </div>
+        <button
+          onClick={() => setSettingsOpen(true)}
+          title="Settings"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg"
+        >
+          <Settings size={16} />
+        </button>
+      </div>
+
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

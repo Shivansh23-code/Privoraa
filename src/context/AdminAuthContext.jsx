@@ -17,7 +17,7 @@ export const AdminAuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const login = async (email) => {
     // Frontend-only dummy login
     console.log(`Pretending to login as admin: ${email}`);
     localStorage.setItem('adminToken', 'dummy-admin-token');

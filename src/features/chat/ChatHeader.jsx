@@ -1,8 +1,6 @@
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Menu,
-  Moon,
-  Sun,
   PanelRight,
   LogOut,
   User as UserIcon,
@@ -12,9 +10,50 @@ import {
 } from 'lucide-react';
 import ModelPicker from './ModelPicker';
 import ModeSelector from './ModeSelector';
-import { ThemeContext } from '../../context/ThemeContext';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useClickOutside } from './useClickOutside';
+import { useChatStore } from '../../store/chatStore';
+
+function EditableTitle() {
+  const convo = useChatStore((s) =>
+    s.conversations.find((c) => c.id === s.currentId)
+  );
+  const renameConversation = useChatStore((s) => s.renameConversation);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+
+  if (!convo) return null;
+
+  const commit = () => {
+    renameConversation(convo.id, draft);
+    setEditing(false);
+  };
+
+  return editing ? (
+    <input
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') commit();
+        if (e.key === 'Escape') setEditing(false);
+      }}
+      className="w-44 rounded-md border border-brand-400 bg-bg px-2 py-1 text-sm font-medium focus:outline-none"
+    />
+  ) : (
+    <button
+      onClick={() => {
+        setDraft(convo.title);
+        setEditing(true);
+      }}
+      title="Rename conversation"
+      className="hidden max-w-[180px] truncate rounded-md px-2 py-1 text-sm font-medium text-fg/90 transition hover:bg-surface-2 md:block"
+    >
+      {convo.title}
+    </button>
+  );
+}
 
 export default function ChatHeader({
   models,
@@ -26,7 +65,6 @@ export default function ChatHeader({
   onTogglePanel,
   usingMock,
 }) {
-  const { theme, toggleTheme } = useContext(ThemeContext);
   const { user, logOut } = useUserAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useClickOutside(() => setMenuOpen(false), menuOpen);
@@ -42,6 +80,7 @@ export default function ChatHeader({
       </button>
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
+        <EditableTitle />
         <ModelPicker models={models} value={model} onChange={onModelChange} />
         <ModeSelector value={mode} onChange={onModeChange} />
       </div>
@@ -58,14 +97,6 @@ export default function ChatHeader({
         {usingMock ? <CloudOff size={12} /> : <Cloud size={12} />}
         {usingMock ? 'Demo' : 'Live'}
       </span>
-
-      <button
-        onClick={toggleTheme}
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg"
-        title="Toggle theme"
-      >
-        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-      </button>
 
       <button
         onClick={onTogglePanel}

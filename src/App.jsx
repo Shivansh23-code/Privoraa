@@ -2,9 +2,9 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 
-// Public pages and layout
+// Public pages
 import LandingPage from './pages/LandingPage';
-import Footer from './components/Footer';
+import NotFound from './pages/NotFound';
 
 // User-side
 import UserLogin from './pages/Login';
@@ -23,13 +23,15 @@ function App() {
     <>
       <Routes>
         {/* 🌐 Public Routes */}
-        <Route path="/" element={<><LandingPage /><Footer /></>} />
+        <Route path="/" element={<LandingPage />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/register" element={<SignUp />} />
         <Route path="/login" element={<UserLogin />} />
 
         {/* 🔒 User Protected Routes */}
         <Route element={<UserProtectedRoute />}>
-          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/app" element={<UserDashboard />} />
+          <Route path="/dashboard" element={<Navigate to="/app" replace />} />
         </Route>
 
         {/* 🔒 Admin Routes */}
@@ -41,11 +43,7 @@ function App() {
         </Route>
 
         {/* ❌ 404 Not Found */}
-        <Route path="*" element={
-          <div style={{ textAlign: 'center', marginTop: '50px' }}>
-            <h1>404: Page Not Found</h1>
-          </div>
-        } />
+        <Route path="*" element={<NotFound />} />
       </Routes>
 
       <Analytics />

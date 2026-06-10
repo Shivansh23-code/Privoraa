@@ -1,29 +1,36 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
-/* Drive dark mode from the `.dark` class on <html> (set by ThemeContext) */
+/* Dark is the only theme — html always carries .dark (set in ThemeContext). */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ------------------------------------------------------------------ *
- * Tailwind theme tokens — `inline` keeps them bound to the CSS vars   *
- * below so utilities like bg-surface / text-fg stay theme-aware.      *
+ * Tailwind theme tokens — ink / teal / violet design system           *
+ * (matches design-reference/privoraa-landing-reference.html)          *
  * ------------------------------------------------------------------ */
 @theme inline {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Orbitron', 'Inter', sans-serif;
+  --font-sans: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Manrope', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
-  /* Brand scale (fixed across themes) */
-  --color-brand-50: #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-accent-400: #a78bfa;
-  --color-accent-500: #8b5cf6;
+  /* Brand = violet scale */
+  --color-brand-50: #f1eeff;
+  --color-brand-100: #e4deff;
+  --color-brand-300: #c3bbff;
+  --color-brand-400: #a79cff;
+  --color-brand-500: #8b7cff;
+  --color-brand-600: #6a5ae8;
+  --color-brand-700: #5646c8;
 
-  /* Semantic, theme-aware tokens (resolve to vars defined below) */
+  /* Accent = teal scale */
+  --color-accent-300: #8ff0dd;
+  --color-accent-400: #5ee8cd;
+  --color-accent-500: #2be0be;
+  --color-accent-600: #17c2a2;
+
+  --color-rose-flag: #ff7a93;
+
+  /* Semantic surfaces (bound to the vars below) */
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -34,91 +41,68 @@
   --color-faint: var(--faint);
 }
 
-/* Light theme (default) */
 :root {
-  --bg: #f6f7fb;
-  --surface: #ffffff;
-  --surface-2: #f1f2f8;
-  --elevated: #ffffff;
-  --line: #e5e7eb;
-  --fg: #111827;
-  --muted: #6b7280;
-  --faint: #9ca3af;
-
-  /* legacy tokens kept for the existing landing/auth pages */
-  --color-primary: #4f46e5;
-  --color-primary-dark: #4338ca;
-  --color-primary-light: rgba(79, 70, 229, 0.1);
-  --color-text-primary: #111827;
-  --color-text-secondary: #6b7280;
-  --color-bg-secondary: #f9fafb;
-  --color-border: #e5e7eb;
-  --color-error: #ef4444;
-  --toggle-bg: #e5e7eb;
-  --toggle-fg: #ffffff;
+  --bg: #070b14;        /* ink */
+  --surface: #0c1424;   /* pane */
+  --surface-2: #101b30; /* pane2 */
+  --elevated: #101b30;
+  --line: rgba(141, 176, 255, 0.12);  /* hairline */
+  --line-2: rgba(141, 176, 255, 0.2);
+  --fg: #e9f0fa;
+  --muted: #94a3bc;
+  --faint: #5e6d86;
 }
 
-/* Dark theme */
+/* Kept identical to :root — the app is dark-only, but `dark:` utilities and
+   the .dark class remain so existing components keep working. */
 html.dark {
-  --bg: #0e0f17;
-  --surface: #171826;
-  --surface-2: #1f2030;
-  --elevated: #21222f;
-  --line: #2c2e42;
-  --fg: #f3f4f6;
-  --muted: #9ca3af;
-  --faint: #6b7280;
-
-  /* legacy tokens */
-  --color-primary: #6366f1;
-  --color-primary-dark: #4f46e5;
-  --color-primary-light: #3730a3;
-  --color-text-primary: #f9fafb;
-  --color-text-secondary: #9ca3af;
-  --color-bg-secondary: #1f2937;
-  --color-border: #374151;
-  --color-error: #f87171;
-  --toggle-bg: #4b5563;
-  --toggle-fg: #111827;
+  --bg: #070b14;
+  --surface: #0c1424;
+  --surface-2: #101b30;
+  --elevated: #101b30;
+  --line: rgba(141, 176, 255, 0.12);
+  --line-2: rgba(141, 176, 255, 0.2);
+  --fg: #e9f0fa;
+  --muted: #94a3bc;
+  --faint: #5e6d86;
 }
 
-/* Global reset and base styles */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* ------------------------------------------------------------------ *
+ * Base element styles. MUST live in @layer base: unlayered CSS beats  *
+ * Tailwind's layered utilities, which silently disables every         *
+ * margin/padding utility in the app (the bug behind the broken UI).   *
+ * ------------------------------------------------------------------ */
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  button {
+    cursor: pointer;
+    font-family: inherit;
+  }
 }
 
-html,
-body,
-#root {
-  height: 100%;
-}
-
-body {
-  font-family: var(--font-sans);
-  background-color: var(--bg);
-  color: var(--fg);
-  scroll-behavior: smooth;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-img {
-  max-width: 100%;
-  height: auto;
-}
-
-button {
-  cursor: pointer;
-  font-family: inherit;
-}
-
-/* Respect reduced-motion preferences */
+/* Respect reduced-motion preferences (intentionally unlayered + !important) */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -130,60 +114,19 @@ button {
   }
 }
 
-/* Utility classes used by the existing marketing pages */
-.text-center {
-  text-align: center;
-}
-.text-primary {
-  color: var(--color-primary);
-}
-.container {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-/* Section padding for the marketing pages (chat workspace avoids <section>). */
-section {
-  padding: 4rem 1rem;
-}
-
-.auth-form {
-  max-width: 400px;
-  margin: auto;
-  padding: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  margin-top: 2rem;
-  background: #f9f9f9;
-}
-.auth-form input {
-  width: 100%;
-  padding: 8px;
-  margin-bottom: 1rem;
-}
-.auth-form button {
-  width: 100%;
-  padding: 10px;
-  background: #1d4ed8;
-  color: white;
-  border: none;
-  border-radius: 5px;
-}
-
 /* ------------------------------------------------------------------ *
  * Custom scrollbars + streaming caret for the chat workspace          *
  * ------------------------------------------------------------------ */
 .scroll-thin {
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: var(--line-2) transparent;
 }
 .scroll-thin::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 .scroll-thin::-webkit-scrollbar-thumb {
-  background-color: var(--line);
+  background-color: var(--line-2);
   border-radius: 999px;
 }
 .scroll-thin::-webkit-scrollbar-track {
@@ -198,7 +141,7 @@ section {
   content: '▋';
   margin-left: 1px;
   animation: caret-blink 1s step-end infinite;
-  color: var(--color-brand-500);
+  color: var(--color-accent-500);
 }
 
 @keyframes fade-rise {
@@ -210,7 +153,7 @@ section {
 }
 
 /* ------------------------------------------------------------------ *
- * Markdown answer typography (no @tailwindcss/typography dependency)  *
+ * Markdown answer typography (chat workspace)                         *
  * ------------------------------------------------------------------ */
 .prose-chat {
   font-size: 0.95rem;

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Upload, FileText, Trash2, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 
@@ -15,6 +15,7 @@ export default function DocumentsPanel({ fileInputRef }) {
   const removeDocument = useChatStore((s) => s.removeDocument);
   const localRef = useRef(null);
   const inputRef = fileInputRef || localRef;
+  const [dragging, setDragging] = useState(false);
 
   const onFiles = (files) => {
     Array.from(files).forEach((file) => {
@@ -35,9 +36,24 @@ export default function DocumentsPanel({ fileInputRef }) {
 
       <button
         onClick={() => inputRef.current?.click()}
-        className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-line bg-surface py-2.5 text-sm text-muted transition hover:border-brand-400 hover:text-fg"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          if (e.dataTransfer.files?.length) onFiles(e.dataTransfer.files);
+        }}
+        className={`flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed py-4 text-sm transition ${
+          dragging
+            ? 'border-brand-500 bg-brand-500/10 text-brand-500'
+            : 'border-line bg-surface text-muted hover:border-brand-400 hover:text-fg'
+        }`}
       >
-        <Upload size={15} /> Upload PDF / notes
+        <Upload size={16} />
+        <span>{dragging ? 'Drop to upload' : 'Upload or drop PDF / notes'}</span>
       </button>
       <input
         ref={inputRef}

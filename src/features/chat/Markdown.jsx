@@ -36,12 +36,12 @@ function CodeBlock({ className, children }) {
   };
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-[#2c2e42] bg-[#0d1117]">
-      <div className="flex items-center justify-between border-b border-[#2c2e42] px-3 py-1.5">
-        <span className="font-mono text-xs text-brand-300">{lang}</span>
+    <div className="my-3 overflow-hidden rounded-xl border border-line bg-[#070b14]">
+      <div className="flex items-center justify-between border-b border-line px-3 py-1.5">
+        <span className="font-mono text-xs text-accent-500">{lang}</span>
         <button
           onClick={copy}
-          className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-zinc-400 transition hover:bg-white/5 hover:text-zinc-200"
+          className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-muted transition hover:bg-white/5 hover:text-fg"
         >
           {copied ? <Check size={13} /> : <Copy size={13} />}
           {copied ? 'Copied' : 'Copy'}
