@@ -1,0 +1,131 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { X } from 'lucide-react';
+
+import Sidebar from './Sidebar';
+import ChatHeader from './ChatHeader';
+import MessageThread from './MessageThread';
+import EmptyState from './EmptyState';
+import Composer from './Composer';
+import DocumentsPanel from './DocumentsPanel';
+import UsagePanel from './UsagePanel';
+
+import { useChatStore } from '../../store/chatStore';
+import { useChat } from './useChat';
+import { fetchModels, ensureBackend, isUsingMock } from '../../lib/chatService';
+import { FALLBACK_MODELS } from '../../lib/models';
+
+export default function ChatWorkspace() {
+  const { data: models = FALLBACK_MODELS } = useQuery({
+    queryKey: ['models'],
+    queryFn: fetchModels,
+    staleTime: 1000 * 60 * 60,
+  });
+
+  const model = useChatStore((s) => s.model);
+  const mode = useChatStore((s) => s.mode);
+  const setModel = useChatStore((s) => s.setModel);
+  const setMode = useChatStore((s) => s.setMode);
+  const currentId = useChatStore((s) => s.currentId);
+  const conversations = useChatStore((s) => s.conversations);
+  const isStreaming = useChatStore((s) => s.isStreaming);
+  const streamingMessageId = useChatStore((s) => s.streamingMessageId);
+
+  const convo = conversations.find((c) => c.id === currentId) || null;
+  const messages = convo?.messages ?? [];
+
+  const { send, stop, regenerate } = useChat(models);
+
+  const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
+  const [panelOpen, setPanelOpen] = useState(true); // desktop insights panel
+  const [usingMock, setUsingMock] = useState(true);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    ensureBackend().then(() => setUsingMock(isUsingMock()));
+  }, []);
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-bg text-fg">
+      {/* ---------- Left sidebar ---------- */}
+      {/* Desktop */}
+      <aside className="hidden w-[280px] shrink-0 border-r border-line bg-surface lg:block">
+        <Sidebar />
+      </aside>
+      {/* Mobile drawer */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setSidebarOpen(false)}
+          />
+          <div className="absolute left-0 top-0 h-full w-[280px] border-r border-line bg-surface shadow-2xl">
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2"
+            >
+              <X size={18} />
+            </button>
+            <Sidebar onNavigate={() => setSidebarOpen(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Main column ---------- */}
+      <main className="flex min-w-0 flex-1 flex-col">
+        <ChatHeader
+          models={models}
+          model={model}
+          mode={mode}
+          onModelChange={setModel}
+          onModeChange={setMode}
+          onToggleSidebar={() => setSidebarOpen(true)}
+          onTogglePanel={() => setPanelOpen((o) => !o)}
+          usingMock={usingMock}
+        />
+
+        {messages.length === 0 ? (
+          <div className="flex-1 overflow-y-auto">
+            <EmptyState mode={mode} onPick={send} />
+          </div>
+        ) : (
+          <MessageThread
+            messages={messages}
+            isStreaming={isStreaming}
+            streamingMessageId={streamingMessageId}
+            onRegenerate={(msgId) => regenerate(convo.id, msgId)}
+            onStop={stop}
+          />
+        )}
+
+        <Composer
+          onSend={send}
+          onStop={stop}
+          isStreaming={isStreaming}
+          onAttach={() => {
+            setPanelOpen(true);
+            fileInputRef.current?.click();
+          }}
+          mode={mode}
+        />
+      </main>
+
+      {/* ---------- Right insights panel ---------- */}
+      {panelOpen && (
+        <aside className="hidden w-[300px] shrink-0 border-l border-line bg-surface xl:block">
+          <div className="scroll-thin flex h-full flex-col gap-5 overflow-y-auto p-4">
+            <DocumentsPanel fileInputRef={fileInputRef} />
+            <div className="h-px bg-line" />
+            <UsagePanel />
+          </div>
+        </aside>
+      )}
+      {/* Keep the file input mounted even when the panel is hidden */}
+      {!panelOpen && (
+        <div className="hidden">
+          <DocumentsPanel fileInputRef={fileInputRef} />
+        </div>
+      )}
+    </div>
+  );
+}
