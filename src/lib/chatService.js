@@ -80,6 +80,7 @@ async function streamLive(payload, { onMeta, onToken, onDone, onError, signal })
     mode: payload.mode,
     content: payload.content,
     useRag: payload.useRag,
+    image: payload.image, // data URL for vision; omitted server-side when null
   };
 
   let res = await streamFetch('/chat/stream', { body: requestBody, signal });

@@ -33,6 +33,13 @@ public final class RouterDefaults {
             "openai/gpt-oss-20b:free"
     );
 
+    /** Vision-capable free models, tried in order when an image is attached. */
+    public static final List<String> VISION_CHAIN = List.of(
+            "nvidia/nemotron-nano-12b-v2-vl:free",
+            "nvidia/nemotron-nano-omni-30b-a3b:free",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+    );
+
     public static String forCategory(String category) {
         return BY_CATEGORY.getOrDefault(category, BY_CATEGORY.get("general"));
     }

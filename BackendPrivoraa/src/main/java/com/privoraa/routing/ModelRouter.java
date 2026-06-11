@@ -43,6 +43,32 @@ public class ModelRouter {
         return new Routed(preferredId, name, intent.category(), intent.reason(), buildChain(models, preferredId));
     }
 
+    /**
+     * Route an image-bearing request to a vision-capable model. Falls back through
+     * {@link RouterDefaults#VISION_CHAIN}; if none are live, it still tries the first
+     * so the user gets a clear upstream error rather than a silent mis-route.
+     */
+    public Routed visionRoute(String text) {
+        List<ModelDto> models = catalog.getModels(false);
+        Set<String> live = new LinkedHashSet<>();
+        for (ModelDto m : models) {
+            live.add(m.id());
+        }
+        List<String> chain = new ArrayList<>();
+        for (String id : RouterDefaults.VISION_CHAIN) {
+            if (live.contains(id)) {
+                chain.add(id);
+            }
+        }
+        if (chain.isEmpty()) {
+            chain.add(RouterDefaults.VISION_CHAIN.get(0));
+        }
+        String primary = chain.get(0);
+        ModelDto chosen = find(models, primary);
+        String name = chosen != null ? chosen.name() : primary;
+        return new Routed(primary, name, "vision", "Reading your image", chain);
+    }
+
     private String resolvePreferred(List<ModelDto> models, String category) {
         String preferred = RouterDefaults.forCategory(category);
         if (find(models, preferred) != null) {

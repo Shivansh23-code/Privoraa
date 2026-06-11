@@ -11,13 +11,13 @@ export function useChat(catalog) {
   const store = useChatStore;
 
   const run = useCallback(
-    async (conversationId, content, { isRegenerate = false } = {}) => {
+    async (conversationId, content, { isRegenerate = false, image = null } = {}) => {
       const s = store.getState();
       const convo = s.conversations.find((c) => c.id === conversationId);
       if (!convo) return;
 
       if (!isRegenerate) {
-        s.addMessage(conversationId, { role: 'user', content });
+        s.addMessage(conversationId, { role: 'user', content, image: image || undefined });
       }
 
       const assistantId = s.addMessage(conversationId, {
@@ -40,6 +40,7 @@ export function useChat(catalog) {
           useRag: s.useRag && s.documents.some((d) => d.status === 'READY'),
           conversationId,
           catalog,
+          image,
         },
         {
           signal: controller.signal,
@@ -80,12 +81,12 @@ export function useChat(catalog) {
   );
 
   const send = useCallback(
-    (content) => {
+    (content, image = null) => {
       const text = content.trim();
-      if (!text) return;
+      if (!text && !image) return; // allow image-only sends
       const s = store.getState();
       const conversationId = s.ensureConversation();
-      run(conversationId, text);
+      run(conversationId, text, { image });
     },
     [run, store]
   );

@@ -17,8 +17,18 @@ public class PromptBuilder {
     /** Keep the last N turns to bound prompt size / cost. */
     private static final int MAX_HISTORY = 12;
 
-    public List<Map<String, String>> build(String mode, List<Message> history, RagContext rag) {
-        List<Map<String, String>> messages = new ArrayList<>();
+    public List<Map<String, Object>> build(String mode, List<Message> history, RagContext rag) {
+        return build(mode, history, rag, null);
+    }
+
+    /**
+     * Build the message array. When {@code image} is non-null, the latest user
+     * message is sent as a multimodal content array (text + image_url) so a vision
+     * model can "see" the attachment. Content is typed as Object because OpenRouter
+     * accepts either a String or an array of parts per message.
+     */
+    public List<Map<String, Object>> build(String mode, List<Message> history, RagContext rag, String image) {
+        List<Map<String, Object>> messages = new ArrayList<>();
 
         StringBuilder system = new StringBuilder(Modes.systemPrompt(mode));
         if (rag != null && rag.hasContext()) {
@@ -27,7 +37,7 @@ public class PromptBuilder {
                     + "\"I couldn't find that in your notes.\"\n\nContext:\n")
                     .append(rag.contextBlock());
         }
-        messages.add(msg("system", system.toString()));
+        messages.add(textMsg("system", system.toString()));
 
         List<Message> recent = history.size() > MAX_HISTORY
                 ? history.subList(history.size() - MAX_HISTORY, history.size())
@@ -38,21 +48,52 @@ public class PromptBuilder {
                 continue;
             }
             String role = m.getRole() == MessageRole.ASSISTANT ? "assistant" : "user";
-            messages.add(msg(role, m.getContent()));
+            messages.add(textMsg(role, m.getContent()));
+        }
+
+        // Attach the image to the most recent user message (the current turn).
+        if (image != null && !image.isBlank()) {
+            attachImageToLastUserMessage(messages, image);
         }
         return messages;
     }
 
-    public int estimatePromptTokens(List<Map<String, String>> messages) {
+    public int estimatePromptTokens(List<Map<String, Object>> messages) {
         int chars = 0;
-        for (Map<String, String> m : messages) {
-            chars += m.getOrDefault("content", "").length();
+        for (Map<String, Object> m : messages) {
+            Object content = m.get("content");
+            if (content instanceof String s) {
+                chars += s.length();
+            } else if (content instanceof List<?> parts) {
+                for (Object part : parts) {
+                    if (part instanceof Map<?, ?> p && p.get("text") instanceof String t) {
+                        chars += t.length();
+                    }
+                }
+            }
         }
-        return Math.max(1, chars / 4); // ~4 chars per token
+        return Math.max(1, chars / 4); // ~4 chars per token (image tokens not counted here)
     }
 
-    private Map<String, String> msg(String role, String content) {
-        Map<String, String> m = new LinkedHashMap<>();
+    @SuppressWarnings("unchecked")
+    private void attachImageToLastUserMessage(List<Map<String, Object>> messages, String image) {
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Map<String, Object> m = messages.get(i);
+            if ("user".equals(m.get("role"))) {
+                String text = m.get("content") instanceof String s ? s : "";
+                List<Map<String, Object>> parts = new ArrayList<>();
+                if (!text.isBlank()) {
+                    parts.add(Map.of("type", "text", "text", text));
+                }
+                parts.add(Map.of("type", "image_url", "image_url", Map.of("url", image)));
+                m.put("content", parts);
+                return;
+            }
+        }
+    }
+
+    private Map<String, Object> textMsg(String role, String content) {
+        Map<String, Object> m = new LinkedHashMap<>();
         m.put("role", role);
         m.put("content", content);
         return m;

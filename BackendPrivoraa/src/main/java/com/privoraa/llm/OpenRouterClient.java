@@ -39,7 +39,7 @@ public class OpenRouterClient {
     }
 
     /** Stream a chat completion, emitting each content delta as it arrives. */
-    public Flux<String> streamCompletion(String model, List<Map<String, String>> messages,
+    public Flux<String> streamCompletion(String model, List<Map<String, Object>> messages,
                                          Double temperature, Integer maxTokens) {
         if (!props.configured()) {
             return Flux.error(notConfigured());
@@ -79,7 +79,7 @@ public class OpenRouterClient {
 
     /** Non-streaming completion with exact token usage from the response. */
     @Retry(name = "openrouter")
-    public ChatResult completion(String model, List<Map<String, String>> messages,
+    public ChatResult completion(String model, List<Map<String, Object>> messages,
                                  Double temperature, Integer maxTokens) {
         if (!props.configured()) {
             throw notConfigured();
@@ -142,7 +142,7 @@ public class OpenRouterClient {
         return vec;
     }
 
-    private Map<String, Object> buildBody(String model, List<Map<String, String>> messages,
+    private Map<String, Object> buildBody(String model, List<Map<String, Object>> messages,
                                           Double temperature, Integer maxTokens, boolean stream) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", model);

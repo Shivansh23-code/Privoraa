@@ -46,7 +46,7 @@ public class QuizService {
         String user = "Generate " + count + " " + req.difficultyOrDefault()
                 + " multiple-choice questions about: " + req.topic();
 
-        List<Map<String, String>> messages = List.of(
+        List<Map<String, Object>> messages = List.of(
                 msg("system", system),
                 msg("user", user));
 
@@ -73,7 +73,7 @@ public class QuizService {
         return new QuizGradeResponse(score, questions.size(), feedback);
     }
 
-    private ChatResult complete(List<Map<String, String>> messages) {
+    private ChatResult complete(List<Map<String, Object>> messages) {
         Exception last = null;
         for (String model : CHAIN) {
             try {
@@ -124,8 +124,8 @@ public class QuizService {
         return content.trim();
     }
 
-    private Map<String, String> msg(String role, String content) {
-        Map<String, String> m = new LinkedHashMap<>();
+    private Map<String, Object> msg(String role, String content) {
+        Map<String, Object> m = new LinkedHashMap<>();
         m.put("role", role);
         m.put("content", content);
         return m;

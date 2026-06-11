@@ -164,9 +164,13 @@ public class ChatService {
         boolean useRag = req.ragEnabled() && documentService.hasReadyDocuments(userId);
         RagContext rag = useRag ? ragService.retrieve(userId, req.content()) : RagContext.empty();
 
-        Routed routed = router.resolve(req.model(), req.content(), mode, useRag);
+        // An attached image forces a vision-capable model regardless of intent routing.
+        Routed routed = req.hasImage()
+                ? router.visionRoute(req.content())
+                : router.resolve(req.model(), req.content(), mode, useRag);
         List<Message> history = conversations.messages(conversationId);
-        List<Map<String, String>> messages = promptBuilder.build(mode, history, rag);
+        List<Map<String, Object>> messages = promptBuilder.build(
+                mode, history, rag, req.hasImage() ? req.image() : null);
         int promptTokens = promptBuilder.estimatePromptTokens(messages);
 
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens);
@@ -228,7 +232,7 @@ public class ChatService {
             String mode,
             Routed routed,
             RagContext rag,
-            List<Map<String, String>> messages,
+            List<Map<String, Object>> messages,
             int promptTokens
     ) {}
 }

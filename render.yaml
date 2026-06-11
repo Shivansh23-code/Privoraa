@@ -1,0 +1,27 @@
+# Render blueprint — deploys the Privoraa backend as a single free Docker service.
+# Uses the in-memory H2 profile, so there's no separate database to provision.
+# (Trade-off: data resets when the free service cold-starts after inactivity.)
+#
+# Deploy: Render Dashboard → New → Blueprint → pick this repo. Then set
+# OPENROUTER_API_KEY in the service's Environment tab.
+services:
+  - type: web
+    name: privoraa-backend
+    runtime: docker
+    repo: https://github.com/Shivansh23-code/Privoraa
+    rootDir: BackendPrivoraa
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /actuator/health
+    autoDeploy: true
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: h2
+      - key: OPENROUTER_API_KEY
+        sync: false            # set this in the dashboard (your rotated key)
+      - key: JWT_SECRET
+        generateValue: true     # Render generates a strong secret once
+      - key: CORS_ORIGINS
+        value: https://privoraaai.vercel.app,http://localhost:5173
+      - key: APP_PUBLIC_URL
+        value: https://privoraaai.vercel.app

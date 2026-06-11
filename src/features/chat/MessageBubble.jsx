@@ -97,9 +97,20 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
               <span>{message.error}</span>
             </div>
           ) : isUser ? (
-            <p className="whitespace-pre-wrap break-words text-[0.95rem] leading-relaxed">
-              {message.content}
-            </p>
+            <>
+              {message.image && (
+                <img
+                  src={message.image}
+                  alt="attachment"
+                  className="mb-2 max-h-64 w-auto rounded-lg border border-white/20 object-contain"
+                />
+              )}
+              {message.content && (
+                <p className="whitespace-pre-wrap break-words text-[0.95rem] leading-relaxed">
+                  {message.content}
+                </p>
+              )}
+            </>
           ) : message.pending && !message.content ? (
             <ThinkingDots />
           ) : (
