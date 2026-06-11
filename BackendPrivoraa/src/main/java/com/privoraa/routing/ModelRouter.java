@@ -82,7 +82,7 @@ public class ModelRouter {
                 chain.add(m.id());
             }
         }
-        return new ArrayList<>(chain).subList(0, Math.min(chain.size(), 4));
+        return new ArrayList<>(chain).subList(0, Math.min(chain.size(), 6));
     }
 
     private ModelDto find(List<ModelDto> models, String id) {

@@ -19,13 +19,18 @@ public final class RouterDefaults {
     );
 
     /** When a category's preferred model is busy, fall through this chain.
+     *  Ordered to alternate UPSTREAM PROVIDERS (OpenAI → Google → Meta → Alibaba →
+     *  NVIDIA), because free-tier 429s are largely per-provider — so the next model
+     *  in the chain is likely served by a provider that isn't throttled.
      *  The router filters this against the live catalog, so stale entries are
-     *  skipped automatically — but keep these to current free slugs. */
+     *  skipped automatically. */
     public static final List<String> GLOBAL_FALLBACK = List.of(
             "openai/gpt-oss-120b:free",
-            "openai/gpt-oss-20b:free",
             "google/gemma-4-31b-it:free",
-            "meta-llama/llama-3.3-70b-instruct:free"
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "qwen/qwen3-next-80b-a3b-instruct:free",
+            "nvidia/nemotron-nano-9b-v2:free",
+            "openai/gpt-oss-20b:free"
     );
 
     public static String forCategory(String category) {

@@ -214,6 +214,11 @@ public class ChatService {
         if (err instanceof ApiException api) {
             return api.getMessage();
         }
+        if (com.privoraa.llm.OpenRouterClient.isRateLimited(err)) {
+            return "The free AI models are rate-limited right now (OpenRouter free tier). "
+                    + "Wait a minute and try again — adding a little credit to your OpenRouter "
+                    + "account raises the daily limit substantially.";
+        }
         return "That model is busy right now — please try again.";
     }
 

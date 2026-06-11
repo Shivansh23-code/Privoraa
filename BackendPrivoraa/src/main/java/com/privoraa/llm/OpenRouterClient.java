@@ -10,8 +10,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,7 +57,24 @@ public class OpenRouterClient {
                 .mapNotNull(ServerSentEvent::data)
                 .takeWhile(data -> !"[DONE]".equals(data.trim()))
                 .map(this::extractDelta)
-                .filter(s -> !s.isEmpty());
+                .filter(s -> !s.isEmpty())
+                // Free models frequently return a transient 429. The status is known
+                // before any token is emitted, so retrying the request is safe. A short
+                // backoff clears brief bursts; if it persists, ChatService falls back to
+                // the next (different-provider) model in the chain.
+                .retryWhen(reactor.util.retry.Retry.backoff(1, Duration.ofMillis(900))
+                        .maxBackoff(Duration.ofSeconds(2))
+                        .filter(OpenRouterClient::isRateLimited));
+    }
+
+    /** True if the error is (or wraps) an HTTP 429 from the upstream. */
+    public static boolean isRateLimited(Throwable t) {
+        for (Throwable e = t; e != null; e = e.getCause()) {
+            if (e instanceof WebClientResponseException w && w.getStatusCode().value() == 429) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Non-streaming completion with exact token usage from the response. */
