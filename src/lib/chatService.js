@@ -2,7 +2,7 @@
 // and transparently falls back to the local mock engine otherwise — so the UI
 // behaves identically today and once the Spring Boot service is live.
 
-import { apiFetch, streamFetch, pingBackend } from './apiClient';
+import { apiFetch, streamFetch, pingBackend, refreshAccessToken } from './apiClient';
 import { mockStreamChat } from './mockEngine';
 import { FALLBACK_MODELS } from './models';
 import { routeModel } from './router';
@@ -74,16 +74,23 @@ export async function streamChat(payload, callbacks) {
 }
 
 async function streamLive(payload, { onMeta, onToken, onDone, onError, signal }) {
-  const res = await streamFetch('/chat/stream', {
-    body: {
-      conversationId: payload.conversationId,
-      model: payload.model,
-      mode: payload.mode,
-      content: payload.content,
-      useRag: payload.useRag,
-    },
-    signal,
-  });
+  const requestBody = {
+    conversationId: payload.conversationId,
+    model: payload.model,
+    mode: payload.mode,
+    content: payload.content,
+    useRag: payload.useRag,
+  };
+
+  let res = await streamFetch('/chat/stream', { body: requestBody, signal });
+
+  // Access token expired — refresh once and retry.
+  if (res.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      res = await streamFetch('/chat/stream', { body: requestBody, signal });
+    }
+  }
 
   if (res.status === 429) {
     const retry = res.headers.get('Retry-After');

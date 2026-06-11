@@ -174,13 +174,18 @@ export const useChatStore = create(
       setUseRag: (useRag) => set({ useRag }),
 
       /* ----------------------------- documents ---------------------------- */
-      addDocument: (doc) =>
+      // Replace the whole list (used to hydrate from the backend on load).
+      setDocuments: (documents) => set({ documents }),
+      addDocument: (doc) => {
+        const id = doc.id || uid();
         set((s) => ({
           documents: [
-            { id: uid(), status: 'PROCESSING', chunkCount: 0, createdAt: now(), ...doc },
+            { status: 'PROCESSING', chunkCount: 0, createdAt: now(), ...doc, id },
             ...s.documents,
           ],
-        })),
+        }));
+        return id;
+      },
       updateDocument: (id, patch) =>
         set((s) => ({
           documents: s.documents.map((d) => (d.id === id ? { ...d, ...patch } : d)),

@@ -16,12 +16,21 @@ export const AUTO_MODEL = {
 
 export const FALLBACK_MODELS = [
   {
-    id: 'deepseek/deepseek-r1:free',
-    name: 'DeepSeek R1',
-    shortName: 'DeepSeek R1',
-    description: 'Reasoning & math — slow but rigorous.',
-    category: 'reasoning',
-    contextLength: 64000,
+    id: 'openai/gpt-oss-120b:free',
+    name: 'GPT-OSS 120B',
+    shortName: 'GPT-OSS 120B',
+    description: 'Strong general-purpose reasoning.',
+    category: 'general',
+    contextLength: 131000,
+    isFree: true,
+  },
+  {
+    id: 'openai/gpt-oss-20b:free',
+    name: 'GPT-OSS 20B',
+    shortName: 'GPT-OSS 20B',
+    description: 'Fast, low-latency responses.',
+    category: 'fast',
+    contextLength: 131000,
     isFree: true,
   },
   {
@@ -34,42 +43,33 @@ export const FALLBACK_MODELS = [
     isFree: true,
   },
   {
-    id: 'meta-llama/llama-3.3-70b-instruct:free',
-    name: 'Llama 3.3 70B',
-    shortName: 'Llama 3.3',
-    description: 'Strong general-purpose chat.',
+    id: 'google/gemma-4-31b-it:free',
+    name: 'Gemma 4 31B',
+    shortName: 'Gemma 4 31B',
+    description: 'Capable general-purpose chat.',
     category: 'general',
-    contextLength: 128000,
+    contextLength: 131000,
     isFree: true,
   },
   {
-    id: 'google/gemini-2.0-flash-exp:free',
-    name: 'Gemini 2.0 Flash',
-    shortName: 'Gemini Flash',
-    description: 'Fast, multimodal, low latency.',
-    category: 'fast',
-    contextLength: 1000000,
-    isFree: true,
-  },
-  {
-    id: 'qwen/qwen3-235b-a22b:free',
-    name: 'Qwen3 235B',
-    shortName: 'Qwen3 235B',
+    id: 'qwen/qwen3-next-80b-a3b-instruct:free',
+    name: 'Qwen3 Next 80B',
+    shortName: 'Qwen3 Next 80B',
     description: 'Large multilingual model.',
     category: 'multilingual',
-    contextLength: 128000,
+    contextLength: 262000,
     isFree: true,
   },
 ];
 
-// Category → ordered fallback chain (matches the backend router defaults).
+// Category → preferred model (mirrors the backend router defaults).
 export const ROUTER_DEFAULTS = {
   code: 'qwen/qwen3-coder:free',
-  reasoning: 'deepseek/deepseek-r1:free',
-  math: 'deepseek/deepseek-r1:free',
-  general: 'meta-llama/llama-3.3-70b-instruct:free',
-  fast: 'google/gemini-2.0-flash-exp:free',
-  multilingual: 'qwen/qwen3-235b-a22b:free',
+  reasoning: 'openai/gpt-oss-120b:free',
+  math: 'openai/gpt-oss-120b:free',
+  general: 'openai/gpt-oss-120b:free',
+  fast: 'openai/gpt-oss-20b:free',
+  multilingual: 'qwen/qwen3-next-80b-a3b-instruct:free',
 };
 
 export const CATEGORY_LABELS = {

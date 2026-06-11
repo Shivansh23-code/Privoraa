@@ -1,6 +1,8 @@
 // src/context/UserAuthContext.jsx
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as authService from '../lib/authService';
+import { setStoredUser, clearAuth, getToken } from '../lib/apiClient';
 
 const UserAuthContext = createContext(null);
 
@@ -11,31 +13,35 @@ export const UserAuthProvider = ({ children }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('userToken');
+    const token = getToken();
     const userData = localStorage.getItem('userData');
-
     if (token && userData) {
       setUser(JSON.parse(userData));
       setIsAuthenticated(true);
+      // Best-effort: refresh the user from the backend if it's live. If the
+      // stored token turned out to be invalid (cleared by fetchMe), log out.
+      authService.fetchMe().then((fresh) => {
+        if (fresh) setUser(fresh);
+        else if (!getToken()) {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
+      });
     }
-
     setLoading(false);
   }, []);
 
-  const login = async (email) => {
-    const fakeUser = { name: 'Demo User', email };
-    localStorage.setItem('userToken', 'dummy-token');
-    localStorage.setItem('userData', JSON.stringify(fakeUser));
-    setUser(fakeUser);
+  // login/signUp throw on real auth failures (the pages catch + show the error).
+  const login = async (email, password) => {
+    const u = await authService.login(email, password);
+    setUser(u);
     setIsAuthenticated(true);
     navigate('/app');
   };
 
-  const signUp = async (name, email) => {
-    const fakeUser = { name: name || 'New User', email };
-    localStorage.setItem('userToken', 'dummy-token');
-    localStorage.setItem('userData', JSON.stringify(fakeUser));
-    setUser(fakeUser);
+  const signUp = async (name, email, password) => {
+    const u = await authService.register(name, email, password);
+    setUser(u);
     setIsAuthenticated(true);
     navigate('/app');
   };
@@ -43,15 +49,14 @@ export const UserAuthProvider = ({ children }) => {
   const updateProfile = (patch) => {
     setUser((prev) => {
       const next = { ...prev, ...patch };
-      localStorage.setItem('userData', JSON.stringify(next));
+      setStoredUser(next);
       return next;
     });
   };
 
-  // 🔥 Renamed logout → logOut
   const logOut = () => {
-    localStorage.removeItem('userToken');
-    localStorage.removeItem('userData');
+    authService.logout();
+    clearAuth();
     setUser(null);
     setIsAuthenticated(false);
     navigate('/');

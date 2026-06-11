@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Privoraa Backend (local)" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <module name="privoraa-backend" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.privoraa.PrivoraaApplication" />
+    <option name="ACTIVE_PROFILES" value="local" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>

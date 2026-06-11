@@ -12,6 +12,13 @@ dist
 dist-ssr
 *.local
 
+# Claude Code local config (can record commands containing secrets — keep out of git)
+.claude/
+
+# Local env files
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

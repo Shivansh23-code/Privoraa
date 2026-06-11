@@ -1,6 +1,8 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Upload, FileText, Trash2, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
+import { ensureBackend } from '../../lib/chatService';
+import { uploadDocument, fetchDocuments, deleteDocumentRemote } from '../../lib/documentService';
 
 const STATUS = {
   PROCESSING: { icon: Loader2, cls: 'text-amber-500 animate-spin', label: 'Processing' },
@@ -13,17 +15,59 @@ export default function DocumentsPanel({ fileInputRef }) {
   const addDocument = useChatStore((s) => s.addDocument);
   const updateDocument = useChatStore((s) => s.updateDocument);
   const removeDocument = useChatStore((s) => s.removeDocument);
+  const setDocuments = useChatStore((s) => s.setDocuments);
+  const setUseRag = useChatStore((s) => s.setUseRag);
   const localRef = useRef(null);
   const inputRef = fileInputRef || localRef;
   const [dragging, setDragging] = useState(false);
 
-  const onFiles = (files) => {
-    Array.from(files).forEach((file) => {
-      const id = addDocument({ filename: file.name, status: 'PROCESSING' });
-      // Simulate the async chunk+embed pipeline until the backend exists.
-      const chunks = Math.max(3, Math.round(file.size / 4000) || 8);
-      setTimeout(() => updateDocument(id, { status: 'READY', chunkCount: chunks }), 1800);
+  // On load, if the backend is live it owns the document list — hydrate from it.
+  useEffect(() => {
+    let cancelled = false;
+    ensureBackend().then((live) => {
+      if (live) fetchDocuments().then((docs) => !cancelled && setDocuments(docs));
     });
+    return () => {
+      cancelled = true;
+    };
+  }, [setDocuments]);
+
+  // Poll the backend until chunking + embedding finish (PROCESSING → READY/FAILED).
+  const pollStatus = (docId, attempts = 0) => {
+    if (attempts > 40) return; // ~80s safety cap
+    setTimeout(async () => {
+      const docs = await fetchDocuments();
+      const d = docs.find((x) => x.id === docId);
+      if (!d) return;
+      updateDocument(docId, { status: d.status, chunkCount: d.chunkCount });
+      if (d.status === 'PROCESSING') pollStatus(docId, attempts + 1);
+      else if (d.status === 'READY') setUseRag(true); // ground answers on it automatically
+    }, 2000);
+  };
+
+  const onFiles = async (files) => {
+    const live = await ensureBackend();
+    for (const file of Array.from(files)) {
+      const tempId = addDocument({ filename: file.name, status: 'PROCESSING' });
+      if (!live) {
+        // No backend — local demo: simulate the chunk+embed pipeline.
+        const chunks = Math.max(3, Math.round(file.size / 4000) || 8);
+        setTimeout(() => updateDocument(tempId, { status: 'READY', chunkCount: chunks }), 1800);
+        continue;
+      }
+      try {
+        const doc = await uploadDocument(file); // backend processes asynchronously
+        updateDocument(tempId, { id: doc.id, status: doc.status, chunkCount: doc.chunkCount });
+        pollStatus(doc.id);
+      } catch (err) {
+        updateDocument(tempId, { status: 'FAILED', errorMessage: err.message });
+      }
+    }
+  };
+
+  const onDelete = (id) => {
+    removeDocument(id);
+    ensureBackend().then((live) => live && deleteDocumentRemote(id));
   };
 
   return (
@@ -91,7 +135,7 @@ export default function DocumentsPanel({ fileInputRef }) {
                   </p>
                 </div>
                 <button
-                  onClick={() => removeDocument(d.id)}
+                  onClick={() => onDelete(d.id)}
                   className="hidden h-6 w-6 items-center justify-center rounded-md text-muted transition hover:bg-line hover:text-red-500 group-hover:flex"
                   title="Delete"
                 >

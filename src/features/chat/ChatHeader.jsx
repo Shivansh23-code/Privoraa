@@ -70,7 +70,7 @@ export default function ChatHeader({
   const menuRef = useClickOutside(() => setMenuOpen(false), menuOpen);
 
   return (
-    <header className="flex items-center gap-2 border-b border-line bg-bg/80 px-3 py-2.5 backdrop-blur">
+    <header className="relative z-30 flex items-center gap-2 border-b border-line bg-bg/80 px-3 py-2.5 backdrop-blur">
       <button
         onClick={onToggleSidebar}
         className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg lg:hidden"

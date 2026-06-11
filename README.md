@@ -6,12 +6,11 @@ own notes — designed so conversations stay yours.
 
 **Live demo:** https://privoraa.vercel.app
 
-> **Status — honest version:** the frontend is complete and fully interactive. Chat answers
-> currently stream from a **local demo engine** (mock streaming with markdown/code/LaTeX
-> rendering and model-routing preview) so the whole experience works without a backend. The
-> **Spring Boot + OpenRouter backend is in active development** — when it's live, the app
-> switches over automatically (a Demo/Live pill in the workspace header shows which engine
-> is answering).
+> **Status:** the frontend is complete and the **Spring Boot + OpenRouter backend is live**
+> (in `BackendPrivoraa/`). Run both locally and chat answers stream from real free models via
+> OpenRouter, with JWT auth and MySQL-persisted history. If the backend isn't reachable, the
+> frontend transparently falls back to a **local demo engine** so the UI still works — a
+> Demo/Live pill in the workspace header shows which engine is answering.
 
 ---
 
@@ -32,10 +31,10 @@ own notes — designed so conversations stay yours.
 React + Vite (Vercel)
    │  JWT · REST · SSE
    ▼
-Spring Boot API (in development)
-   │  Smart Router · Redis rate limiting · MySQL persistence
+Spring Boot API (http://localhost:8099)
+   │  Smart Router · rate limiting · MySQL persistence
    ▼
-OpenRouter ──► DeepSeek R1 · Qwen3 Coder · Llama 3.3 · Gemini Flash · …
+OpenRouter ──► GPT-OSS 120B/20B · Qwen3 Coder · Llama 3.3 · Gemma 4 · …
 ```
 
 The browser never sees an API key — every model call is proxied through the backend.
@@ -48,21 +47,30 @@ the local demo engine, so the UI code is identical in both worlds.
 react-markdown + KaTeX + highlight.js · lucide-react ·
 Bricolage Grotesque / Manrope / IBM Plex Mono
 
-**Backend (in development):** Java 17 · Spring Boot 3 · Spring Security (JWT) · MySQL ·
-Redis · SSE streaming · OpenRouter · Docker · GitHub Actions
+**Backend:** Java 21 · Spring Boot 3.3 · Spring Security (JWT) · MySQL · Flyway ·
+Redis (optional) · SSE streaming · OpenRouter · Docker
 
 ## Run locally
+
+### Full stack (frontend + backend), one command
+
+Prerequisites: Java 21, Node 18+, MySQL running locally. Set the backend key once:
+
+```powershell
+copy BackendPrivoraa\.env.example BackendPrivoraa\.env   # set OPENROUTER_API_KEY + DB_PASS
+.\start.ps1                                              # opens API (8099) + frontend (5173)
+```
+
+### Frontend only (uses the local demo engine if no backend)
 
 ```bash
 npm install
 npm run dev          # http://localhost:5173
 ```
 
-Optional — point at a backend:
-
-```bash
-cp .env.example .env # set VITE_API_BASE_URL
-```
+The frontend targets `http://localhost:8099/api/v1` by default (override via
+`VITE_API_BASE_URL` in `.env`). See `BackendPrivoraa/README.md` for backend run options
+(local MySQL, zero-infra H2, or Docker Compose).
 
 ## Project structure
 

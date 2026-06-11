@@ -1,0 +1,155 @@
+package com.privoraa.llm;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.privoraa.common.ApiException;
+import com.privoraa.config.OpenRouterProperties;
+import io.github.resilience4j.retry.annotation.Retry;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Talks to OpenRouter's OpenAI-compatible API. The only place the API key is used.
+ * Streaming is consumed as Server-Sent Events; the #1 streaming bug — keep-alive
+ * comment lines like ": OPENROUTER PROCESSING" — is handled for free because the
+ * SSE decoder drops comments and only surfaces `data:` payloads.
+ */
+@Component
+public class OpenRouterClient {
+
+    private final WebClient webClient;
+    private final ObjectMapper mapper;
+    private final OpenRouterProperties props;
+
+    public OpenRouterClient(WebClient openRouterWebClient, ObjectMapper objectMapper, OpenRouterProperties props) {
+        this.webClient = openRouterWebClient;
+        this.mapper = objectMapper;
+        this.props = props;
+    }
+
+    /** Stream a chat completion, emitting each content delta as it arrives. */
+    public Flux<String> streamCompletion(String model, List<Map<String, String>> messages,
+                                         Double temperature, Integer maxTokens) {
+        if (!props.configured()) {
+            return Flux.error(notConfigured());
+        }
+        Map<String, Object> body = buildBody(model, messages, temperature, maxTokens, true);
+        return webClient.post()
+                .uri("/chat/completions")
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .bodyValue(body)
+                .retrieve()
+                .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
+                // Keep-alive comment lines (": OPENROUTER PROCESSING") arrive as events
+                // with null data. Reactor's map() forbids null, so use mapNotNull to drop
+                // them — otherwise the stream NPEs before the first token.
+                .mapNotNull(ServerSentEvent::data)
+                .takeWhile(data -> !"[DONE]".equals(data.trim()))
+                .map(this::extractDelta)
+                .filter(s -> !s.isEmpty());
+    }
+
+    /** Non-streaming completion with exact token usage from the response. */
+    @Retry(name = "openrouter")
+    public ChatResult completion(String model, List<Map<String, String>> messages,
+                                 Double temperature, Integer maxTokens) {
+        if (!props.configured()) {
+            throw notConfigured();
+        }
+        Map<String, Object> body = buildBody(model, messages, temperature, maxTokens, false);
+        JsonNode resp = webClient.post()
+                .uri("/chat/completions")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .block();
+        if (resp == null) {
+            throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "Empty response from model");
+        }
+        String content = resp.path("choices").path(0).path("message").path("content").asText("");
+        int prompt = resp.path("usage").path("prompt_tokens").asInt(0);
+        int completion = resp.path("usage").path("completion_tokens").asInt(0);
+        return new ChatResult(content, prompt, completion);
+    }
+
+    /** Fetch the full model catalog (public endpoint; works without a key). */
+    @Retry(name = "openrouter")
+    public List<JsonNode> listModels() {
+        JsonNode resp = webClient.get()
+                .uri("/models")
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .block();
+        List<JsonNode> out = new ArrayList<>();
+        if (resp != null) {
+            resp.path("data").forEach(out::add);
+        }
+        return out;
+    }
+
+    /** Embed a single text. Requires an embedding model to be configured. */
+    @Retry(name = "openrouter")
+    public float[] embed(String input) {
+        if (!props.embeddingsConfigured()) {
+            throw new ApiException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                    "Embedding model not configured");
+        }
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", props.embeddingModel());
+        body.put("input", input);
+        JsonNode resp = webClient.post()
+                .uri("/embeddings")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .block();
+        JsonNode arr = resp == null ? null : resp.path("data").path(0).path("embedding");
+        if (arr == null || !arr.isArray()) {
+            throw new ApiException(org.springframework.http.HttpStatus.BAD_GATEWAY, "No embedding returned");
+        }
+        float[] vec = new float[arr.size()];
+        for (int i = 0; i < arr.size(); i++) {
+            vec[i] = (float) arr.get(i).asDouble();
+        }
+        return vec;
+    }
+
+    private Map<String, Object> buildBody(String model, List<Map<String, String>> messages,
+                                          Double temperature, Integer maxTokens, boolean stream) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        body.put("messages", messages);
+        body.put("stream", stream);
+        if (temperature != null) {
+            body.put("temperature", temperature);
+        }
+        if (maxTokens != null) {
+            body.put("max_tokens", maxTokens);
+        }
+        return body;
+    }
+
+    private String extractDelta(String data) {
+        try {
+            JsonNode node = mapper.readTree(data);
+            JsonNode content = node.path("choices").path(0).path("delta").path("content");
+            return content.isTextual() ? content.asText() : "";
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private ApiException notConfigured() {
+        return new ApiException(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE,
+                "AI is not configured on this server (missing OPENROUTER_API_KEY).");
+    }
+}
