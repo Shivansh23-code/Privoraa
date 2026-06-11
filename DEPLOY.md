@@ -23,8 +23,28 @@ git push origin main
    Verify: open `https://privoraa-backend.onrender.com/actuator/health` → `{"status":"UP"}`.
 
 > Free Render services sleep after ~15 min idle and cold-start in ~1 min. With H2, accounts
-> reset on cold start — fine for a demo. For persistent data, add a hosted MySQL (e.g. Railway
-> or Aiven) and set `SPRING_PROFILES_ACTIVE` back to the default plus `DB_URL/DB_USER/DB_PASS`.
+> reset on cold start. To keep accounts/chats permanently, do **Step 2b** below.
+
+## 2b. (Recommended) Make data persistent with a free managed MySQL
+
+H2 is in-memory, so accounts vanish on cold start. Point the backend at a free hosted MySQL
+instead — same tested Flyway stack, just a cloud database. ~5 minutes:
+
+1. **Create a free MySQL** (no card needed):
+   - **Aiven** (https://aiven.io) → create a **MySQL** "Free plan" service, or
+   - **Clever Cloud** (https://clever-cloud.com) → Add-on → **MySQL** (free dev plan).
+   - Copy its **host, port, database name, user, password** (managed MySQL requires SSL).
+2. In the **Render** `privoraa-backend` service → **Environment**, set:
+   - `SPRING_PROFILES_ACTIVE` = `prod`
+   - `DB_URL` = `jdbc:mysql://<host>:<port>/<database>?sslMode=REQUIRED&serverTimezone=UTC`
+   - `DB_USER` = `<user>`
+   - `DB_PASS` = `<password>`
+   - (keep `OPENROUTER_API_KEY`, `JWT_SECRET`, `CORS_ORIGINS`)
+3. **Save** → it redeploys with the `prod` profile. Flyway builds the schema on first boot.
+   Now register/login survive cold starts.
+
+> Make sure the new code (which includes the `prod` profile) is pushed and Render has
+> redeployed before switching `SPRING_PROFILES_ACTIVE` to `prod`.
 
 ## 3. Point the Vercel frontend at the backend
 
