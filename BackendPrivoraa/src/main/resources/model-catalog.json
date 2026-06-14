@@ -43,6 +43,16 @@
       ]
     },
     {
+      "key": "vision",
+      "title": "Vision (see images)",
+      "blurb": "Multimodal models that can read and describe images you attach.",
+      "models": [
+        { "tag": "moondream",            "displayName": "Moondream 2",         "category": "vision", "sizeGbApprox": 1.7, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "default": true, "blurb": "Tiny vision model — describes images on 8 GB." },
+        { "tag": "llava:7b",             "displayName": "LLaVA 7B",            "category": "vision", "sizeGbApprox": 4.7, "minRamGbHint": 16, "vramFitsGb": 6, "tier": "stretch", "blurb": "Stronger image understanding; heavy for 8 GB." },
+        { "tag": "llama3.2-vision:11b",  "displayName": "Llama 3.2 Vision 11B","category": "vision", "sizeGbApprox": 7.9, "minRamGbHint": 16, "vramFitsGb": 8, "tier": "not_recommended", "blurb": "Capable but too large for an 8 GB machine." }
+      ]
+    },
+    {
       "key": "embeddings",
       "title": "Embeddings (required for document chat)",
       "blurb": "Needed for RAG / document retrieval — not used for chat.",

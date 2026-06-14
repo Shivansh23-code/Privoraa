@@ -153,30 +153,55 @@ public class OllamaProvider implements LlmProvider {
     }
 
     /**
-     * Ollama's /api/chat wants {role, content} with content as a plain string.
-     * The prompt builder may hand us OpenAI-style multimodal content (a list of
-     * parts); flatten any text parts so non-vision chat still works locally.
+     * Ollama's /api/chat wants {role, content} with content as a plain string, and
+     * images passed separately as a base64 {@code images} array on the message. The
+     * prompt builder hands us OpenAI-style multimodal content (a list of text +
+     * image_url parts); split those so text chat works and a vision model (e.g.
+     * llava / llama3.2-vision / moondream) can actually "see" attached images.
      */
     private List<Map<String, Object>> normalize(List<Map<String, Object>> messages) {
         List<Map<String, Object>> out = new ArrayList<>(messages.size());
         for (Map<String, Object> m : messages) {
-            Object content = m.get("content");
             Map<String, Object> copy = new LinkedHashMap<>();
             copy.put("role", m.getOrDefault("role", "user"));
-            copy.put("content", content instanceof List<?> parts ? flattenText(parts) : String.valueOf(content));
+
+            Object content = m.get("content");
+            if (content instanceof List<?> parts) {
+                StringBuilder text = new StringBuilder();
+                List<String> images = new ArrayList<>();
+                for (Object part : parts) {
+                    if (!(part instanceof Map<?, ?> p)) {
+                        continue;
+                    }
+                    if ("text".equals(p.get("type"))) {
+                        text.append(p.get("text"));
+                    } else if ("image_url".equals(p.get("type"))) {
+                        String b64 = base64FromImagePart(p.get("image_url"));
+                        if (b64 != null) {
+                            images.add(b64);
+                        }
+                    }
+                }
+                copy.put("content", text.toString());
+                if (!images.isEmpty()) {
+                    copy.put("images", images);
+                }
+            } else {
+                copy.put("content", String.valueOf(content));
+            }
             out.add(copy);
         }
         return out;
     }
 
-    private String flattenText(List<?> parts) {
-        StringBuilder sb = new StringBuilder();
-        for (Object part : parts) {
-            if (part instanceof Map<?, ?> p && "text".equals(p.get("type"))) {
-                sb.append(p.get("text"));
-            }
+    /** Extract raw base64 from a data URL ("data:image/png;base64,XXXX" -> "XXXX"). */
+    private String base64FromImagePart(Object imageUrl) {
+        String url = imageUrl instanceof Map<?, ?> u ? String.valueOf(u.get("url")) : String.valueOf(imageUrl);
+        if (url == null) {
+            return null;
         }
-        return sb.toString();
+        int idx = url.indexOf("base64,");
+        return idx >= 0 ? url.substring(idx + "base64,".length()) : null; // remote URLs unsupported by Ollama
     }
 
     private Throwable mapError(Throwable t) {

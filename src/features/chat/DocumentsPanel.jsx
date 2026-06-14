@@ -38,8 +38,13 @@ export default function DocumentsPanel({ fileInputRef, hideHeading = false }) {
   };
 
   const onFiles = async (files) => {
+    // Snapshot the FileList NOW: the input's onChange clears e.target.value
+    // synchronously right after this call, which empties the live FileList before
+    // the async work below runs — iterating it later would find zero files.
+    const fileList = Array.from(files);
+    if (fileList.length === 0) return;
     const live = await ensureBackend();
-    for (const file of Array.from(files)) {
+    for (const file of fileList) {
       const tempId = addDocument({ filename: file.name, status: 'PROCESSING' });
       if (!live) {
         // No backend — local demo: simulate the chunk+embed pipeline.
@@ -97,7 +102,7 @@ export default function DocumentsPanel({ fileInputRef, hideHeading = false }) {
         ref={inputRef}
         type="file"
         multiple
-        accept=".pdf,.txt,.md,.docx"
+        accept=".pdf,.txt,.md,.markdown,.doc,.docx,.rtf,.odt,.csv,.tsv,.html,.htm,.json,.xml,.pptx,.ppt,.xlsx,.xls,.epub"
         className="hidden"
         onChange={(e) => {
           if (e.target.files?.length) onFiles(e.target.files);

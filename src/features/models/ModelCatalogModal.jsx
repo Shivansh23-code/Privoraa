@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   X, Download, Check, Trash2, AlertTriangle, Loader2, ArrowLeft,
-  HardDrive, Cpu, Boxes, ServerCog, CheckCircle2, Star,
+  HardDrive, Cpu, Boxes, ServerCog, CheckCircle2, Star, Eye,
 } from 'lucide-react';
 import {
   fetchCatalog, fetchInstalled, fetchActiveModel, setActiveModel,
@@ -20,7 +20,7 @@ function fitBadge(m) {
 }
 
 const CATEGORY_ICONS = {
-  daily: Boxes, coding: Cpu, reasoning: ServerCog, lightweight: Star, embeddings: HardDrive,
+  daily: Boxes, coding: Cpu, reasoning: ServerCog, lightweight: Star, vision: Eye, embeddings: HardDrive,
 };
 
 export default function ModelCatalogModal({ open, onClose, onActiveChange }) {

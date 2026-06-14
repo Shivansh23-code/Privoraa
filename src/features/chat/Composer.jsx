@@ -1,6 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowUp, BookOpenCheck, Image as ImageIcon, Paperclip, Square, X } from 'lucide-react';
+import {
+  ArrowUp, BookOpenCheck, Image as ImageIcon, Paperclip, Square, X,
+  FileText, Loader2, CheckCircle2, XCircle,
+} from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
+import { ensureBackend } from '../../lib/chatService';
+import { deleteDocumentRemote } from '../../lib/documentService';
+
+const DOC_STATUS = {
+  PROCESSING: { Icon: Loader2, cls: 'text-amber-500 animate-spin' },
+  READY: { Icon: CheckCircle2, cls: 'text-emerald-500' },
+  FAILED: { Icon: XCircle, cls: 'text-red-500' },
+};
 
 /** Read an image file and downscale it to a data URL (keeps the vision payload small). */
 function readAndResize(file, maxDim = 1024, quality = 0.85) {
@@ -32,7 +43,9 @@ function readAndResize(file, maxDim = 1024, quality = 0.85) {
 export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }) {
   const useRag = useChatStore((s) => s.useRag);
   const setUseRag = useChatStore((s) => s.setUseRag);
-  const hasReadyDocs = useChatStore((s) => s.documents.some((d) => d.status === 'READY'));
+  const documents = useChatStore((s) => s.documents);
+  const removeDocument = useChatStore((s) => s.removeDocument);
+  const hasReadyDocs = documents.some((d) => d.status === 'READY');
   const [value, setValue] = useState('');
   const [image, setImage] = useState(null); // downscaled data URL
   const taRef = useRef(null);
@@ -55,6 +68,11 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
     }
   };
 
+  const removeDoc = (id) => {
+    removeDocument(id);
+    ensureBackend().then((live) => live && deleteDocumentRemote(id));
+  };
+
   const submit = () => {
     const text = value.trim();
     if ((!text && !image) || isStreaming) return;
@@ -73,19 +91,47 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
   return (
     <div className="border-t border-line bg-bg/80 px-4 py-3 backdrop-blur">
       <div className="mx-auto w-full max-w-3xl xl:max-w-4xl 2xl:max-w-5xl min-[2200px]:max-w-[88rem] min-[3200px]:max-w-[120rem]">
-        {/* Image preview */}
-        {image && (
-          <div className="mb-2 inline-flex items-center gap-2 rounded-xl border border-line bg-surface p-1.5 pr-2">
-            <img src={image} alt="to send" className="h-12 w-12 rounded-lg object-cover" />
-            <span className="text-xs text-muted">Image attached</span>
-            <button
-              type="button"
-              onClick={() => setImage(null)}
-              title="Remove image"
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted transition hover:bg-surface-2 hover:text-red-500"
-            >
-              <X size={14} />
-            </button>
+        {/* Attachments preview: uploaded documents (RAG) + the pending image */}
+        {(image || documents.length > 0) && (
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            {documents.map((d) => {
+              const st = DOC_STATUS[d.status] || DOC_STATUS.PROCESSING;
+              const StIcon = st.Icon;
+              return (
+                <span
+                  key={d.id}
+                  title={`${d.filename}${d.status === 'READY' ? ` · ${d.chunkCount} chunks` : ` · ${d.status?.toLowerCase?.() || ''}`}`}
+                  className="inline-flex max-w-[220px] items-center gap-1.5 rounded-xl border border-line bg-surface py-1.5 pl-2.5 pr-1.5 text-xs"
+                >
+                  <FileText size={14} className="shrink-0 text-brand-400" />
+                  <span className="truncate text-fg/90">{d.filename}</span>
+                  <StIcon size={13} className={`shrink-0 ${st.cls}`} />
+                  <button
+                    type="button"
+                    onClick={() => removeDoc(d.id)}
+                    title="Remove"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted transition hover:bg-surface-2 hover:text-red-500"
+                  >
+                    <X size={13} />
+                  </button>
+                </span>
+              );
+            })}
+
+            {image && (
+              <span className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface p-1.5 pr-2">
+                <img src={image} alt="to send" className="h-10 w-10 rounded-lg object-cover" />
+                <span className="text-xs text-muted">Image</span>
+                <button
+                  type="button"
+                  onClick={() => setImage(null)}
+                  title="Remove image"
+                  className="flex h-6 w-6 items-center justify-center rounded-md text-muted transition hover:bg-surface-2 hover:text-red-500"
+                >
+                  <X size={14} />
+                </button>
+              </span>
+            )}
           </div>
         )}
 
