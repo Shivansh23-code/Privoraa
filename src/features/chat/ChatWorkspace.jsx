@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { X, PanelLeftOpen } from 'lucide-react';
 
 import Sidebar from './Sidebar';
 import ChatHeader from './ChatHeader';
@@ -40,6 +40,8 @@ export default function ChatWorkspace() {
   const localLlm = useLocalLlm();
 
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
+  const [collapsed, setCollapsed] = useState(false); // desktop sidebar collapsed (pinned)
+  const [peek, setPeek] = useState(false); // collapsed sidebar temporarily shown on hover
   const [modelsOpen, setModelsOpen] = useState(false); // local-model catalog modal
   const [usingMock, setUsingMock] = useState(true);
   const fileInputRef = useRef(null);
@@ -61,13 +63,53 @@ export default function ChatWorkspace() {
     });
   }, [setDocuments]);
 
+  const desktopOpen = !collapsed || peek;
+
   return (
-    <div className="flex h-screen overflow-hidden bg-bg text-fg">
-      {/* ---------- Left sidebar ---------- */}
-      {/* Desktop */}
-      <aside className="hidden w-[280px] shrink-0 border-r border-line bg-surface lg:block 2xl:w-[320px]">
-        <Sidebar fileInputRef={fileInputRef} />
-      </aside>
+    <div className="relative flex h-screen overflow-hidden bg-bg text-fg">
+      {/* ---------- Left sidebar (desktop) ---------- */}
+      {/* Collapsed rail: brand logo; hover to peek the sidebar open. */}
+      {collapsed && (
+        <div
+          onMouseEnter={() => setPeek(true)}
+          className="hidden w-[56px] shrink-0 flex-col items-center border-r border-line bg-surface pt-3 lg:flex"
+        >
+          <button
+            onClick={() => setCollapsed(false)}
+            onMouseEnter={() => setPeek(true)}
+            title="Open sidebar"
+            className="group flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-surface-2"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-brand-600 group-hover:opacity-0">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#070b14]" aria-hidden="true">
+                <path fill="none" stroke="currentColor" strokeWidth="2.2" d="M7 11V8a5 5 0 0 1 10 0v3" />
+                <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />
+              </svg>
+            </span>
+            <PanelLeftOpen size={18} className="absolute text-brand-500 opacity-0 transition group-hover:opacity-100" />
+          </button>
+        </div>
+      )}
+
+      {/* The sidebar itself: in-flow when open, an overlay while peeking. */}
+      {desktopOpen && (
+        <aside
+          onMouseLeave={() => collapsed && setPeek(false)}
+          className={`hidden shrink-0 border-r border-line bg-surface lg:block ${
+            collapsed
+              ? 'absolute left-0 top-0 z-40 h-full w-[300px] shadow-2xl'
+              : 'w-[280px] 2xl:w-[320px]'
+          }`}
+        >
+          <Sidebar
+            fileInputRef={fileInputRef}
+            onCollapse={() => {
+              setCollapsed(true);
+              setPeek(false);
+            }}
+          />
+        </aside>
+      )}
       {/* Mobile drawer */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">

@@ -13,6 +13,7 @@ import {
   ChevronDown,
   FileText,
   Activity,
+  PanelLeftClose,
 } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 import { useUserAuth } from '../../context/UserAuthContext';
@@ -115,7 +116,7 @@ function SidebarSection({ title, icon, defaultOpen = false, children }) {
   );
 }
 
-export default function Sidebar({ onNavigate, fileInputRef }) {
+export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
   const conversations = useChatStore((s) => s.conversations);
   const currentId = useChatStore((s) => s.currentId);
   const newConversation = useChatStore((s) => s.newConversation);
@@ -158,12 +159,29 @@ export default function Sidebar({ onNavigate, fileInputRef }) {
   return (
     <div className="flex h-full flex-col gap-3 p-3">
       <div className="flex items-center gap-2.5 px-1 pt-1">
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-brand-600 shadow-[0_6px_18px_rgba(43,224,190,.25)]">
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#070b14]" aria-hidden="true">
+        {/* Brand logo by default; reveals a collapse button on hover (desktop). */}
+        <button
+          type="button"
+          onClick={onCollapse}
+          disabled={!onCollapse}
+          title={onCollapse ? 'Collapse sidebar' : 'Privoraa'}
+          className="group relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-brand-600 shadow-[0_6px_18px_rgba(43,224,190,.25)]"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className={`h-3.5 w-3.5 text-[#070b14] ${onCollapse ? 'group-hover:opacity-0' : ''}`}
+            aria-hidden="true"
+          >
             <path fill="none" stroke="currentColor" strokeWidth="2.2" d="M7 11V8a5 5 0 0 1 10 0v3" />
             <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />
           </svg>
-        </span>
+          {onCollapse && (
+            <PanelLeftClose
+              size={16}
+              className="absolute text-[#070b14] opacity-0 transition group-hover:opacity-100"
+            />
+          )}
+        </button>
         <span className="font-display text-lg font-bold tracking-tight text-fg">Privoraa</span>
         <span className="rounded bg-accent-500/12 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent-500">
           2.0
