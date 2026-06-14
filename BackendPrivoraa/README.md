@@ -98,13 +98,22 @@ All config is environment-driven (see `.env.example`). Key variables:
 
 | Variable | Purpose |
 |----------|---------|
-| `OPENROUTER_API_KEY` | Enables real model calls. Without it, `/models` serves a static list and chat returns a clear "not configured" error. |
+| `LLM_PROVIDER` | `ollama` (local, offline — default) or `openrouter` (cloud). One switch. |
+| `OLLAMA_BASE_URL` | Local Ollama URL. `http://localhost:11434` for the jar; `http://host.docker.internal:11434` in Docker. |
+| `OLLAMA_MODEL` / `OLLAMA_EMBED_MODEL` | Default chat / embed models (`llama3.2:3b` / `nomic-embed-text`). |
+| `RAM_BUDGET_GB` | Hardware budget for the catalog "fits this machine" flag (default 8). |
+| `OPENROUTER_API_KEY` | Used when `LLM_PROVIDER=openrouter`. Without it, `/models` serves a static list and cloud chat returns a clear "not configured" error. |
 | `JWT_SECRET` | Token signing secret — **must be ≥ 32 bytes** in production. |
 | `CORS_ORIGINS` | Comma-separated allowed origins (your Vercel app + local dev). |
 | `DB_URL` / `DB_USER` / `DB_PASS` | MySQL connection. |
 | `REDIS_HOST` / `REDIS_PORT` | Redis for cache + rate limiting. |
-| `EMBEDDING_MODEL` | OpenRouter embedding slug for RAG. Blank → built-in deterministic local embedding. |
+| `EMBEDDING_MODEL` | OpenRouter embedding slug (cloud path only). Blank → built-in deterministic local embedding. |
 | `RATE_LIMIT_PER_MIN` / `RATE_LIMIT_PER_DAY` | Per-user request budgets. |
+
+**Local models (Ollama):** with `LLM_PROVIDER=ollama` (default), chat + RAG run on models you
+pull locally — fully offline after the one-time pull. In Docker, set `OLLAMA_HOST=0.0.0.0` on
+the host so the container can reach Ollama via `host.docker.internal`. See the root README's
+[Run fully offline](../README.md#run-fully-offline-with-local-models-ollama) section.
 
 ## API surface (`/api/v1`)
 
@@ -119,15 +128,32 @@ GET    /usage
 POST   /quiz/generate            POST /quiz/grade
 ```
 
+Local-model + provider endpoints (outside `/api/v1`):
+
+```
+GET    /api/llm/health                                   { provider, ollamaInstalled, running, version }
+GET    /api/models/catalog        GET /api/models/installed
+POST   /api/models/pull  (SSE progress)                  DELETE /api/models/{tag}
+GET    /api/models/active         POST /api/models/active
+POST   /api/rag/reembed           (re-embed chunks with the active embed model)
+```
+
 Full, interactive docs at **`/swagger-ui.html`**.
 
 ## Honest notes
 
 - **Routing** is intelligent heuristics + catalog lookup + health-aware fallback — not a trained
   neural net. The fallback only switches models *before* the first token to avoid duplicated output.
-- **Embeddings**: by default a deterministic local feature-hashing embedding (zero external deps);
-  set `EMBEDDING_MODEL` to use a real OpenRouter embedding model. Retrieval is exact cosine over the
-  user's chunks (fine at portfolio scale; swap in pgvector/Qdrant for large corpora).
+- **Embeddings**: with Ollama, the configured embed model (default `nomic-embed-text`, 768-dim);
+  on the cloud path, `EMBEDDING_MODEL` or a deterministic local feature-hashing fallback (zero
+  external deps). Retrieval is exact cosine over the user's chunks (fine at portfolio scale; swap
+  in pgvector/Qdrant for large corpora).
+- **Embedding-model safety**: every chunk records the embed model + dimension it was created with,
+  and retrieval only matches chunks from the **active** embed model — vectors from different models
+  are never silently mixed. Switch embed models → `POST /api/rag/reembed` to migrate existing chunks.
+- **Local vs cloud**: `LLM_PROVIDER=ollama` keeps everything on-device (private, offline, free, but
+  bounded by your hardware); `openrouter` reaches far larger models in the cloud. The `LlmProvider`
+  abstraction makes it a one-value switch — both paths share the same chat/RAG/streaming code.
 - **Token usage** for streamed replies is estimated (~4 chars/token); non-streaming uses the exact
   counts OpenRouter returns.
 
