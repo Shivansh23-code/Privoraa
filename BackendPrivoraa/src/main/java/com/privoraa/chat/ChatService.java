@@ -8,7 +8,7 @@ import com.privoraa.conversation.Conversation;
 import com.privoraa.conversation.ConversationService;
 import com.privoraa.conversation.Message;
 import com.privoraa.conversation.dto.MessageDto;
-import com.privoraa.config.OllamaProperties;
+import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.llm.ChatOptions;
 import com.privoraa.llm.ChatResult;
 import com.privoraa.llm.LlmProviderResolver;
@@ -46,12 +46,12 @@ public class ChatService {
     private final DocumentService documentService;
     private final PromptBuilder promptBuilder;
     private final LlmProviderResolver providers;
-    private final OllamaProperties ollamaProps;
+    private final ActiveModelService activeModel;
     private final ModelCatalogService catalog;
 
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
                        RagService ragService, DocumentService documentService, PromptBuilder promptBuilder,
-                       LlmProviderResolver providers, OllamaProperties ollamaProps, ModelCatalogService catalog) {
+                       LlmProviderResolver providers, ActiveModelService activeModel, ModelCatalogService catalog) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
@@ -59,7 +59,7 @@ public class ChatService {
         this.documentService = documentService;
         this.promptBuilder = promptBuilder;
         this.providers = providers;
-        this.ollamaProps = ollamaProps;
+        this.activeModel = activeModel;
         this.catalog = catalog;
     }
 
@@ -177,10 +177,10 @@ public class ChatService {
                 mode, history, rag, req.hasImage() ? req.image() : null);
         int promptTokens = promptBuilder.estimatePromptTokens(messages);
 
-        // With Ollama active, chat runs on the configured local model (no cloud
-        // routing/fallback chain). OpenRouter keeps its health-aware fallback chain.
+        // With Ollama active, chat runs on the user's chosen active local model
+        // (no cloud routing/fallback chain). OpenRouter keeps its health-aware chain.
         List<String> chain = providers.isOllamaActive()
-                ? List.of(ollamaProps.chatModel())
+                ? List.of(activeModel.activeFor(userId))
                 : routed.chain();
 
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens, chain);

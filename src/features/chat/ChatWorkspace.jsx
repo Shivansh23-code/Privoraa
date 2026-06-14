@@ -13,6 +13,7 @@ import ModelCatalogModal from '../models/ModelCatalogModal';
 
 import { useChatStore } from '../../store/chatStore';
 import { useChat } from './useChat';
+import { useLocalLlm } from './useLocalLlm';
 import { fetchModels, ensureBackend, isUsingMock } from '../../lib/chatService';
 import { fetchDocuments } from '../../lib/documentService';
 import { FALLBACK_MODELS } from '../../lib/models';
@@ -38,6 +39,7 @@ export default function ChatWorkspace() {
   const messages = convo?.messages ?? [];
 
   const { send, stop, regenerate } = useChat(models);
+  const localLlm = useLocalLlm();
 
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const [panelOpen, setPanelOpen] = useState(true); // desktop insights panel
@@ -99,6 +101,7 @@ export default function ChatWorkspace() {
           onToggleSidebar={() => setSidebarOpen(true)}
           onTogglePanel={() => setPanelOpen((o) => !o)}
           onOpenModels={() => setModelsOpen(true)}
+          localLlm={localLlm}
           usingMock={usingMock}
         />
 
@@ -149,7 +152,7 @@ export default function ChatWorkspace() {
       <ModelCatalogModal
         open={modelsOpen}
         onClose={() => setModelsOpen(false)}
-        onActiveChange={() => {}}
+        onActiveChange={() => localLlm.refresh()}
       />
     </div>
   );

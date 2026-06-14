@@ -8,6 +8,8 @@ import {
   Cloud,
   CloudOff,
   Boxes,
+  HardDrive,
+  Lock,
 } from 'lucide-react';
 import ModelPicker from './ModelPicker';
 import ModeSelector from './ModeSelector';
@@ -65,11 +67,16 @@ export default function ChatHeader({
   onToggleSidebar,
   onTogglePanel,
   onOpenModels,
+  localLlm,
   usingMock,
 }) {
   const { user, logOut } = useUserAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useClickOutside(() => setMenuOpen(false), menuOpen);
+
+  // When the local provider is active, the chat runs on the user's active Ollama
+  // model — bind the header to it instead of the cloud model picker.
+  const isLocal = localLlm?.provider === 'ollama';
 
   return (
     <header className="relative z-30 flex items-center gap-2 border-b border-line bg-bg/80 px-3 py-2.5 backdrop-blur">
@@ -83,22 +90,53 @@ export default function ChatHeader({
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <EditableTitle />
-        <ModelPicker models={models} value={model} onChange={onModelChange} />
+        {isLocal ? (
+          <button
+            onClick={onOpenModels}
+            title="Active local model — click to browse or change"
+            className="flex max-w-[220px] items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium transition hover:border-brand-400 hover:bg-surface-2"
+          >
+            <Lock size={14} className="shrink-0 text-brand-500" />
+            <span className="truncate">{localLlm.activeModel || 'Pick a model'}</span>
+            <ChevronDown size={15} className="shrink-0 text-muted" />
+          </button>
+        ) : (
+          <ModelPicker models={models} value={model} onChange={onModelChange} />
+        )}
         <ModeSelector value={mode} onChange={onModeChange} />
       </div>
 
       {/* Backend status pill */}
-      <span
-        title={usingMock ? 'Backend offline — using local demo engine' : 'Connected to backend'}
-        className={`hidden items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium sm:flex ${
-          usingMock
-            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-        }`}
-      >
-        {usingMock ? <CloudOff size={12} /> : <Cloud size={12} />}
-        {usingMock ? 'Demo' : 'Live'}
-      </span>
+      {isLocal ? (
+        localLlm.online ? (
+          <span
+            title={`Running locally on Ollama${localLlm.version ? ` ${localLlm.version}` : ''} — fully offline, nothing leaves your machine`}
+            className="hidden items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 sm:flex"
+          >
+            <HardDrive size={12} /> Local · offline
+          </span>
+        ) : (
+          <button
+            onClick={onOpenModels}
+            title="Ollama isn't running — click to set it up"
+            className="hidden items-center gap-1 rounded-full bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-600 dark:text-amber-400 sm:flex"
+          >
+            <CloudOff size={12} /> Ollama offline
+          </button>
+        )
+      ) : (
+        <span
+          title={usingMock ? 'Backend offline — using local demo engine' : 'Connected to backend'}
+          className={`hidden items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium sm:flex ${
+            usingMock
+              ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+              : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+          }`}
+        >
+          {usingMock ? <CloudOff size={12} /> : <Cloud size={12} />}
+          {usingMock ? 'Demo' : 'Live'}
+        </span>
+      )}
 
       <button
         onClick={onOpenModels}
