@@ -9,6 +9,7 @@ import EmptyState from './EmptyState';
 import Composer from './Composer';
 import DocumentsPanel from './DocumentsPanel';
 import UsagePanel from './UsagePanel';
+import ModelCatalogModal from '../models/ModelCatalogModal';
 
 import { useChatStore } from '../../store/chatStore';
 import { useChat } from './useChat';
@@ -38,6 +39,7 @@ export default function ChatWorkspace() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const [panelOpen, setPanelOpen] = useState(true); // desktop insights panel
+  const [modelsOpen, setModelsOpen] = useState(false); // local-model catalog modal
   const [usingMock, setUsingMock] = useState(true);
   const fileInputRef = useRef(null);
 
@@ -81,6 +83,7 @@ export default function ChatWorkspace() {
           onModeChange={setMode}
           onToggleSidebar={() => setSidebarOpen(true)}
           onTogglePanel={() => setPanelOpen((o) => !o)}
+          onOpenModels={() => setModelsOpen(true)}
           usingMock={usingMock}
         />
 
@@ -126,6 +129,13 @@ export default function ChatWorkspace() {
           <DocumentsPanel fileInputRef={fileInputRef} />
         </div>
       )}
+
+      {/* ---------- Local-model catalog ---------- */}
+      <ModelCatalogModal
+        open={modelsOpen}
+        onClose={() => setModelsOpen(false)}
+        onActiveChange={() => {}}
+      />
     </div>
   );
 }

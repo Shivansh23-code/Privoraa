@@ -7,6 +7,7 @@ import {
   ChevronDown,
   Cloud,
   CloudOff,
+  Boxes,
 } from 'lucide-react';
 import ModelPicker from './ModelPicker';
 import ModeSelector from './ModeSelector';
@@ -63,6 +64,7 @@ export default function ChatHeader({
   onModeChange,
   onToggleSidebar,
   onTogglePanel,
+  onOpenModels,
   usingMock,
 }) {
   const { user, logOut } = useUserAuth();
@@ -97,6 +99,15 @@ export default function ChatHeader({
         {usingMock ? <CloudOff size={12} /> : <Cloud size={12} />}
         {usingMock ? 'Demo' : 'Live'}
       </span>
+
+      <button
+        onClick={onOpenModels}
+        className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm font-medium text-fg/90 transition hover:border-brand-400 hover:bg-surface-2"
+        title="Browse & download local models"
+      >
+        <Boxes size={16} className="text-brand-500" />
+        <span className="hidden md:inline">Models</span>
+      </button>
 
       <button
         onClick={onTogglePanel}
