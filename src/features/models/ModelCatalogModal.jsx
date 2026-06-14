@@ -116,6 +116,7 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
         <div className="flex items-center gap-3 border-b border-line px-5 py-4">
           {selectedCat && (
             <button
+              aria-label="Back"
               onClick={() => setSelectedCat(null)}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg"
             >
@@ -136,6 +137,7 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
             </span>
           )}
           <button
+            aria-label="Close"
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg"
           >
