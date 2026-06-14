@@ -42,10 +42,10 @@
 }
 
 :root {
-  --bg: #070b14;        /* ink */
-  --surface: #0c1424;   /* pane */
-  --surface-2: #101b30; /* pane2 */
-  --elevated: #101b30;
+  --bg: #0b1220;        /* ink (lightened ~20%) */
+  --surface: #111a2c;   /* pane */
+  --surface-2: #16223a; /* pane2 */
+  --elevated: #16223a;
   --line: rgba(141, 176, 255, 0.12);  /* hairline */
   --line-2: rgba(141, 176, 255, 0.2);
   --fg: #e9f0fa;
@@ -56,10 +56,10 @@
 /* Kept identical to :root — the app is dark-only, but `dark:` utilities and
    the .dark class remain so existing components keep working. */
 html.dark {
-  --bg: #070b14;
-  --surface: #0c1424;
-  --surface-2: #101b30;
-  --elevated: #101b30;
+  --bg: #0b1220;
+  --surface: #111a2c;
+  --surface-2: #16223a;
+  --elevated: #16223a;
   --line: rgba(141, 176, 255, 0.12);
   --line-2: rgba(141, 176, 255, 0.2);
   --fg: #e9f0fa;

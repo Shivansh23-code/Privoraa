@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Upload, FileText, Trash2, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 import { ensureBackend } from '../../lib/chatService';
-import { uploadDocument, fetchDocuments, deleteDocumentRemote } from '../../lib/documentService';
+import { uploadDocument, deleteDocumentRemote } from '../../lib/documentService';
 
 const STATUS = {
   PROCESSING: { icon: Loader2, cls: 'text-amber-500 animate-spin', label: 'Processing' },
@@ -15,27 +15,13 @@ export default function DocumentsPanel({ fileInputRef, hideHeading = false }) {
   const addDocument = useChatStore((s) => s.addDocument);
   const updateDocument = useChatStore((s) => s.updateDocument);
   const removeDocument = useChatStore((s) => s.removeDocument);
-  const setUseRag = useChatStore((s) => s.setUseRag);
   const localRef = useRef(null);
   const inputRef = fileInputRef || localRef;
   const [dragging, setDragging] = useState(false);
 
-  // Note: hydrating the document list from the backend happens once in
-  // ChatWorkspace (a single, stable mount), not here — this panel is mounted in
-  // two places and remounts on panel toggle, which would refetch each time.
-
-  // Poll the backend until chunking + embedding finish (PROCESSING → READY/FAILED).
-  const pollStatus = (docId, attempts = 0) => {
-    if (attempts > 40) return; // ~80s safety cap
-    setTimeout(async () => {
-      const docs = await fetchDocuments();
-      const d = docs.find((x) => x.id === docId);
-      if (!d) return;
-      updateDocument(docId, { status: d.status, chunkCount: d.chunkCount });
-      if (d.status === 'PROCESSING') pollStatus(docId, attempts + 1);
-      else if (d.status === 'READY') setUseRag(true); // ground answers on it automatically
-    }, 2000);
-  };
+  // Note: hydrating the document list AND polling PROCESSING docs to READY both
+  // happen once in ChatWorkspace (a single, stable mount). This panel is mounted
+  // in two places and remounts on toggle, so doing it here would multiply calls.
 
   const onFiles = async (files) => {
     // Snapshot the FileList NOW: the input's onChange clears e.target.value
@@ -53,9 +39,9 @@ export default function DocumentsPanel({ fileInputRef, hideHeading = false }) {
         continue;
       }
       try {
-        const doc = await uploadDocument(file); // backend processes asynchronously
+        // Backend processes asynchronously; ChatWorkspace polls PROCESSING → READY.
+        const doc = await uploadDocument(file);
         updateDocument(tempId, { id: doc.id, status: doc.status, chunkCount: doc.chunkCount });
-        pollStatus(doc.id);
       } catch (err) {
         updateDocument(tempId, { status: 'FAILED', errorMessage: err.message });
       }

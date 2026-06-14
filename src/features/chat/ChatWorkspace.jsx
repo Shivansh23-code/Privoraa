@@ -31,7 +31,10 @@ export default function ChatWorkspace() {
   const conversations = useChatStore((s) => s.conversations);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const streamingMessageId = useChatStore((s) => s.streamingMessageId);
+  const documents = useChatStore((s) => s.documents);
   const setDocuments = useChatStore((s) => s.setDocuments);
+  const updateDocument = useChatStore((s) => s.updateDocument);
+  const setUseRag = useChatStore((s) => s.setUseRag);
 
   const convo = conversations.find((c) => c.id === currentId) || null;
   const messages = convo?.messages ?? [];
@@ -62,6 +65,31 @@ export default function ChatWorkspace() {
       if (live) fetchDocuments().then(setDocuments);
     });
   }, [setDocuments]);
+
+  // Poll while ANY document is still processing — one shared loop for all docs
+  // (replaces per-upload polling that fired a /documents request every 2s each).
+  // Stops as soon as nothing is PROCESSING, so a single upload makes far fewer calls.
+  const hasProcessingDoc = documents.some((d) => d.status === 'PROCESSING');
+  useEffect(() => {
+    if (!hasProcessingDoc) return undefined;
+    let active = true;
+    const id = setInterval(async () => {
+      const docs = await fetchDocuments().catch(() => null);
+      if (!active || !Array.isArray(docs)) return;
+      const prev = useChatStore.getState().documents;
+      let becameReady = false;
+      docs.forEach((d) => {
+        const before = prev.find((x) => x.id === d.id);
+        if (before?.status === 'PROCESSING' && d.status === 'READY') becameReady = true;
+        updateDocument(d.id, { status: d.status, chunkCount: d.chunkCount });
+      });
+      if (becameReady) setUseRag(true); // auto-ground once a doc finishes
+    }, 3500);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [hasProcessingDoc, updateDocument, setUseRag]);
 
   const desktopOpen = !collapsed || peek;
 
