@@ -72,7 +72,7 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
 
   return (
     <div className="border-t border-line bg-bg/80 px-4 py-3 backdrop-blur">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto w-full max-w-3xl xl:max-w-4xl 2xl:max-w-5xl min-[2200px]:max-w-[88rem] min-[3200px]:max-w-[120rem]">
         {/* Image preview */}
         {image && (
           <div className="mb-2 inline-flex items-center gap-2 rounded-xl border border-line bg-surface p-1.5 pr-2">

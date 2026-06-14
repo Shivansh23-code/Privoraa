@@ -10,10 +10,15 @@ import {
   X,
   Check,
   Settings,
+  ChevronDown,
+  FileText,
+  Activity,
 } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 import { useUserAuth } from '../../context/UserAuthContext';
 import SettingsModal from './SettingsModal';
+import DocumentsPanel from './DocumentsPanel';
+import UsagePanel from './UsagePanel';
 
 function ConversationItem({ convo, active, onSelect, onRename, onDelete, onTogglePin }) {
   const [editing, setEditing] = useState(false);
@@ -90,7 +95,27 @@ function IconBtn({ children, onClick, title, danger }) {
   );
 }
 
-export default function Sidebar({ onNavigate }) {
+function SidebarSection({ title, icon, defaultOpen = false, children }) {
+  const Icon = icon;
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-line pt-2">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-faint transition hover:text-fg"
+      >
+        <Icon size={13} className="shrink-0" />
+        <span className="flex-1 text-left">{title}</span>
+        <ChevronDown size={14} className={`shrink-0 transition ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="scroll-thin max-h-[38vh] overflow-y-auto px-1 pb-1">{children}</div>
+      )}
+    </div>
+  );
+}
+
+export default function Sidebar({ onNavigate, fileInputRef }) {
   const conversations = useChatStore((s) => s.conversations);
   const currentId = useChatStore((s) => s.currentId);
   const newConversation = useChatStore((s) => s.newConversation);
@@ -221,6 +246,14 @@ export default function Sidebar({ onNavigate }) {
           <p className="px-2 py-6 text-center text-xs text-faint">No matches.</p>
         )}
       </div>
+
+      {/* Merged from the old right panel: notes (RAG) + usage */}
+      <SidebarSection title="Your notes (RAG)" icon={FileText} defaultOpen>
+        <DocumentsPanel fileInputRef={fileInputRef} hideHeading />
+      </SidebarSection>
+      <SidebarSection title="Usage" icon={Activity}>
+        <UsagePanel hideHeading />
+      </SidebarSection>
 
       {/* Footer: user + settings */}
       <div className="flex items-center gap-2 border-t border-line pt-3">

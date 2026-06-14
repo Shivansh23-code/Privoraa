@@ -31,7 +31,7 @@ export default function MessageThread({
       onScroll={onScroll}
       className="scroll-thin flex-1 overflow-y-auto"
     >
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 xl:max-w-4xl 2xl:max-w-5xl min-[2200px]:max-w-[88rem] min-[3200px]:max-w-[120rem]">
         {messages.map((m) => (
           <MessageBubble
             key={m.id}

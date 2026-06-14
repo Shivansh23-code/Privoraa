@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Menu,
-  PanelRight,
   LogOut,
   User as UserIcon,
   ChevronDown,
@@ -64,7 +63,6 @@ export default function ChatHeader({
   onModelChange,
   onModeChange,
   onToggleSidebar,
-  onTogglePanel,
   onOpenModels,
   localLlm,
   usingMock,
@@ -133,14 +131,6 @@ export default function ChatHeader({
           {usingMock ? 'Demo' : 'Live'}
         </span>
       )}
-
-      <button
-        onClick={onTogglePanel}
-        className="hidden h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg xl:flex"
-        title="Toggle insights panel"
-      >
-        <PanelRight size={18} />
-      </button>
 
       {/* User menu */}
       <div className="relative" ref={menuRef}>

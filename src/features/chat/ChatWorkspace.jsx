@@ -7,8 +7,6 @@ import ChatHeader from './ChatHeader';
 import MessageThread from './MessageThread';
 import EmptyState from './EmptyState';
 import Composer from './Composer';
-import DocumentsPanel from './DocumentsPanel';
-import UsagePanel from './UsagePanel';
 import ModelCatalogModal from '../models/ModelCatalogModal';
 
 import { useChatStore } from '../../store/chatStore';
@@ -42,7 +40,6 @@ export default function ChatWorkspace() {
   const localLlm = useLocalLlm();
 
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
-  const [panelOpen, setPanelOpen] = useState(true); // desktop insights panel
   const [modelsOpen, setModelsOpen] = useState(false); // local-model catalog modal
   const [usingMock, setUsingMock] = useState(true);
   const fileInputRef = useRef(null);
@@ -68,8 +65,8 @@ export default function ChatWorkspace() {
     <div className="flex h-screen overflow-hidden bg-bg text-fg">
       {/* ---------- Left sidebar ---------- */}
       {/* Desktop */}
-      <aside className="hidden w-[280px] shrink-0 border-r border-line bg-surface lg:block">
-        <Sidebar />
+      <aside className="hidden w-[280px] shrink-0 border-r border-line bg-surface lg:block 2xl:w-[320px]">
+        <Sidebar fileInputRef={fileInputRef} />
       </aside>
       {/* Mobile drawer */}
       {sidebarOpen && (
@@ -85,7 +82,7 @@ export default function ChatWorkspace() {
             >
               <X size={18} />
             </button>
-            <Sidebar onNavigate={() => setSidebarOpen(false)} />
+            <Sidebar onNavigate={() => setSidebarOpen(false)} fileInputRef={fileInputRef} />
           </div>
         </div>
       )}
@@ -99,7 +96,6 @@ export default function ChatWorkspace() {
           onModelChange={setModel}
           onModeChange={setMode}
           onToggleSidebar={() => setSidebarOpen(true)}
-          onTogglePanel={() => setPanelOpen((o) => !o)}
           onOpenModels={() => setModelsOpen(true)}
           localLlm={localLlm}
           usingMock={usingMock}
@@ -123,30 +119,10 @@ export default function ChatWorkspace() {
           onSend={send}
           onStop={stop}
           isStreaming={isStreaming}
-          onAttach={() => {
-            setPanelOpen(true);
-            fileInputRef.current?.click();
-          }}
+          onAttach={() => fileInputRef.current?.click()}
           mode={mode}
         />
       </main>
-
-      {/* ---------- Right insights panel ---------- */}
-      {panelOpen && (
-        <aside className="hidden w-[300px] shrink-0 border-l border-line bg-surface xl:block">
-          <div className="scroll-thin flex h-full flex-col gap-5 overflow-y-auto p-4">
-            <DocumentsPanel fileInputRef={fileInputRef} />
-            <div className="h-px bg-line" />
-            <UsagePanel />
-          </div>
-        </aside>
-      )}
-      {/* Keep the file input mounted even when the panel is hidden */}
-      {!panelOpen && (
-        <div className="hidden">
-          <DocumentsPanel fileInputRef={fileInputRef} />
-        </div>
-      )}
 
       {/* ---------- Local-model catalog ---------- */}
       <ModelCatalogModal

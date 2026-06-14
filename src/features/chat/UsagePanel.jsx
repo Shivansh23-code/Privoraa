@@ -6,7 +6,7 @@ import { useChatStore } from '../../store/chatStore';
 // real figure from OpenRouter's generation endpoint.
 const COST_PER_1K = 0; // free models
 
-export default function UsagePanel() {
+export default function UsagePanel({ hideHeading = false }) {
   const conversations = useChatStore((s) => s.conversations);
 
   const stats = useMemo(() => {
@@ -35,7 +35,9 @@ export default function UsagePanel() {
 
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">Usage</h3>
+      {!hideHeading && (
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">Usage</h3>
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <Stat icon={MessagesSquare} value={stats.requests} label="Requests" />

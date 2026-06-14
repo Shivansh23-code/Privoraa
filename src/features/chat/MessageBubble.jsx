@@ -72,7 +72,9 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
         {isUser ? <UserIcon size={16} /> : <Bot size={16} />}
       </div>
 
-      <div className={`min-w-0 max-w-[min(720px,85%)] ${isUser ? 'items-end' : ''}`}>
+      {/* Assistant answers fill the available column width (better for long
+          markdown / code on wide screens); user messages stay compact. */}
+      <div className={`flex min-w-0 flex-col ${isUser ? 'max-w-[min(640px,85%)] items-end' : 'flex-1'}`}>
         {/* Model badge */}
         {!isUser && message.model && (
           <div className="mb-1 flex items-center gap-1.5 text-xs text-muted">

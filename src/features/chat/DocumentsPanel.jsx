@@ -10,7 +10,7 @@ const STATUS = {
   FAILED: { icon: XCircle, cls: 'text-red-500', label: 'Failed' },
 };
 
-export default function DocumentsPanel({ fileInputRef }) {
+export default function DocumentsPanel({ fileInputRef, hideHeading = false }) {
   const documents = useChatStore((s) => s.documents);
   const addDocument = useChatStore((s) => s.addDocument);
   const updateDocument = useChatStore((s) => s.updateDocument);
@@ -64,11 +64,13 @@ export default function DocumentsPanel({ fileInputRef }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">
-          Your notes (RAG)
-        </h3>
-      </div>
+      {!hideHeading && (
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-faint">
+            Your notes (RAG)
+          </h3>
+        </div>
+      )}
 
       <button
         onClick={() => inputRef.current?.click()}
