@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
 import { Lock, ChevronDown, Check, Loader2, Boxes, Download } from 'lucide-react';
 import { useClickOutside } from './useClickOutside';
-import {
-  fetchInstalled,
-  fetchCatalog,
-  setActiveModel,
-  formatBytes,
-} from '../../lib/modelCatalogService';
+import { fetchInstalled, setActiveModel, formatBytes } from '../../lib/modelCatalogService';
 
 /**
- * Quick switcher for the active LOCAL chat model — shows only the models the
- * user has installed (excluding embedding models, which aren't for chat), like
- * the cloud model picker. "Browse & download" opens the full catalog.
+ * Quick switcher for the active LOCAL model — lists every model the user has
+ * downloaded; clicking one sets it active. "Browse & download" opens the full
+ * catalog. Mirrors the cloud model picker.
  */
 export default function LocalModelPicker({ active, online, onChanged, onManage }) {
   const [open, setOpen] = useState(false);
@@ -23,22 +18,12 @@ export default function LocalModelPicker({ active, online, onChanged, onManage }
   const norm = (t) => (t && t.includes(':') ? t : `${t}:latest`);
   const isActive = (name) => active === name || norm(active) === norm(name);
 
-  // Installed chat models = everything Ollama has, minus catalog embedding models.
+  // Every model the user has downloaded (proxied from Ollama /api/tags).
   const load = async () => {
     setLoading(true);
     try {
-      const [inst, catalog] = await Promise.all([
-        fetchInstalled().catch(() => null),
-        fetchCatalog().catch(() => null),
-      ]);
-      const embed = new Set();
-      catalog?.categories
-        ?.filter((c) => c.key === 'embeddings')
-        .forEach((c) => c.models.forEach((m) => embed.add(norm(m.tag))));
-      const list = (inst?.models || [])
-        .filter((m) => !embed.has(norm(m.name)))
-        .map((m) => ({ tag: m.name, size: m.size }));
-      setModels(list);
+      const inst = await fetchInstalled().catch(() => null);
+      setModels((inst?.models || []).map((m) => ({ tag: m.name, size: m.size })));
     } finally {
       setLoading(false);
     }
@@ -89,7 +74,7 @@ export default function LocalModelPicker({ active, online, onChanged, onManage }
             </div>
           ) : models.length === 0 ? (
             <p className="px-2.5 py-3 text-xs text-muted">
-              No chat models installed yet. Download one below.
+              No models installed yet. Download one below.
             </p>
           ) : (
             models.map((m) => {

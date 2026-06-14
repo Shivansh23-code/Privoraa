@@ -7,7 +7,6 @@ import {
   ChevronDown,
   Cloud,
   CloudOff,
-  Boxes,
   HardDrive,
 } from 'lucide-react';
 import ModelPicker from './ModelPicker';
@@ -134,15 +133,6 @@ export default function ChatHeader({
           {usingMock ? 'Demo' : 'Live'}
         </span>
       )}
-
-      <button
-        onClick={onOpenModels}
-        className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm font-medium text-fg/90 transition hover:border-brand-400 hover:bg-surface-2"
-        title="Browse & download local models"
-      >
-        <Boxes size={16} className="text-brand-500" />
-        <span className="hidden md:inline">Models</span>
-      </button>
 
       <button
         onClick={onTogglePanel}
