@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchLlmHealth, fetchActiveModel } from '../../lib/modelCatalogService';
 
 /**
@@ -14,6 +14,7 @@ export function useLocalLlm() {
     version: null,
     activeModel: null,
   });
+  const didInit = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -35,6 +36,9 @@ export function useLocalLlm() {
   }, []);
 
   useEffect(() => {
+    // Run the initial fetch once (StrictMode double-invokes effects in dev).
+    if (didInit.current) return;
+    didInit.current = true;
     refresh();
   }, [refresh]);
 

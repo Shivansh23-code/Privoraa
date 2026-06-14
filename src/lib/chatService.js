@@ -8,17 +8,27 @@ import { FALLBACK_MODELS } from './models';
 import { routeModel } from './router';
 
 let backendAvailable = null; // null = unknown, then cached boolean
+let probePromise = null; // in-flight probe, so concurrent callers share one request
 
 /** Probe the backend once and cache the result for the session. */
 export async function ensureBackend() {
   if (backendAvailable !== null) return backendAvailable;
-  backendAvailable = await pingBackend();
-  return backendAvailable;
+  // Dedupe concurrent callers (multiple effects / StrictMode) onto a single
+  // /actuator/health request instead of racing several before the cache is set.
+  if (!probePromise) {
+    probePromise = pingBackend().then((ok) => {
+      backendAvailable = ok;
+      probePromise = null;
+      return ok;
+    });
+  }
+  return probePromise;
 }
 
 /** Force a re-probe (e.g. after the user starts the backend). */
 export function resetBackendProbe() {
   backendAvailable = null;
+  probePromise = null;
 }
 
 export function isUsingMock() {

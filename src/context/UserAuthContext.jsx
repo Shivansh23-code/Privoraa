@@ -1,5 +1,5 @@
 // src/context/UserAuthContext.jsx
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as authService from '../lib/authService';
 import { setStoredUser, clearAuth, getToken } from '../lib/apiClient';
@@ -11,8 +11,13 @@ export const UserAuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const validatedRef = useRef(false);
 
   useEffect(() => {
+    // StrictMode double-invokes effects in dev; validate the session only once.
+    if (validatedRef.current) return;
+    validatedRef.current = true;
+
     const token = getToken();
     const userData = localStorage.getItem('userData');
     if (token && userData) {
