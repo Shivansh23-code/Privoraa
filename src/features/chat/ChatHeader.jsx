@@ -9,9 +9,9 @@ import {
   CloudOff,
   Boxes,
   HardDrive,
-  Lock,
 } from 'lucide-react';
 import ModelPicker from './ModelPicker';
+import LocalModelPicker from './LocalModelPicker';
 import ModeSelector from './ModeSelector';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useClickOutside } from './useClickOutside';
@@ -91,15 +91,12 @@ export default function ChatHeader({
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <EditableTitle />
         {isLocal ? (
-          <button
-            onClick={onOpenModels}
-            title="Active local model — click to browse or change"
-            className="flex max-w-[220px] items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium transition hover:border-brand-400 hover:bg-surface-2"
-          >
-            <Lock size={14} className="shrink-0 text-brand-500" />
-            <span className="truncate">{localLlm.activeModel || 'Pick a model'}</span>
-            <ChevronDown size={15} className="shrink-0 text-muted" />
-          </button>
+          <LocalModelPicker
+            active={localLlm.activeModel}
+            online={localLlm.online}
+            onChanged={() => localLlm.refresh?.()}
+            onManage={onOpenModels}
+          />
         ) : (
           <ModelPicker models={models} value={model} onChange={onModelChange} />
         )}
