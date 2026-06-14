@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Upload, FileText, Trash2, Loader2, CheckCircle2, XCircle } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 import { ensureBackend } from '../../lib/chatService';
@@ -15,22 +15,14 @@ export default function DocumentsPanel({ fileInputRef }) {
   const addDocument = useChatStore((s) => s.addDocument);
   const updateDocument = useChatStore((s) => s.updateDocument);
   const removeDocument = useChatStore((s) => s.removeDocument);
-  const setDocuments = useChatStore((s) => s.setDocuments);
   const setUseRag = useChatStore((s) => s.setUseRag);
   const localRef = useRef(null);
   const inputRef = fileInputRef || localRef;
   const [dragging, setDragging] = useState(false);
 
-  // On load, if the backend is live it owns the document list — hydrate from it.
-  useEffect(() => {
-    let cancelled = false;
-    ensureBackend().then((live) => {
-      if (live) fetchDocuments().then((docs) => !cancelled && setDocuments(docs));
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [setDocuments]);
+  // Note: hydrating the document list from the backend happens once in
+  // ChatWorkspace (a single, stable mount), not here — this panel is mounted in
+  // two places and remounts on panel toggle, which would refetch each time.
 
   // Poll the backend until chunking + embedding finish (PROCESSING → READY/FAILED).
   const pollStatus = (docId, attempts = 0) => {

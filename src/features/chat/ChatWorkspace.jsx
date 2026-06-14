@@ -14,6 +14,7 @@ import ModelCatalogModal from '../models/ModelCatalogModal';
 import { useChatStore } from '../../store/chatStore';
 import { useChat } from './useChat';
 import { fetchModels, ensureBackend, isUsingMock } from '../../lib/chatService';
+import { fetchDocuments } from '../../lib/documentService';
 import { FALLBACK_MODELS } from '../../lib/models';
 
 export default function ChatWorkspace() {
@@ -31,6 +32,7 @@ export default function ChatWorkspace() {
   const conversations = useChatStore((s) => s.conversations);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const streamingMessageId = useChatStore((s) => s.streamingMessageId);
+  const setDocuments = useChatStore((s) => s.setDocuments);
 
   const convo = conversations.find((c) => c.id === currentId) || null;
   const messages = convo?.messages ?? [];
@@ -42,10 +44,23 @@ export default function ChatWorkspace() {
   const [modelsOpen, setModelsOpen] = useState(false); // local-model catalog modal
   const [usingMock, setUsingMock] = useState(true);
   const fileInputRef = useRef(null);
+  const hydratedRef = useRef(false);
 
   useEffect(() => {
     ensureBackend().then(() => setUsingMock(isUsingMock()));
   }, []);
+
+  // Hydrate the document list from the backend exactly once. The ref guard makes
+  // this idempotent under StrictMode's double-invoked effects, and living here
+  // (a single stable mount) avoids the refetch DocumentsPanel caused by being
+  // mounted twice and remounting on panel toggle.
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    ensureBackend().then((live) => {
+      if (live) fetchDocuments().then(setDocuments);
+    });
+  }, [setDocuments]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg text-fg">
