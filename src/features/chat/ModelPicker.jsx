@@ -26,7 +26,7 @@ export default function ModelPicker({ models, value, onChange }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 z-30 mt-2 max-h-[60vh] w-72 overflow-y-auto rounded-xl border border-line bg-elevated p-1.5 shadow-xl scroll-thin">
+        <div className="absolute left-0 z-30 mt-2 max-h-[60vh] w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-line bg-elevated p-1.5 shadow-xl scroll-thin">
           {list.map((m) => {
             const active = m.id === selected.id;
             return (

@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import ModelPicker from './ModelPicker';
 import LocalModelPicker from './LocalModelPicker';
-import ModeSelector from './ModeSelector';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useClickOutside } from './useClickOutside';
 import { useChatStore } from '../../store/chatStore';
@@ -59,9 +58,7 @@ function EditableTitle() {
 export default function ChatHeader({
   models,
   model,
-  mode,
   onModelChange,
-  onModeChange,
   onToggleSidebar,
   onOpenModels,
   localLlm,
@@ -97,7 +94,6 @@ export default function ChatHeader({
         ) : (
           <ModelPicker models={models} value={model} onChange={onModelChange} />
         )}
-        <ModeSelector value={mode} onChange={onModeChange} />
       </div>
 
       {/* Backend status pill */}

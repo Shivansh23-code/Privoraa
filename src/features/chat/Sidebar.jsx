@@ -14,12 +14,14 @@ import {
   FileText,
   Activity,
   PanelLeftClose,
+  Wand2,
 } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 import { useUserAuth } from '../../context/UserAuthContext';
 import SettingsModal from './SettingsModal';
 import DocumentsPanel from './DocumentsPanel';
 import UsagePanel from './UsagePanel';
+import ResponseStyle from './ResponseStyle';
 
 function ConversationItem({ convo, active, onSelect, onRename, onDelete, onTogglePin }) {
   const [editing, setEditing] = useState(false);
@@ -203,6 +205,14 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
           placeholder="Search chats…"
           className="w-full rounded-lg border border-line bg-surface py-2 pl-8 pr-3 text-sm placeholder:text-faint focus:border-brand-400 focus:outline-none"
         />
+      </div>
+
+      {/* Response style (persona) — moved out of the header for small screens. */}
+      <div>
+        <p className="mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-faint">
+          <Wand2 size={12} /> Response style
+        </p>
+        <ResponseStyle />
       </div>
 
       <div className="scroll-thin -mx-1 flex-1 overflow-y-auto px-1">

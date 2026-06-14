@@ -63,7 +63,7 @@ export default function LocalModelPicker({ active, online, onChanged, onManage }
       </button>
 
       {open && (
-        <div className="absolute left-0 z-30 mt-2 max-h-[60vh] w-72 overflow-y-auto rounded-xl border border-line bg-elevated p-1.5 shadow-xl scroll-thin">
+        <div className="absolute left-0 z-30 mt-2 max-h-[60vh] w-[min(18rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-line bg-elevated p-1.5 shadow-xl scroll-thin">
           <p className="px-2.5 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wide text-faint">
             Installed models
           </p>

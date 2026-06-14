@@ -26,7 +26,6 @@ export default function ChatWorkspace() {
   const model = useChatStore((s) => s.model);
   const mode = useChatStore((s) => s.mode);
   const setModel = useChatStore((s) => s.setModel);
-  const setMode = useChatStore((s) => s.setMode);
   const currentId = useChatStore((s) => s.currentId);
   const conversations = useChatStore((s) => s.conversations);
   const isStreaming = useChatStore((s) => s.isStreaming);
@@ -162,9 +161,7 @@ export default function ChatWorkspace() {
         <ChatHeader
           models={models}
           model={model}
-          mode={mode}
           onModelChange={setModel}
-          onModeChange={setMode}
           onToggleSidebar={() => setSidebarOpen(true)}
           onOpenModels={() => setModelsOpen(true)}
           localLlm={localLlm}
