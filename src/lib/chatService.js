@@ -13,12 +13,12 @@ let probePromise = null; // in-flight probe, so concurrent callers share one req
 /** Probe the backend once and cache the result for the session. */
 export async function ensureBackend() {
   if (backendAvailable !== null) return backendAvailable;
-  // Dedupe concurrent callers (multiple effects / StrictMode) onto a single
-  // /actuator/health request instead of racing several before the cache is set.
+  // Dedupe ALL callers (multiple effects / StrictMode remounts, whenever they
+  // fire) onto a single /actuator/health request by caching the probe promise
+  // itself — not just the resolved value — until resetBackendProbe() clears it.
   if (!probePromise) {
     probePromise = pingBackend().then((ok) => {
       backendAvailable = ok;
-      probePromise = null;
       return ok;
     });
   }
