@@ -6,6 +6,7 @@ import com.privoraa.auth.dto.RegisterRequest;
 import com.privoraa.auth.dto.TokenResponse;
 import com.privoraa.auth.dto.UserDto;
 import com.privoraa.common.ApiException;
+import org.springframework.dao.DataIntegrityViolationException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -39,7 +40,14 @@ public class AuthService {
                         ? email.split("@")[0] : req.displayName().trim())
                 .role(Role.USER)
                 .build();
-        userRepository.save(user);
+        try {
+            // saveAndFlush surfaces the unique-email constraint HERE (inside the try)
+            // instead of at commit time, so a race between two concurrent registrations
+            // returns a clean 409 instead of an unhandled 500.
+            userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            throw ApiException.conflict("An account with that email already exists");
+        }
         return issue(user);
     }
 

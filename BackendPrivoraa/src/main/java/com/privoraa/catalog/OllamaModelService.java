@@ -1,6 +1,7 @@
 package com.privoraa.catalog;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.privoraa.common.ApiException;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -22,9 +23,11 @@ import java.util.Set;
 public class OllamaModelService {
 
     private final WebClient web;
+    private final ObjectMapper mapper;
 
-    public OllamaModelService(WebClient ollamaWebClient) {
+    public OllamaModelService(WebClient ollamaWebClient, ObjectMapper mapper) {
         this.web = ollamaWebClient;
+        this.mapper = mapper;
     }
 
     /** Tags Ollama already has, e.g. {"llama3.2:3b", "nomic-embed-text:latest"}. */
@@ -47,13 +50,22 @@ public class OllamaModelService {
         return tags;
     }
 
-    /** Raw installed list (name + size + modified) for the "Installed models" view. */
+    /**
+     * Raw installed list (name + size + modified) for the "Installed models" view.
+     * Degrades to an empty {@code {"models":[]}} when Ollama isn't reachable (e.g. a
+     * cloud deploy with no local Ollama) so the catalog never 503s.
+     */
     public JsonNode installedRaw() {
         try {
-            return web.get().uri("/api/tags").retrieve().bodyToMono(JsonNode.class).block();
+            JsonNode resp = web.get().uri("/api/tags").retrieve().bodyToMono(JsonNode.class).block();
+            return resp != null ? resp : emptyModels();
         } catch (Exception e) {
-            throw unreachable(e);
+            return emptyModels();
         }
+    }
+
+    private JsonNode emptyModels() {
+        return mapper.createObjectNode().set("models", mapper.createArrayNode());
     }
 
     /**
