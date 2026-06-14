@@ -33,7 +33,11 @@ public class RagService {
 
     @Transactional(readOnly = true)
     public RagContext retrieve(String userId, String query) {
-        List<DocumentChunk> chunks = chunkRepository.findReadyChunksForUser(userId);
+        // Only chunks embedded with the active model are comparable to the query
+        // vector; others (different model, or pre-tracking 'legacy') are excluded
+        // until re-embedded, so cosine similarity is always dimension-consistent.
+        String embeddingTag = embeddingService.activeEmbeddingTag();
+        List<DocumentChunk> chunks = chunkRepository.findReadyChunksForUser(userId, embeddingTag);
         if (chunks.isEmpty()) {
             return RagContext.empty();
         }

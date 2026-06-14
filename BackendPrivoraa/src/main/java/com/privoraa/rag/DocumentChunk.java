@@ -46,6 +46,18 @@ public class DocumentChunk {
     @Column(nullable = false)
     private String embedding;
 
+    /**
+     * Stable tag of the model that produced {@link #embedding}, e.g.
+     * "ollama:nomic-embed-text", "openrouter:&lt;model&gt;", or "local:384".
+     * Retrieval only matches chunks whose tag equals the active embed model.
+     */
+    @Column(name = "embedding_model", nullable = false, length = 120)
+    private String embeddingModel;
+
+    /** Vector dimension of {@link #embedding}; guards against dimension mismatch. */
+    @Column(name = "embedding_dim", nullable = false)
+    private int embeddingDim;
+
     @PrePersist
     void prePersist() {
         if (id == null) {

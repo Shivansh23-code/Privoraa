@@ -42,6 +42,7 @@ public class DocumentProcessor {
             }
 
             Document docRef = documentRepository.getReferenceById(documentId);
+            String embeddingTag = embedding.activeEmbeddingTag();
             int index = 0;
             for (String piece : pieces) {
                 float[] vec = embedding.embed(piece);
@@ -50,6 +51,8 @@ public class DocumentProcessor {
                         .chunkIndex(index++)
                         .content(piece)
                         .embedding(mapper.writeValueAsString(vec))
+                        .embeddingModel(embeddingTag)
+                        .embeddingDim(vec.length)
                         .build();
                 chunkRepository.save(chunk);
             }

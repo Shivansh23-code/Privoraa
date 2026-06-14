@@ -8,8 +8,10 @@ import com.privoraa.conversation.Conversation;
 import com.privoraa.conversation.ConversationService;
 import com.privoraa.conversation.Message;
 import com.privoraa.conversation.dto.MessageDto;
+import com.privoraa.config.OllamaProperties;
+import com.privoraa.llm.ChatOptions;
 import com.privoraa.llm.ChatResult;
-import com.privoraa.llm.OpenRouterClient;
+import com.privoraa.llm.LlmProviderResolver;
 import com.privoraa.model.ModelCatalogService;
 import com.privoraa.ratelimit.RateLimitService;
 import com.privoraa.rag.RagContext;
@@ -43,19 +45,21 @@ public class ChatService {
     private final RagService ragService;
     private final DocumentService documentService;
     private final PromptBuilder promptBuilder;
-    private final OpenRouterClient openRouter;
+    private final LlmProviderResolver providers;
+    private final OllamaProperties ollamaProps;
     private final ModelCatalogService catalog;
 
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
                        RagService ragService, DocumentService documentService, PromptBuilder promptBuilder,
-                       OpenRouterClient openRouter, ModelCatalogService catalog) {
+                       LlmProviderResolver providers, OllamaProperties ollamaProps, ModelCatalogService catalog) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
         this.ragService = ragService;
         this.documentService = documentService;
         this.promptBuilder = promptBuilder;
-        this.openRouter = openRouter;
+        this.providers = providers;
+        this.ollamaProps = ollamaProps;
         this.catalog = catalog;
     }
 
@@ -86,13 +90,13 @@ public class ChatService {
     }
 
     private void attempt(SseEmitter emitter, Prepared p, int idx, StringBuilder sb) {
-        String modelId = p.routed().chain().get(idx);
+        String modelId = p.chain().get(idx);
         String modelName = nameOf(modelId);
 
         send(emitter, "meta", metaPayload(modelName, p));
 
         AtomicBoolean emitted = new AtomicBoolean(false);
-        openRouter.streamCompletion(modelId, p.messages(), TEMPERATURE, null)
+        providers.active().streamChat(modelId, p.messages(), new ChatOptions(TEMPERATURE, null))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                         delta -> {
@@ -101,7 +105,7 @@ public class ChatService {
                             send(emitter, "token", Map.of("delta", delta));
                         },
                         err -> {
-                            if (!emitted.get() && idx + 1 < p.routed().chain().size()) {
+                            if (!emitted.get() && idx + 1 < p.chain().size()) {
                                 log.warn("Model {} failed before output; falling back", modelId, err);
                                 attempt(emitter, p, idx + 1, sb);
                             } else {
@@ -128,9 +132,9 @@ public class ChatService {
         ChatResult result = null;
         String usedModel = null;
         Exception last = null;
-        for (String modelId : p.routed().chain()) {
+        for (String modelId : p.chain()) {
             try {
-                result = openRouter.completion(modelId, p.messages(), TEMPERATURE, null);
+                result = providers.active().chat(modelId, p.messages(), new ChatOptions(TEMPERATURE, null));
                 usedModel = nameOf(modelId);
                 break;
             } catch (Exception e) {
@@ -173,7 +177,13 @@ public class ChatService {
                 mode, history, rag, req.hasImage() ? req.image() : null);
         int promptTokens = promptBuilder.estimatePromptTokens(messages);
 
-        return new Prepared(conversationId, mode, routed, rag, messages, promptTokens);
+        // With Ollama active, chat runs on the configured local model (no cloud
+        // routing/fallback chain). OpenRouter keeps its health-aware fallback chain.
+        List<String> chain = providers.isOllamaActive()
+                ? List.of(ollamaProps.chatModel())
+                : routed.chain();
+
+        return new Prepared(conversationId, mode, routed, rag, messages, promptTokens, chain);
     }
 
     private Message persistAssistant(Prepared p, String modelName, String content,
@@ -233,6 +243,7 @@ public class ChatService {
             Routed routed,
             RagContext rag,
             List<Map<String, Object>> messages,
-            int promptTokens
+            int promptTokens,
+            List<String> chain
     ) {}
 }

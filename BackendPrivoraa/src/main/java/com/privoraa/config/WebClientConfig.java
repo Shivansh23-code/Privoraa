@@ -29,4 +29,18 @@ public class WebClientConfig {
         }
         return builder.build();
     }
+
+    /**
+     * WebClient pointed at the local Ollama server. No auth (Ollama is
+     * unauthenticated on localhost). Streaming and embeddings can be large,
+     * so the in-memory buffer is bumped like the OpenRouter client.
+     */
+    @Bean
+    public WebClient ollamaWebClient(OllamaProperties props) {
+        return WebClient.builder()
+                .baseUrl(props.baseUrl())
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+                .build();
+    }
 }

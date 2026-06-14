@@ -1,34 +1,87 @@
 package com.privoraa.rag;
 
+import com.privoraa.config.OllamaProperties;
 import com.privoraa.config.OpenRouterProperties;
 import com.privoraa.config.RagProperties;
-import com.privoraa.llm.OpenRouterClient;
+import com.privoraa.llm.LlmProviderResolver;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Produces embeddings for chunks and queries. Uses an OpenRouter embedding model
- * when configured; otherwise a deterministic local feature-hashing embedding so
- * RAG works with zero external dependencies. Both sides of a comparison always
- * use the same method within a run, so cosine similarity is consistent.
+ * Produces embeddings for chunks and queries via the active LLM provider:
+ * Ollama (local, e.g. nomic-embed-text) or OpenRouter when configured; otherwise
+ * a deterministic local feature-hashing embedding so RAG works with zero external
+ * dependencies. Every vector is tagged with {@link #activeEmbeddingTag()} so
+ * retrieval only ever compares vectors produced by the same model + dimension.
  */
 @Service
 public class EmbeddingService {
 
-    private final OpenRouterClient client;
+    private final LlmProviderResolver resolver;
     private final OpenRouterProperties orProps;
+    private final OllamaProperties ollamaProps;
     private final RagProperties ragProps;
 
-    public EmbeddingService(OpenRouterClient client, OpenRouterProperties orProps, RagProperties ragProps) {
-        this.client = client;
+    public EmbeddingService(LlmProviderResolver resolver, OpenRouterProperties orProps,
+                            OllamaProperties ollamaProps, RagProperties ragProps) {
+        this.resolver = resolver;
         this.orProps = orProps;
+        this.ollamaProps = ollamaProps;
         this.ragProps = ragProps;
     }
 
+    /** Embed a single text with the active model. */
     public float[] embed(String text) {
-        if (orProps.embeddingsConfigured()) {
-            return normalize(client.embed(text)); // throws on failure -> consistent dims
+        return embedBatch(List.of(text)).get(0);
+    }
+
+    /**
+     * Embed many texts in one go where the backend supports it (Ollama batches
+     * natively; OpenRouter loops). Used by document processing and re-embedding.
+     */
+    public List<float[]> embedBatch(List<String> texts) {
+        if (texts.isEmpty()) {
+            return List.of();
         }
-        return localEmbed(text);
+        if (resolver.isOllamaActive()) {
+            return normalizeAll(resolver.byId("ollama").embed(texts, ollamaProps.embedModel()));
+        }
+        if (orProps.embeddingsConfigured()) {
+            return normalizeAll(resolver.byId("openrouter").embed(texts, orProps.embeddingModel()));
+        }
+        // No external embeddings available — deterministic local fallback.
+        List<float[]> out = new ArrayList<>(texts.size());
+        for (String t : texts) {
+            out.add(localEmbed(t));
+        }
+        return out;
+    }
+
+    /**
+     * Stable identifier of the active embedding model, persisted with each chunk
+     * and used to scope retrieval. Changing the active model changes this tag, so
+     * old chunks stop matching until {@code POST /api/rag/reembed} re-embeds them.
+     */
+    public String activeEmbeddingTag() {
+        if (resolver.isOllamaActive()) {
+            return "ollama:" + ollamaProps.embedModel();
+        }
+        if (orProps.embeddingsConfigured()) {
+            return "openrouter:" + orProps.embeddingModel();
+        }
+        return "local:" + Math.max(64, ragProps.embeddingDim());
+    }
+
+    // ----------------------------------------------------------------- internals
+
+    private List<float[]> normalizeAll(float[][] vectors) {
+        List<float[]> out = new ArrayList<>(vectors.length);
+        for (float[] v : vectors) {
+            out.add(normalize(v));
+        }
+        return out;
     }
 
     /** Bag-of-tokens feature hashing into a fixed-dim, L2-normalized vector. */
