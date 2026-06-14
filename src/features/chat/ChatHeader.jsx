@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import ModelPicker from './ModelPicker';
 import LocalModelPicker from './LocalModelPicker';
+import OfflineOffer from './OfflineOffer';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useClickOutside } from './useClickOutside';
 import { useChatStore } from '../../store/chatStore';
@@ -66,6 +67,7 @@ export default function ChatHeader({
 }) {
   const { user, logOut } = useUserAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [offerOpen, setOfferOpen] = useState(false);
   const menuRef = useClickOutside(() => setMenuOpen(false), menuOpen);
 
   // When the local provider is active, the chat runs on the user's active Ollama
@@ -73,7 +75,8 @@ export default function ChatHeader({
   const isLocal = localLlm?.provider === 'ollama';
 
   return (
-    <header className="relative z-30 flex items-center gap-2 border-b border-line bg-bg/80 px-3 py-2.5 backdrop-blur">
+    <>
+      <header className="relative z-30 flex items-center gap-2 border-b border-line bg-bg/80 px-3 py-2.5 backdrop-blur">
       <button
         onClick={onToggleSidebar}
         className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg lg:hidden"
@@ -151,6 +154,16 @@ export default function ChatHeader({
             </div>
             <div className="my-1 h-px bg-line" />
             <button
+              onClick={() => {
+                setMenuOpen(false);
+                setOfferOpen(true);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition hover:bg-surface-2"
+            >
+              <HardDrive size={15} className="text-brand-500" /> Get Privoraa Offline
+            </button>
+            <div className="my-1 h-px bg-line" />
+            <button
               onClick={logOut}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-red-500 transition hover:bg-red-500/10"
             >
@@ -159,6 +172,9 @@ export default function ChatHeader({
           </div>
         )}
       </div>
-    </header>
+      </header>
+
+      <OfflineOffer open={offerOpen} onClose={() => setOfferOpen(false)} />
+    </>
   );
 }
