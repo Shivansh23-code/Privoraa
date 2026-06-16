@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   X, Download, Check, Trash2, AlertTriangle, Loader2, ArrowLeft,
   HardDrive, Cpu, Boxes, ServerCog, CheckCircle2, Star, Eye,
+  Lock, Sparkles, Zap, Crown,
 } from 'lucide-react';
 import {
   fetchCatalog, fetchInstalled, fetchActiveModel, setActiveModel,
@@ -23,6 +24,21 @@ const CATEGORY_ICONS = {
   daily: Boxes, coding: Cpu, reasoning: ServerCog, lightweight: Star, vision: Eye, embeddings: HardDrive,
 };
 
+/** Subscription-tier metadata for badges, the plan chip, and the upgrade panel. */
+const PLAN_META = {
+  free: { label: 'Free', rank: 0, icon: Sparkles, tone: 'text-muted bg-surface-2' },
+  plus: { label: 'Plus', rank: 1, icon: Zap, tone: 'text-brand-500 bg-brand-500/10' },
+  pro: { label: 'Pro', rank: 2, icon: Crown, tone: 'text-amber-500 bg-amber-500/10' },
+};
+const planMeta = (p) => PLAN_META[(p || 'free').toLowerCase()] || PLAN_META.free;
+
+/** What each tier unlocks — drives the upgrade panel. */
+const PLAN_TIERS = [
+  { key: 'free', price: 'Free', tagline: 'Get started, fully offline', perks: ['Daily & lightweight chat models', 'Embeddings for document chat', 'Run privately on your machine'] },
+  { key: 'plus', price: 'Coming soon', tagline: 'For everyday power users', perks: ['Everything in Free', 'Coding & reasoning models', 'Vision (read images)', 'Larger 4B models'] },
+  { key: 'pro', price: 'Coming soon', tagline: 'Biggest models, best quality', perks: ['Everything in Plus', '7B+ models, top quality', 'Every category unlocked', 'Priority new models'] },
+];
+
 export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
   const [loading, setLoading] = useState(true);
   const [health, setHealth] = useState(null);
@@ -33,6 +49,7 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
   const [pulls, setPulls] = useState({}); // tag -> {percent, status}
   const [busy, setBusy] = useState({}); // tag -> 'active' | 'delete'
   const [error, setError] = useState(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const reload = useCallback(async () => {
     try {
@@ -107,6 +124,8 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
 
   const categories = catalog?.categories || [];
   const ollamaDown = health && !health.running;
+  const userPlan = (catalog?.userPlan || 'free').toLowerCase();
+  const PlanChipIcon = planMeta(userPlan).icon;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -136,6 +155,13 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
               <CheckCircle2 size={13} /> Active: {active}
             </span>
           )}
+          <button
+            onClick={() => setUpgradeOpen(true)}
+            title="Your plan — see what each tier unlocks"
+            className={`flex items-center gap-1.5 rounded-full border border-line px-2.5 py-1 text-xs font-medium transition hover:border-brand-400 ${planMeta(userPlan).tone}`}
+          >
+            <PlanChipIcon size={13} /> {planMeta(userPlan).label}
+          </button>
           <button
             aria-label="Close"
             onClick={onClose}
@@ -177,6 +203,11 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
                   </button>
                   {categories.map((c) => {
                     const Icon = CATEGORY_ICONS[c.key] || Boxes;
+                    // Category is "locked" only if every model in it is above the plan.
+                    const allLocked = c.models?.length > 0 && c.models.every((x) => x.locked);
+                    const gatePlan = allLocked
+                      ? c.models.reduce((lo, x) => (planMeta(x.plan).rank < planMeta(lo).rank ? x.plan : lo), c.models[0].plan)
+                      : null;
                     return (
                       <button
                         key={c.key}
@@ -186,8 +217,15 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
                         <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent-500/10 text-accent-500">
                           <Icon size={20} />
                         </span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold">{c.title}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex items-center gap-1.5 text-sm font-semibold">
+                            {c.title}
+                            {allLocked && (
+                              <span className={`flex items-center gap-0.5 rounded px-1 py-px text-[10px] font-semibold ${planMeta(gatePlan).tone}`}>
+                                <Lock size={9} /> {planMeta(gatePlan).label}
+                              </span>
+                            )}
+                          </p>
                           <p className="truncate text-xs text-muted">{c.blurb}</p>
                         </div>
                       </button>
@@ -218,6 +256,7 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
                       onInstall={() => handleInstall(m.tag)}
                       onActivate={() => handleActivate(m.tag)}
                       onDelete={() => handleDelete(m.tag)}
+                      onUpgrade={() => setUpgradeOpen(true)}
                     />
                   ))}
                 </div>
@@ -225,26 +264,107 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
             </>
           )}
         </div>
+
+        {upgradeOpen && (
+          <UpgradePanel currentPlan={userPlan} onClose={() => setUpgradeOpen(false)} />
+        )}
       </div>
     </div>
   );
 }
 
-function ModelCard({ m, active, pull, busy, onInstall, onActivate, onDelete }) {
+function UpgradePanel({ currentPlan, onClose }) {
+  return (
+    <div className="absolute inset-0 z-10 flex flex-col rounded-2xl bg-elevated/95 backdrop-blur-sm">
+      <div className="flex items-center gap-3 border-b border-line px-5 py-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold">Plans & models</h2>
+          <p className="truncate text-xs text-muted">
+            Bigger models and more categories unlock with higher tiers — all run offline on your machine.
+          </p>
+        </div>
+        <button
+          aria-label="Close"
+          onClick={onClose}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg"
+        >
+          <X size={18} />
+        </button>
+      </div>
+      <div className="scroll-thin flex-1 overflow-y-auto p-5">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          {PLAN_TIERS.map((t) => {
+            const meta = planMeta(t.key);
+            const Icon = meta.icon;
+            const isCurrent = t.key === currentPlan;
+            return (
+              <div
+                key={t.key}
+                className={`flex flex-col rounded-xl border bg-surface p-4 ${isCurrent ? 'border-brand-400 ring-1 ring-brand-400/40' : 'border-line'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${meta.tone}`}>
+                    <Icon size={16} />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{meta.label}</p>
+                    <p className="truncate text-[11px] text-muted">{t.tagline}</p>
+                  </div>
+                </div>
+                <p className="mt-3 text-lg font-bold">{t.price}</p>
+                <ul className="mt-3 flex-1 space-y-1.5">
+                  {t.perks.map((p) => (
+                    <li key={p} className="flex items-start gap-1.5 text-xs text-muted">
+                      <Check size={13} className="mt-0.5 shrink-0 text-emerald-500" /> {p}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  disabled={isCurrent || t.key === 'free'}
+                  className={`mt-4 w-full rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                    isCurrent
+                      ? 'cursor-default bg-surface-2 text-muted'
+                      : t.key === 'free'
+                        ? 'cursor-default bg-surface-2 text-muted'
+                        : 'bg-gradient-to-r from-brand-600 to-accent-500 text-white hover:opacity-95'
+                  }`}
+                >
+                  {isCurrent ? 'Your plan' : t.key === 'free' ? 'Included' : `Get ${meta.label}`}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-4 text-center text-[11px] text-faint">
+          Paid plans are coming soon — Free is fully usable today. Models are open-source, run locally; Privoraa curates and manages them for you.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ModelCard({ m, active, pull, busy, onInstall, onActivate, onDelete, onUpgrade }) {
   const badge = fitBadge(m);
   const BadgeIcon = badge.icon;
   const isActive = active === m.tag || active === `${m.tag}:latest`;
   const installing = !!pull;
+  const locked = m.locked && !m.installed;
+  const pm = planMeta(m.plan);
 
   return (
-    <div className="rounded-xl border border-line bg-surface p-4">
+    <div className={`rounded-xl border bg-surface p-4 ${locked ? 'border-line/60' : 'border-line'}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold">{m.displayName}</h3>
+            <h3 className={`text-sm font-semibold ${locked ? 'text-fg/70' : ''}`}>{m.displayName}</h3>
             {m.isDefault && (
               <span className="rounded bg-brand-500/15 px-1.5 py-px text-[10px] font-semibold text-brand-500">
                 RECOMMENDED
+              </span>
+            )}
+            {m.plan && m.plan !== 'free' && (
+              <span className={`flex items-center gap-1 rounded px-1.5 py-px text-[10px] font-semibold ${pm.tone}`}>
+                {locked ? <Lock size={9} /> : <pm.icon size={10} />} {pm.label}
               </span>
             )}
             <span className={`flex items-center gap-1 rounded px-1.5 py-px text-[10px] font-semibold ${badge.tone}`}>
@@ -287,6 +407,14 @@ function ModelCard({ m, active, pull, busy, onInstall, onActivate, onDelete }) {
             <span className="flex items-center gap-1 rounded-lg bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-muted">
               <Loader2 size={14} className="animate-spin" /> {pull.percent}%
             </span>
+          ) : locked ? (
+            <button
+              onClick={onUpgrade}
+              title={`Requires the ${pm.label} plan`}
+              className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition hover:border-brand-400 ${pm.tone}`}
+            >
+              <Lock size={13} /> Unlock
+            </button>
           ) : (
             <button
               onClick={onInstall}

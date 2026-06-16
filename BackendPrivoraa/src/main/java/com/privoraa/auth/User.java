@@ -42,6 +42,11 @@ public class User {
     @Column(nullable = false, length = 20)
     private Role role;
 
+    /** Subscription tier — gates which catalog models the user may download. */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Plan plan;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -55,6 +60,9 @@ public class User {
         }
         if (role == null) {
             role = Role.USER;
+        }
+        if (plan == null) {
+            plan = Plan.FREE;
         }
     }
 }

@@ -7,6 +7,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * for the target 8 GB / 4 GB-VRAM laptop ("fits" | "stretch" | "not_recommended");
  * {@code fitsThisMachine} is computed at request time against the configured RAM
  * budget and is therefore NOT part of this on-disk record.
+ *
+ * <p>{@code plan} is the subscription tier required to download the model
+ * ("free" | "plus" | "pro"); omitted/null ⇒ free. Distinct from {@code tier},
+ * which is hardware-fit guidance, not entitlement.
  */
 public record CatalogModel(
         String tag,
@@ -17,5 +21,6 @@ public record CatalogModel(
         int vramFitsGb,
         String tier,
         @JsonProperty("default") boolean isDefault,
-        String blurb
+        String blurb,
+        String plan
 ) {}

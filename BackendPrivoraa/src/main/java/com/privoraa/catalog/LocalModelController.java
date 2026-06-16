@@ -38,18 +38,22 @@ public class LocalModelController {
     private final OllamaCatalogService catalogService;
     private final OllamaModelService ollama;
     private final ActiveModelService activeModel;
+    private final EntitlementService entitlements;
 
     public LocalModelController(OllamaCatalogService catalogService, OllamaModelService ollama,
-                                ActiveModelService activeModel) {
+                                ActiveModelService activeModel, EntitlementService entitlements) {
         this.catalogService = catalogService;
         this.ollama = ollama;
         this.activeModel = activeModel;
+        this.entitlements = entitlements;
     }
 
     @GetMapping("/catalog")
-    @Operation(summary = "Curated catalog by category, annotated with fit + installed flags")
-    public CatalogView catalog() {
-        return catalogService.annotate(ollama.installedTags());
+    @Operation(summary = "Curated catalog by category, annotated with fit + installed + lock flags")
+    public CatalogView catalog(@AuthenticationPrincipal PrivoraaUserDetails user) {
+        return catalogService.annotate(
+                ollama.installedTags(),
+                entitlements.planOf(user == null ? null : user.getId()));
     }
 
     @GetMapping("/installed")
@@ -60,10 +64,22 @@ public class LocalModelController {
 
     @PostMapping("/pull")
     @Operation(summary = "Pull a model; streams {status, completed, total, percent} over SSE")
-    public SseEmitter pull(@RequestBody PullRequest req) {
+    public SseEmitter pull(@AuthenticationPrincipal PrivoraaUserDetails user,
+                           @RequestBody PullRequest req) {
         SseEmitter emitter = new SseEmitter(0L);
         if (req == null || req.tag() == null || req.tag().isBlank()) {
             send(emitter, "error", Map.of("message", "Missing model tag"));
+            emitter.complete();
+            return emitter;
+        }
+        // Entitlement gate: a model above the user's plan can't be downloaded.
+        String userId = user == null ? null : user.getId();
+        if (!entitlements.canDownload(userId, req.tag())) {
+            send(emitter, "error", Map.of(
+                    "message", "This model needs the "
+                            + entitlements.requiredFor(req.tag()).label() + " plan.",
+                    "code", "upgrade_required",
+                    "requiredPlan", entitlements.requiredFor(req.tag()).name().toLowerCase()));
             emitter.complete();
             return emitter;
         }
