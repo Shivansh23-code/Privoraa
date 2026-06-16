@@ -1,0 +1,25 @@
+{
+  "_comment": "Maps a catalog model tag to its self-hosted GGUF build. objectKey is the path within the bucket/CDN. sizeBytes + sha256 are filled in when the real quantized file is uploaded (sha256 lets the desktop app verify the download). quant documents the compression.",
+  "builds": {
+    "llama3.2:3b":        { "objectKey": "gguf/llama-3.2-3b-instruct-q4_k_m.gguf",  "sizeBytes": 2019377440, "sha256": "", "quant": "Q4_K_M" },
+    "llama3.2:1b":        { "objectKey": "gguf/llama-3.2-1b-instruct-q4_k_m.gguf",  "sizeBytes": 1321098752, "sha256": "", "quant": "Q4_K_M" },
+    "qwen2.5:3b":         { "objectKey": "gguf/qwen2.5-3b-instruct-q4_k_m.gguf",    "sizeBytes": 1929379840, "sha256": "", "quant": "Q4_K_M" },
+    "qwen2.5:1.5b":       { "objectKey": "gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf",  "sizeBytes": 1068000000, "sha256": "", "quant": "Q4_K_M" },
+    "gemma3:1b":          { "objectKey": "gguf/gemma-3-1b-it-q4_k_m.gguf",          "sizeBytes":  806000000, "sha256": "", "quant": "Q4_K_M" },
+    "nomic-embed-text":   { "objectKey": "gguf/nomic-embed-text-v1.5-f16.gguf",     "sizeBytes":  274290656, "sha256": "", "quant": "F16" },
+    "all-minilm":         { "objectKey": "gguf/all-minilm-l6-v2-f16.gguf",          "sizeBytes":   45000000, "sha256": "", "quant": "F16" },
+
+    "gemma3:4b":          { "objectKey": "gguf/gemma-3-4b-it-q4_k_m.gguf",          "sizeBytes": 3338000000, "sha256": "", "quant": "Q4_K_M" },
+    "qwen2.5-coder:3b":   { "objectKey": "gguf/qwen2.5-coder-3b-q4_k_m.gguf",       "sizeBytes": 1929379840, "sha256": "", "quant": "Q4_K_M" },
+    "qwen2.5-coder:1.5b": { "objectKey": "gguf/qwen2.5-coder-1.5b-q4_k_m.gguf",     "sizeBytes": 1068000000, "sha256": "", "quant": "Q4_K_M" },
+    "qwen3:4b":           { "objectKey": "gguf/qwen3-4b-q4_k_m.gguf",               "sizeBytes": 2600000000, "sha256": "", "quant": "Q4_K_M" },
+    "deepseek-r1:1.5b":   { "objectKey": "gguf/deepseek-r1-1.5b-q4_k_m.gguf",       "sizeBytes": 1100000000, "sha256": "", "quant": "Q4_K_M" },
+    "moondream":          { "objectKey": "gguf/moondream2-q4.gguf",                 "sizeBytes": 1700000000, "sha256": "", "quant": "Q4" },
+    "bge-m3":             { "objectKey": "gguf/bge-m3-f16.gguf",                    "sizeBytes": 1200000000, "sha256": "", "quant": "F16" },
+
+    "qwen2.5-coder:7b":   { "objectKey": "gguf/qwen2.5-coder-7b-q4_k_m.gguf",       "sizeBytes": 4683000000, "sha256": "", "quant": "Q4_K_M" },
+    "deepseek-r1:7b":     { "objectKey": "gguf/deepseek-r1-7b-q4_k_m.gguf",         "sizeBytes": 4683000000, "sha256": "", "quant": "Q4_K_M" },
+    "qwen3:8b":           { "objectKey": "gguf/qwen3-8b-q4_k_m.gguf",               "sizeBytes": 5200000000, "sha256": "", "quant": "Q4_K_M" },
+    "llava:7b":           { "objectKey": "gguf/llava-7b-q4_k_m.gguf",               "sizeBytes": 4700000000, "sha256": "", "quant": "Q4_K_M" }
+  }
+}

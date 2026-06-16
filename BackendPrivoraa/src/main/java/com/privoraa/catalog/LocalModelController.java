@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -39,13 +40,16 @@ public class LocalModelController {
     private final OllamaModelService ollama;
     private final ActiveModelService activeModel;
     private final EntitlementService entitlements;
+    private final ModelDownloadService downloads;
 
     public LocalModelController(OllamaCatalogService catalogService, OllamaModelService ollama,
-                                ActiveModelService activeModel, EntitlementService entitlements) {
+                                ActiveModelService activeModel, EntitlementService entitlements,
+                                ModelDownloadService downloads) {
         this.catalogService = catalogService;
         this.ollama = ollama;
         this.activeModel = activeModel;
         this.entitlements = entitlements;
+        this.downloads = downloads;
     }
 
     @GetMapping("/catalog")
@@ -60,6 +64,13 @@ public class LocalModelController {
     @Operation(summary = "Models Ollama already has (proxies /api/tags)")
     public JsonNode installed() {
         return ollama.installedRaw();
+    }
+
+    @GetMapping("/download")
+    @Operation(summary = "Resolve a plan-entitled download URL for a self-hosted GGUF build")
+    public DownloadInfo download(@AuthenticationPrincipal PrivoraaUserDetails user,
+                                 @RequestParam String tag) {
+        return downloads.resolve(user == null ? null : user.getId(), tag);
     }
 
     @PostMapping("/pull")
