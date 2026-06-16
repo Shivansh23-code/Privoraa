@@ -9,6 +9,7 @@ import java.util.List;
  */
 public record CatalogView(
         int ramBudgetGb,
+        String userPlan,
         List<Category> categories
 ) {
     public record Category(
@@ -29,6 +30,8 @@ public record CatalogView(
             boolean isDefault,
             String blurb,
             boolean fitsThisMachine,
-            boolean installed
+            boolean installed,
+            String plan,
+            boolean locked
     ) {}
 }

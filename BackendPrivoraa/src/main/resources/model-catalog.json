@@ -5,10 +5,10 @@
       "title": "Daily / General",
       "blurb": "Balanced everyday chat and writing.",
       "models": [
-        { "tag": "llama3.2:3b",  "displayName": "Llama 3.2 3B",  "category": "daily", "sizeGbApprox": 2.0, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "default": true,  "blurb": "Recommended starter. Fast, solid general chat." },
-        { "tag": "qwen2.5:3b",   "displayName": "Qwen2.5 3B",    "category": "daily", "sizeGbApprox": 1.9, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "blurb": "Strong multilingual generalist." },
-        { "tag": "llama3.2:1b",  "displayName": "Llama 3.2 1B",  "category": "daily", "sizeGbApprox": 1.3, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "blurb": "Very fast, lightest general model." },
-        { "tag": "gemma3:4b",    "displayName": "Gemma 3 4B",    "category": "daily", "sizeGbApprox": 3.3, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "blurb": "Capable 4B from Google." }
+        { "tag": "llama3.2:3b",  "displayName": "Llama 3.2 3B",  "category": "daily", "sizeGbApprox": 2.0, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "default": true,  "plan": "free", "blurb": "Recommended starter. Fast, solid general chat." },
+        { "tag": "qwen2.5:3b",   "displayName": "Qwen2.5 3B",    "category": "daily", "sizeGbApprox": 1.9, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "plan": "free", "blurb": "Strong multilingual generalist." },
+        { "tag": "llama3.2:1b",  "displayName": "Llama 3.2 1B",  "category": "daily", "sizeGbApprox": 1.3, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "plan": "free", "blurb": "Very fast, lightest general model." },
+        { "tag": "gemma3:4b",    "displayName": "Gemma 3 4B",    "category": "daily", "sizeGbApprox": 3.3, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "plan": "plus", "blurb": "Capable 4B from Google." }
       ]
     },
     {
@@ -16,9 +16,9 @@
       "title": "Coding",
       "blurb": "Code generation, completion, and refactoring.",
       "models": [
-        { "tag": "qwen2.5-coder:3b",   "displayName": "Qwen2.5 Coder 3B",   "category": "coding", "sizeGbApprox": 1.9, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "default": true, "blurb": "Recommended for code on this machine." },
-        { "tag": "qwen2.5-coder:1.5b", "displayName": "Qwen2.5 Coder 1.5B", "category": "coding", "sizeGbApprox": 1.0, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "blurb": "Fastest coder, great for autocomplete." },
-        { "tag": "qwen2.5-coder:7b",   "displayName": "Qwen2.5 Coder 7B",   "category": "coding", "sizeGbApprox": 4.7, "minRamGbHint": 16, "vramFitsGb": 6, "tier": "stretch", "blurb": "Stronger, but heavy for 8 GB / 4 GB VRAM." }
+        { "tag": "qwen2.5-coder:3b",   "displayName": "Qwen2.5 Coder 3B",   "category": "coding", "sizeGbApprox": 1.9, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "default": true, "plan": "plus", "blurb": "Recommended for code on this machine." },
+        { "tag": "qwen2.5-coder:1.5b", "displayName": "Qwen2.5 Coder 1.5B", "category": "coding", "sizeGbApprox": 1.0, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "plan": "plus", "blurb": "Fastest coder, great for autocomplete." },
+        { "tag": "qwen2.5-coder:7b",   "displayName": "Qwen2.5 Coder 7B",   "category": "coding", "sizeGbApprox": 4.7, "minRamGbHint": 16, "vramFitsGb": 6, "tier": "stretch", "plan": "pro",  "blurb": "Stronger, but heavy for 8 GB / 4 GB VRAM." }
       ]
     },
     {
@@ -26,10 +26,10 @@
       "title": "Reasoning & Math",
       "blurb": "Step-by-step reasoning and math.",
       "models": [
-        { "tag": "qwen3:4b",         "displayName": "Qwen3 4B",         "category": "reasoning", "sizeGbApprox": 2.6, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "blurb": "Good reasoning at a small size." },
-        { "tag": "deepseek-r1:1.5b", "displayName": "DeepSeek-R1 1.5B", "category": "reasoning", "sizeGbApprox": 1.1, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "blurb": "Tiny reasoning model with visible thinking." },
-        { "tag": "deepseek-r1:7b",   "displayName": "DeepSeek-R1 7B",   "category": "reasoning", "sizeGbApprox": 4.7, "minRamGbHint": 16, "vramFitsGb": 6, "tier": "stretch", "blurb": "Stronger reasoning; heavy for 8 GB." },
-        { "tag": "qwen3:8b",         "displayName": "Qwen3 8B",         "category": "reasoning", "sizeGbApprox": 5.2, "minRamGbHint": 16, "vramFitsGb": 6, "tier": "stretch", "blurb": "Capable; stretch on this hardware." }
+        { "tag": "qwen3:4b",         "displayName": "Qwen3 4B",         "category": "reasoning", "sizeGbApprox": 2.6, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "plan": "plus", "blurb": "Good reasoning at a small size." },
+        { "tag": "deepseek-r1:1.5b", "displayName": "DeepSeek-R1 1.5B", "category": "reasoning", "sizeGbApprox": 1.1, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "plan": "plus", "blurb": "Tiny reasoning model with visible thinking." },
+        { "tag": "deepseek-r1:7b",   "displayName": "DeepSeek-R1 7B",   "category": "reasoning", "sizeGbApprox": 4.7, "minRamGbHint": 16, "vramFitsGb": 6, "tier": "stretch", "plan": "pro",  "blurb": "Stronger reasoning; heavy for 8 GB." },
+        { "tag": "qwen3:8b",         "displayName": "Qwen3 8B",         "category": "reasoning", "sizeGbApprox": 5.2, "minRamGbHint": 16, "vramFitsGb": 6, "tier": "stretch", "plan": "pro",  "blurb": "Capable; stretch on this hardware." }
       ]
     },
     {
@@ -37,9 +37,9 @@
       "title": "Lightweight & Fast",
       "blurb": "Smallest, snappiest models.",
       "models": [
-        { "tag": "llama3.2:1b",  "displayName": "Llama 3.2 1B", "category": "lightweight", "sizeGbApprox": 1.3, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "blurb": "Fast general 1B." },
-        { "tag": "gemma3:1b",    "displayName": "Gemma 3 1B",   "category": "lightweight", "sizeGbApprox": 0.8, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "blurb": "Ultra-light, very fast." },
-        { "tag": "qwen2.5:1.5b", "displayName": "Qwen2.5 1.5B", "category": "lightweight", "sizeGbApprox": 1.0, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "blurb": "Small, capable generalist." }
+        { "tag": "llama3.2:1b",  "displayName": "Llama 3.2 1B", "category": "lightweight", "sizeGbApprox": 1.3, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "plan": "free", "blurb": "Fast general 1B." },
+        { "tag": "gemma3:1b",    "displayName": "Gemma 3 1B",   "category": "lightweight", "sizeGbApprox": 0.8, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "plan": "free", "blurb": "Ultra-light, very fast." },
+        { "tag": "qwen2.5:1.5b", "displayName": "Qwen2.5 1.5B", "category": "lightweight", "sizeGbApprox": 1.0, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "plan": "free", "blurb": "Small, capable generalist." }
       ]
     },
     {
@@ -47,9 +47,9 @@
       "title": "Vision (see images)",
       "blurb": "Multimodal models that can read and describe images you attach.",
       "models": [
-        { "tag": "moondream",            "displayName": "Moondream 2",         "category": "vision", "sizeGbApprox": 1.7, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "default": true, "blurb": "Tiny vision model — describes images on 8 GB." },
-        { "tag": "llava:7b",             "displayName": "LLaVA 7B",            "category": "vision", "sizeGbApprox": 4.7, "minRamGbHint": 16, "vramFitsGb": 6, "tier": "stretch", "blurb": "Stronger image understanding; heavy for 8 GB." },
-        { "tag": "llama3.2-vision:11b",  "displayName": "Llama 3.2 Vision 11B","category": "vision", "sizeGbApprox": 7.9, "minRamGbHint": 16, "vramFitsGb": 8, "tier": "not_recommended", "blurb": "Capable but too large for an 8 GB machine." }
+        { "tag": "moondream",            "displayName": "Moondream 2",         "category": "vision", "sizeGbApprox": 1.7, "minRamGbHint": 8,  "vramFitsGb": 4, "tier": "fits",    "default": true, "plan": "plus", "blurb": "Tiny vision model — describes images on 8 GB." },
+        { "tag": "llava:7b",             "displayName": "LLaVA 7B",            "category": "vision", "sizeGbApprox": 4.7, "minRamGbHint": 16, "vramFitsGb": 6, "tier": "stretch", "plan": "pro",  "blurb": "Stronger image understanding; heavy for 8 GB." },
+        { "tag": "llama3.2-vision:11b",  "displayName": "Llama 3.2 Vision 11B","category": "vision", "sizeGbApprox": 7.9, "minRamGbHint": 16, "vramFitsGb": 8, "tier": "not_recommended", "plan": "pro", "blurb": "Capable but too large for an 8 GB machine." }
       ]
     },
     {
@@ -57,9 +57,9 @@
       "title": "Embeddings (required for document chat)",
       "blurb": "Needed for RAG / document retrieval — not used for chat.",
       "models": [
-        { "tag": "nomic-embed-text", "displayName": "Nomic Embed Text", "category": "embeddings", "sizeGbApprox": 0.3, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "default": true, "blurb": "Recommended embeddings. 768-dim." },
-        { "tag": "all-minilm",       "displayName": "All-MiniLM",       "category": "embeddings", "sizeGbApprox": 0.1, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "blurb": "Tiny, fast embeddings. 384-dim." },
-        { "tag": "bge-m3",           "displayName": "BGE-M3",           "category": "embeddings", "sizeGbApprox": 1.2, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "blurb": "Strong multilingual embeddings. 1024-dim." }
+        { "tag": "nomic-embed-text", "displayName": "Nomic Embed Text", "category": "embeddings", "sizeGbApprox": 0.3, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "default": true, "plan": "free", "blurb": "Recommended embeddings. 768-dim." },
+        { "tag": "all-minilm",       "displayName": "All-MiniLM",       "category": "embeddings", "sizeGbApprox": 0.1, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "plan": "free", "blurb": "Tiny, fast embeddings. 384-dim." },
+        { "tag": "bge-m3",           "displayName": "BGE-M3",           "category": "embeddings", "sizeGbApprox": 1.2, "minRamGbHint": 8, "vramFitsGb": 4, "tier": "fits", "plan": "plus", "blurb": "Strong multilingual embeddings. 1024-dim." }
       ]
     }
   ]
