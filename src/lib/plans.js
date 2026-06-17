@@ -16,6 +16,35 @@ export function planLabel(plan) {
   return p.charAt(0) + p.slice(1).toLowerCase(); // FREE -> Free
 }
 
+// Per-plan visual theme — richer chrome for higher tiers. `iconKey` is resolved
+// to a lucide icon by the consumer. Used by the chat header (chip, avatar ring,
+// accent bar) so the UI visibly reflects the user's plan.
+export const PLAN_THEME = {
+  FREE: {
+    label: 'Free',
+    iconKey: 'gem',
+    chip: 'border-line bg-surface text-muted hover:border-brand-400 hover:text-fg',
+    ring: 'from-brand-500 to-accent-500',
+    accent: 'from-transparent via-line to-transparent',
+  },
+  PLUS: {
+    label: 'Plus',
+    iconKey: 'zap',
+    chip: 'border-brand-400/50 bg-brand-500/10 text-brand-500',
+    ring: 'from-brand-500 to-accent-500',
+    accent: 'from-brand-500/50 via-accent-500/40 to-transparent',
+  },
+  PRO: {
+    label: 'Pro',
+    iconKey: 'crown',
+    chip: 'border-amber-400/50 bg-gradient-to-r from-amber-500/20 to-orange-500/10 text-amber-500',
+    ring: 'from-amber-400 to-orange-500',
+    accent: 'from-amber-400/60 via-orange-500/40 to-transparent',
+  },
+};
+
+export const planTheme = (plan) => PLAN_THEME[(plan || 'FREE').toUpperCase()] || PLAN_THEME.FREE;
+
 // Marketing/selection content for the Plans page. Paid tiers are "coming soon"
 // until billing is wired — they currently onboard as Free.
 export const PLANS = [
