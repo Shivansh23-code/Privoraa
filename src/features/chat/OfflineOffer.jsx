@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { X, Download, ShieldCheck, WifiOff, Boxes, Sparkles, Check } from 'lucide-react';
 
 /**
@@ -62,14 +63,13 @@ export default function OfflineOffer({ open, onClose }) {
             </ol>
           </div>
 
-          <a
-            href="https://ollama.com/download"
-            target="_blank"
-            rel="noreferrer"
+          <Link
+            to="/download"
+            onClick={onClose}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-95"
           >
-            <Download size={17} /> Download the offline engine
-          </a>
+            <Download size={17} /> Get Privoraa Offline
+          </Link>
 
           <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-faint">
             <Check size={13} className="mt-0.5 shrink-0 text-emerald-500" />

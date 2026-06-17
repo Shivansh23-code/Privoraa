@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   X, Download, Check, Trash2, AlertTriangle, Loader2, ArrowLeft,
   HardDrive, Cpu, Boxes, ServerCog, CheckCircle2, Star, Eye,
@@ -513,10 +514,10 @@ function SetupCard({ health, onRetry }) {
       <ol className="mx-auto mt-4 max-w-sm space-y-2 text-left text-sm">
         <li className="flex gap-2">
           <span className="font-semibold text-brand-500">1.</span>
-          Install Ollama from{' '}
-          <a href="https://ollama.com/download" target="_blank" rel="noreferrer" className="text-brand-500 underline">
-            ollama.com/download
-          </a>
+          Get the free engine from{' '}
+          <Link to="/download" className="text-brand-500 underline">
+            Privoraa’s download page
+          </Link>
         </li>
         <li className="flex gap-2">
           <span className="font-semibold text-brand-500">2.</span>

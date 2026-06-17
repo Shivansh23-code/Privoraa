@@ -9,8 +9,20 @@ public final class Modes {
     }
 
     private static final String GENERAL =
-            "You are Privoraa, a helpful, concise AI assistant. Answer clearly and accurately. "
-                    + "Use Markdown, fenced code blocks for code, and LaTeX for math.";
+            "You are Privoraa, a helpful, concise AI assistant. Answer clearly and accurately.";
+
+    /**
+     * Shared style guidance appended to every persona. Free models love to dump
+     * answers into Markdown tables, which reads robotically — push them toward the
+     * natural, conversational style of ChatGPT/Claude instead.
+     */
+    private static final String STYLE =
+            "\n\nWrite the way a knowledgeable, friendly expert talks: natural prose in short "
+                    + "paragraphs, with bullet points for lists and steps. Be warm, direct and easy to read. "
+                    + "Do NOT format your answer as a table unless the data is genuinely tabular — multiple "
+                    + "rows compared across the same columns — which is rare. Never wrap a normal explanation, "
+                    + "comparison, or list in a table; use sentences, short headings and bullets instead. "
+                    + "Use fenced code blocks for code and LaTeX for math.";
 
     private static final String EXAM_TUTOR =
             "You tutor students for competitive exams. For each question: (1) give the core concept and "
@@ -44,6 +56,6 @@ public final class Modes {
     );
 
     public static String systemPrompt(String mode) {
-        return PROMPTS.getOrDefault(mode == null ? "general" : mode, GENERAL);
+        return PROMPTS.getOrDefault(mode == null ? "general" : mode, GENERAL) + STYLE;
     }
 }

@@ -4,6 +4,9 @@
 import { useCallback, useRef } from 'react';
 import { useChatStore } from '../../store/chatStore';
 import { streamChat } from '../../lib/chatService';
+import {
+  ensureLocalOllama, localHasModel, streamLocalOllamaChat, buildLocalMessages,
+} from '../../lib/localOllama';
 
 export function useChat(catalog) {
   const abortRef = useRef(null);
@@ -32,48 +35,72 @@ export function useChat(catalog) {
       abortRef.current = controller;
 
       let firstToken = true;
-      await streamChat(
-        {
-          content,
-          model: s.model,
-          provider: s.modelProvider,
-          mode: convo.mode,
-          useRag: s.useRag && s.documents.some((d) => d.status === 'READY'),
-          conversationId,
-          catalog,
-          image,
+      const callbacks = {
+        signal: controller.signal,
+        onMeta: (meta) =>
+          store.getState().updateMessage(conversationId, assistantId, {
+            model: meta.model,
+            category: meta.category,
+            routeReason: meta.reason,
+            citations: meta.citations,
+          }),
+        onToken: (delta) => {
+          if (firstToken) {
+            firstToken = false;
+            store.getState().updateMessage(conversationId, assistantId, { pending: false });
+          }
+          store.getState().appendToMessage(conversationId, assistantId, delta);
         },
-        {
-          signal: controller.signal,
-          onMeta: (meta) =>
-            store.getState().updateMessage(conversationId, assistantId, {
-              model: meta.model,
-              category: meta.category,
-              routeReason: meta.reason,
-              citations: meta.citations,
-            }),
-          onToken: (delta) => {
-            if (firstToken) {
-              firstToken = false;
-              store.getState().updateMessage(conversationId, assistantId, { pending: false });
-            }
-            store.getState().appendToMessage(conversationId, assistantId, delta);
-          },
-          onDone: (usage) =>
-            store.getState().updateMessage(conversationId, assistantId, {
-              pending: false,
-              promptTokens: usage.promptTokens,
-              completionTokens: usage.completionTokens,
-              citations: usage.citations ?? undefined,
-              aborted: usage.aborted || undefined,
-            }),
-          onError: (err) =>
-            store.getState().updateMessage(conversationId, assistantId, {
-              pending: false,
-              error: err.message || 'Something went wrong.',
-            }),
+        onDone: (usage) =>
+          store.getState().updateMessage(conversationId, assistantId, {
+            pending: false,
+            promptTokens: usage.promptTokens,
+            completionTokens: usage.completionTokens,
+            citations: usage.citations ?? undefined,
+            aborted: usage.aborted || undefined,
+          }),
+        onError: (err) =>
+          store.getState().updateMessage(conversationId, assistantId, {
+            pending: false,
+            error: err.message || 'Something went wrong.',
+          }),
+      };
+
+      // Browser-direct local Ollama: if the user picked an offline model and has
+      // Ollama running on THIS device with that model, stream straight from the
+      // browser to it — uses the model they already downloaded, no cloud hop.
+      const wantLocal =
+        s.modelProvider === 'offline' && s.model && s.model !== 'auto' && !s.model.includes('/');
+      let handledLocally = false;
+      if (wantLocal) {
+        const local = await ensureLocalOllama();
+        if (local && localHasModel(local, s.model)) {
+          handledLocally = true;
+          callbacks.onMeta({ model: s.model, category: 'general', reason: 'Running on your device' });
+          const conv = store.getState().conversations.find((c) => c.id === conversationId);
+          const history = (conv?.messages || []).filter((m) => m.id !== assistantId);
+          await streamLocalOllamaChat(
+            { base: local.base, model: s.model, messages: buildLocalMessages(history, null) },
+            callbacks
+          );
         }
-      );
+      }
+
+      if (!handledLocally) {
+        await streamChat(
+          {
+            content,
+            model: s.model,
+            provider: s.modelProvider,
+            mode: convo.mode,
+            useRag: s.useRag && s.documents.some((d) => d.status === 'READY'),
+            conversationId,
+            catalog,
+            image,
+          },
+          callbacks
+        );
+      }
 
       store.getState().setStreaming(false, null);
       abortRef.current = null;

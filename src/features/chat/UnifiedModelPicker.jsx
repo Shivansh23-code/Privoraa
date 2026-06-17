@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useClickOutside } from './useClickOutside';
 import { fetchCatalog, setActiveModel } from '../../lib/modelCatalogService';
+import { ensureLocalOllama, localHasModel } from '../../lib/localOllama';
 
 /**
  * Drill-down model picker. Level 1: Auto / Online / Offline. Choosing Online or
@@ -69,14 +70,23 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
   const [catalog, setCatalog] = useState(null);
   const [loadingCat, setLoadingCat] = useState(false);
   const [switching, setSwitching] = useState(null);
+  const [browserOllama, setBrowserOllama] = useState(null); // user's own Ollama, reachable from the browser
   const ref = useClickOutside(() => setOpen(false), open);
 
   // Ollama is the live local backend (not merely "the active cloud provider is up").
   const ollamaLive = localLlm?.provider === 'ollama' && !!localLlm?.online;
 
-  // Reset to the top level each time the menu opens.
+  // A model can run if the backend's Ollama has it OR the user's browser-reachable
+  // Ollama has it (the "use my already-installed Ollama in production" path).
+  const offlineRunnable = (m) =>
+    (ollamaLive && m.installed && !m.locked) || (browserOllama && localHasModel(browserOllama, m.tag));
+
+  // Reset to the top level each open, and detect the user's local Ollama.
   useEffect(() => {
-    if (open) setView('root');
+    if (open) {
+      setView('root');
+      ensureLocalOllama().then(setBrowserOllama);
+    }
   }, [open]);
 
   const loadCatalog = () => {
@@ -101,10 +111,10 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
   const pickAuto = () => { onChange('auto', 'auto'); close(); };
   const pickOnline = (m) => { onChange(m.id, 'online'); close(); };
   const pickOffline = async (m) => {
-    if (ollamaLive && m.installed && !m.locked) {
+    if (offlineRunnable(m)) {
       setSwitching(m.tag);
       try {
-        await setActiveModel(m.tag);
+        await setActiveModel(m.tag).catch(() => {}); // best-effort; browser-direct doesn't need it
         onChange(m.tag, 'offline');
       } finally {
         setSwitching(null);
@@ -208,14 +218,15 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
                   <div key={c.key}>
                     <GroupLabel>{taskLabel(c.key)}</GroupLabel>
                     {c.models.map((m) => {
-                      const runnable = ollamaLive && m.installed && !m.locked;
+                      const onDevice = browserOllama && localHasModel(browserOllama, m.tag);
+                      const runnable = offlineRunnable(m);
                       return (
                         <Row
                           key={m.tag}
                           active={isOffActive(m.tag)}
                           icon={<Boxes size={15} className="text-emerald-500" />}
                           title={m.displayName}
-                          sub={m.installed ? 'Installed' : m.locked ? `${(m.plan || '').toUpperCase()} plan` : `~${m.sizeGbApprox} GB · download`}
+                          sub={onDevice ? 'On your device — ready' : m.installed ? 'Installed' : m.locked ? `${(m.plan || '').toUpperCase()} plan` : `~${m.sizeGbApprox} GB · download`}
                           trailing={
                             switching === m.tag ? (
                               <Loader2 size={14} className="animate-spin text-muted" />
