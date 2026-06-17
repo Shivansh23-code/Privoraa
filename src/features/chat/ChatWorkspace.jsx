@@ -10,6 +10,7 @@ import Composer from './Composer';
 import ModelCatalogModal from '../models/ModelCatalogModal';
 
 import { useChatStore } from '../../store/chatStore';
+import { useUserAuth } from '../../context/UserAuthContext';
 import { useChat } from './useChat';
 import { useLocalLlm } from './useLocalLlm';
 import { fetchModels, ensureBackend, isUsingMock } from '../../lib/chatService';
@@ -41,6 +42,8 @@ export default function ChatWorkspace() {
 
   const { send, stop, regenerate } = useChat(models);
   const localLlm = useLocalLlm();
+  const { user } = useUserAuth();
+  const plan = (user?.plan || 'FREE').toLowerCase(); // drives per-plan dashboard theming
 
   const [sidebarOpen, setSidebarOpen] = useState(false); // mobile drawer
   const [collapsed, setCollapsed] = useState(false); // desktop sidebar collapsed (pinned)
@@ -117,7 +120,9 @@ export default function ChatWorkspace() {
   const desktopOpen = !collapsed || peek;
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-bg text-fg">
+    <div data-plan={plan} className="relative flex h-screen overflow-hidden bg-bg text-fg">
+      {/* Per-plan ambient glow (violet for Plus, gold for Pro; none for Free). */}
+      <div className="plan-glow-bg pointer-events-none absolute inset-x-0 top-0 z-0 h-72" />
       {/* ---------- Left sidebar (desktop) ---------- */}
       {/* Collapsed rail: brand logo; hover to peek the sidebar open. */}
       {collapsed && (
@@ -131,7 +136,7 @@ export default function ChatWorkspace() {
             title="Open sidebar"
             className="group flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-surface-2"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-brand-600 group-hover:opacity-0">
+            <span className="brand-grad flex h-8 w-8 items-center justify-center rounded-full group-hover:opacity-0">
               <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#070b14]" aria-hidden="true">
                 <path fill="none" stroke="currentColor" strokeWidth="2.2" d="M7 11V8a5 5 0 0 1 10 0v3" />
                 <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />

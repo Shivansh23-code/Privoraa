@@ -134,7 +134,7 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
       </button>
 
       {open && (
-        <div className="scroll-thin absolute left-0 z-30 mt-2 max-h-[72vh] w-[min(22rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-line bg-elevated p-1.5 shadow-xl">
+        <div className="scroll-thin fixed inset-x-2 top-[3.5rem] z-30 max-h-[72vh] overflow-y-auto rounded-xl border border-line bg-elevated p-1.5 shadow-xl sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:mt-2 sm:w-[min(22rem,calc(100vw-1.5rem))]">
           {/* ---------------- Level 1: Auto / Online / Offline ---------------- */}
           {view === 'root' && (
             <>

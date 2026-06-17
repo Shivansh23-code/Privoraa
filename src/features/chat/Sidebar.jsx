@@ -167,7 +167,7 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
           onClick={onCollapse}
           disabled={!onCollapse}
           title={onCollapse ? 'Collapse sidebar' : 'Privoraa'}
-          className="group relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-brand-600 shadow-[0_6px_18px_rgba(43,224,190,.25)]"
+          className="brand-grad group relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-[0_6px_18px_rgba(43,224,190,.25)]"
         >
           <svg
             viewBox="0 0 24 24"
@@ -185,14 +185,20 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
           )}
         </button>
         <span className="font-display text-lg font-bold tracking-tight text-fg">Privoraa</span>
-        <span className="rounded bg-accent-500/12 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent-500">
-          2.0
-        </span>
+        {user?.plan && user.plan !== 'FREE' ? (
+          <span className="brand-grad rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+            {user.plan === 'PRO' ? 'VVIP' : 'Plus'}
+          </span>
+        ) : (
+          <span className="rounded bg-accent-500/12 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent-500">
+            2.0
+          </span>
+        )}
       </div>
 
       <button
         onClick={startNew}
-        className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+        className="brand-grad flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
       >
         <Plus size={16} /> New chat
       </button>
@@ -285,7 +291,7 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
 
       {/* Footer: user + settings */}
       <div className="flex items-center gap-2 border-t border-line pt-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-xs font-bold text-white">
+        <span className="brand-grad flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white">
           {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
         </span>
         <div className="min-w-0 flex-1">

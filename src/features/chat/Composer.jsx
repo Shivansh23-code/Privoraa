@@ -210,7 +210,7 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
               onClick={submit}
               disabled={!value.trim() && !image}
               title="Send"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white transition hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="brand-grad flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ArrowUp size={18} />
             </button>

@@ -123,7 +123,11 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
   };
 
   const categories = catalog?.categories || [];
-  const ollamaDown = health && !health.running;
+  // Ollama is usable only when it's the live LOCAL runtime — not merely that the
+  // active provider (e.g. cloud OpenRouter) is reachable. In cloud there's no
+  // Ollama, so installs would fail; show the setup/get-the-app card instead.
+  const ollamaLive = health?.provider === 'ollama' && health?.running;
+  const ollamaDown = health && !ollamaLive;
   const userPlan = (catalog?.userPlan || 'free').toLowerCase();
   const PlanChipIcon = planMeta(userPlan).icon;
 
@@ -146,7 +150,7 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
             <h2 className="text-base font-semibold">Local models</h2>
             <p className="truncate text-xs text-muted">
               Download models to run privately on your machine
-              {health?.version ? ` · Ollama ${health.version}` : ''}
+              {ollamaLive && health?.version ? ` · Ollama ${health.version}` : ''}
               {catalog ? ` · ${catalog.ramBudgetGb} GB budget` : ''}
             </p>
           </div>
@@ -487,17 +491,24 @@ function InstalledView({ models, active, busy, onActivate, onDelete }) {
 }
 
 function SetupCard({ health, onRetry }) {
+  // Cloud: the active provider isn't Ollama, so there's no local runtime here.
+  const isCloud = health && health.provider !== 'ollama';
   return (
     <div className="mx-auto max-w-lg rounded-2xl border border-line bg-surface p-6 text-center">
       <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
         <ServerCog size={24} />
       </span>
       <h3 className="text-base font-semibold">
-        {health?.ollamaInstalled ? 'Ollama isn’t running' : 'Ollama isn’t installed'}
+        {isCloud
+          ? 'Run these models on your device'
+          : health?.ollamaInstalled
+            ? 'Ollama isn’t running'
+            : 'Ollama isn’t installed'}
       </h3>
       <p className="mt-1 text-sm text-muted">
-        Privoraa runs models locally through Ollama. Pulling a model needs internet once;
-        every chat afterward is fully offline.
+        {isCloud
+          ? 'These models run privately on your own computer — nothing leaves your device. The cloud app uses online models; to download and run local ones, use Privoraa with Ollama on your machine.'
+          : 'Privoraa runs models locally through Ollama. Pulling a model needs internet once; every chat afterward is fully offline.'}
       </p>
       <ol className="mx-auto mt-4 max-w-sm space-y-2 text-left text-sm">
         <li className="flex gap-2">
@@ -509,19 +520,19 @@ function SetupCard({ health, onRetry }) {
         </li>
         <li className="flex gap-2">
           <span className="font-semibold text-brand-500">2.</span>
-          Start it, then pull the starters:
+          Start it, then pull a model:
           <code className="ml-1 rounded bg-surface-2 px-1 font-mono text-xs">ollama pull llama3.2:3b</code>
         </li>
         <li className="flex gap-2">
           <span className="font-semibold text-brand-500">3.</span>
-          Come back and hit retry.
+          {isCloud ? 'Open Privoraa on that machine to run it.' : 'Come back and hit retry.'}
         </li>
       </ol>
       <button
         onClick={onRetry}
         className="mt-5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
       >
-        Retry connection
+        {isCloud ? 'Check again' : 'Retry connection'}
       </button>
     </div>
   );
