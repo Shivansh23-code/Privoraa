@@ -106,6 +106,10 @@ export default function PlansPage() {
           Private AI that runs your way — in the cloud or fully on your device. Start free; upgrade
           when you need bigger models and more power.
         </p>
+        <p className="mx-auto mt-4 max-w-xl rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+          Privoraa is a personal portfolio project built for learning — not a commercial product.
+          Please don&apos;t use it for real business or payments.
+        </p>
       </div>
 
       {error && (

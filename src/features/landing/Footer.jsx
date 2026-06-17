@@ -66,6 +66,18 @@ export default function Footer() {
           </span>
           <span>WHAT LEAVES YOUR DEVICE: NOTHING</span>
         </div>
+        <p
+          style={{
+            marginTop: '1rem',
+            textAlign: 'center',
+            fontSize: '.78rem',
+            lineHeight: 1.5,
+            opacity: 0.6,
+          }}
+        >
+          Privoraa is a personal portfolio project built for learning — not a commercial product.
+          Please don&apos;t use it for real business or payments.
+        </p>
       </div>
     </footer>
   );
