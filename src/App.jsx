@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/react';
 // Public pages
 import LandingPage from './pages/LandingPage';
 import PlansPage from './pages/PlansPage';
+import DownloadPage from './pages/DownloadPage';
 import NotFound from './pages/NotFound';
 
 // User-side
@@ -27,6 +28,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/plans" element={<PlansPage />} />
         <Route path="/pricing" element={<Navigate to="/plans" replace />} />
+        <Route path="/download" element={<DownloadPage />} />
+        <Route path="/offline" element={<Navigate to="/download" replace />} />
         <Route path="/signup" element={<SignUp />} />
         <Route path="/register" element={<SignUp />} />
         <Route path="/login" element={<UserLogin />} />
