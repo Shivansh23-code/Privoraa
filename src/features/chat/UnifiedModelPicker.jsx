@@ -5,7 +5,9 @@ import {
 } from 'lucide-react';
 import { useClickOutside } from './useClickOutside';
 import { fetchCatalog, setActiveModel } from '../../lib/modelCatalogService';
-import { ensureLocalOllama, localHasModel } from '../../lib/localOllama';
+import { ensureLocalOllama, localHasModel, resetLocalOllama } from '../../lib/localOllama';
+
+const SITE_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
 
 /**
  * Drill-down model picker. Level 1: Auto / Online / Offline. Choosing Online or
@@ -71,6 +73,7 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
   const [loadingCat, setLoadingCat] = useState(false);
   const [switching, setSwitching] = useState(null);
   const [browserOllama, setBrowserOllama] = useState(null); // user's own Ollama, reachable from the browser
+  const [probing, setProbing] = useState(false); // detection in flight (vs. "detected = null")
   const ref = useClickOutside(() => setOpen(false), open);
 
   // Ollama is the live local backend (not merely "the active cloud provider is up").
@@ -85,9 +88,17 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
   useEffect(() => {
     if (open) {
       setView('root');
-      ensureLocalOllama().then(setBrowserOllama);
+      setProbing(true);
+      ensureLocalOllama().then(setBrowserOllama).finally(() => setProbing(false));
     }
   }, [open]);
+
+  // After the user fixes OLLAMA_ORIGINS / starts Ollama, re-detect without a reload.
+  const reCheckOllama = () => {
+    resetLocalOllama();
+    setProbing(true);
+    ensureLocalOllama().then(setBrowserOllama).finally(() => setProbing(false));
+  };
 
   const loadCatalog = () => {
     if (catalog) return;
@@ -209,6 +220,13 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
                 tone="text-emerald-500"
                 onBack={() => setView('root')}
               />
+              <OllamaStatus
+                probing={probing}
+                ollama={browserOllama}
+                origin={SITE_ORIGIN}
+                onRecheck={reCheckOllama}
+                onHelp={() => { close(); onManage?.(); }}
+              />
               {loadingCat ? (
                 <div className="flex items-center gap-2 px-2.5 py-3 text-sm text-muted">
                   <Loader2 size={15} className="animate-spin" /> Loading…
@@ -298,6 +316,47 @@ function BackHeader({ icon, title, sub, tone, onBack }) {
 
 function GroupLabel({ children }) {
   return <p className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-medium uppercase tracking-wide text-faint/70">{children}</p>;
+}
+
+/**
+ * Connection status for the user's OWN Ollama (browser → localhost:11434).
+ * When unreachable (the common cause is OLLAMA_ORIGINS not allowing this site),
+ * every model would otherwise silently show "download" — so spell out the fix
+ * and offer a re-check that doesn't need a page reload.
+ */
+function OllamaStatus({ probing, ollama, origin, onRecheck, onHelp }) {
+  if (probing && !ollama) {
+    return (
+      <div className="mx-1 mb-1 flex items-center gap-2 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs text-muted">
+        <Loader2 size={13} className="shrink-0 animate-spin" /> Looking for your local Ollama…
+      </div>
+    );
+  }
+  if (ollama) {
+    const n = ollama.models?.length || 0;
+    return (
+      <div className="mx-1 mb-1 flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+        <Check size={13} className="shrink-0" />
+        <span className="flex-1 truncate">
+          Connected to your Ollama · {n} model{n === 1 ? '' : 's'} on your device
+        </span>
+        <button onClick={onRecheck} title="Re-check" className="shrink-0 hover:underline">Refresh</button>
+      </div>
+    );
+  }
+  return (
+    <div className="mx-1 mb-1 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs">
+      <p className="font-medium text-amber-600 dark:text-amber-400">Can’t see your local Ollama from this site.</p>
+      <p className="mt-1 text-muted">If Ollama is installed, allow this site then restart it (Chrome/Edge):</p>
+      <code className="mt-1 block overflow-x-auto whitespace-nowrap rounded bg-bg px-2 py-1 font-mono text-[11px] text-fg">
+        OLLAMA_ORIGINS={origin || '*'}
+      </code>
+      <div className="mt-1.5 flex items-center gap-3">
+        <button onClick={onRecheck} className="font-medium text-brand-500 hover:underline">Re-check</button>
+        <button onClick={onHelp} className="font-medium text-brand-500 hover:underline">Setup guide</button>
+      </div>
+    </div>
+  );
 }
 
 function Row({ active, icon, title, sub, badge, trailing, onClick }) {
