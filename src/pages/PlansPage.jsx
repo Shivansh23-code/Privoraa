@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Check, ArrowRight, Star, Lock, Sparkles } from 'lucide-react';
+import { Check, ArrowRight, Star, Loader2, Sparkles } from 'lucide-react';
 import { useUserAuth } from '../context/UserAuthContext';
 import { PLANS } from '../lib/plans';
+import { startUpgrade } from '../lib/billingService';
 
 /**
  * Public Plans page — the funnel between the marketing site and the app.
@@ -11,16 +12,36 @@ import { PLANS } from '../lib/plans';
  */
 export default function PlansPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useUserAuth();
+  const { isAuthenticated, user, updateProfile } = useUserAuth();
+  const [busy, setBusy] = useState(null); // plan key being processed
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
 
-  const choose = () => {
-    // Paid tiers onboard as Free until billing is live; everyone proceeds to the
-    // app (signing up first if logged out). Plan gating is enforced server-side.
-    navigate(isAuthenticated ? '/app' : '/signup');
+  const choose = async (planKey) => {
+    setError(null);
+    // Free, or not signed in yet -> straight into the app / signup.
+    if (planKey === 'FREE') {
+      navigate(isAuthenticated ? '/app' : '/signup');
+      return;
+    }
+    if (!isAuthenticated) {
+      navigate('/signup');
+      return;
+    }
+    // Paid plan: run the upgrade (free-beta grant or Razorpay Checkout).
+    setBusy(planKey);
+    try {
+      const newPlan = await startUpgrade(planKey, user);
+      updateProfile({ plan: (newPlan || planKey).toUpperCase() });
+      navigate('/app');
+    } catch (e) {
+      if (e?.message !== 'Payment cancelled.') setError(e.message || 'Upgrade failed.');
+    } finally {
+      setBusy(null);
+    }
   };
 
   const currentPlan = (user?.plan || '').toUpperCase();
@@ -59,6 +80,12 @@ export default function PlansPage() {
           when you need bigger models and more power.
         </p>
       </div>
+
+      {error && (
+        <div className="relative z-10 mx-auto mt-6 max-w-md rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-center text-sm text-red-400">
+          {error}
+        </div>
+      )}
 
       {/* Cards */}
       <div className="relative z-10 mx-auto grid max-w-6xl gap-5 px-5 pb-20 pt-10 md:grid-cols-3">
@@ -103,21 +130,17 @@ export default function PlansPage() {
               </ul>
 
               <button
-                onClick={choose}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                onClick={() => choose(p.key)}
+                disabled={busy === p.key}
+                className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:opacity-60 ${
                   p.popular
                     ? 'bg-gradient-to-r from-brand-600 to-accent-500 text-white hover:opacity-95'
                     : 'border border-line bg-surface-2 text-fg hover:border-brand-400'
                 }`}
               >
-                {p.available ? <ArrowRight size={16} /> : <Lock size={15} />}
+                {busy === p.key ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
                 {isCurrent ? 'Continue' : p.cta}
               </button>
-              {!p.available && (
-                <p className="mt-2 text-center text-[11px] text-faint">
-                  Onboards as Free for now — paid billing is coming soon.
-                </p>
-              )}
             </div>
           );
         })}

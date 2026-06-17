@@ -68,12 +68,12 @@ export const PLANS = [
   {
     key: 'PLUS',
     name: 'Plus',
-    price: 'Coming soon',
+    price: 'Free in beta',
     period: '',
     tagline: 'For everyday power users who want more.',
     accent: 'from-brand-500/25 to-accent-500/15',
-    cta: 'Join the waitlist',
-    available: false,
+    cta: 'Get Plus',
+    available: true,
     popular: true,
     features: [
       'Everything in Free',
@@ -86,12 +86,12 @@ export const PLANS = [
   {
     key: 'PRO',
     name: 'Pro',
-    price: 'Coming soon',
+    price: 'Free in beta',
     period: '',
     tagline: 'The biggest models and the best quality.',
     accent: 'from-amber-500/25 to-orange-500/10',
-    cta: 'Join the waitlist',
-    available: false,
+    cta: 'Get Pro',
+    available: true,
     features: [
       'Everything in Plus',
       'Top-tier 7B+ offline models',
