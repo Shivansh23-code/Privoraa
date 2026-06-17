@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Check, ArrowRight, Star, Loader2, Sparkles } from 'lucide-react';
 import { useUserAuth } from '../context/UserAuthContext';
 import { PLANS } from '../lib/plans';
-import { startUpgrade } from '../lib/billingService';
+import { startUpgrade, fetchBillingConfig } from '../lib/billingService';
 
 /**
  * Public Plans page — the funnel between the marketing site and the app.
@@ -15,10 +15,23 @@ export default function PlansPage() {
   const { isAuthenticated, user, updateProfile } = useUserAuth();
   const [busy, setBusy] = useState(null); // plan key being processed
   const [error, setError] = useState(null);
+  const [config, setConfig] = useState(null); // billing config: prices + currency
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    fetchBillingConfig().then(setConfig).catch(() => {});
   }, []);
+
+  // Real price from config when a paid amount is set; else the static label.
+  const priceFor = (p) => {
+    const info = config?.plans?.find((x) => x.plan === p.key);
+    if (info && info.amount > 0) {
+      const cur = (config.currency || 'INR').toUpperCase();
+      const sym = cur === 'INR' ? '₹' : cur === 'USD' ? '$' : `${cur} `;
+      return `${sym}${info.amount / 100}`;
+    }
+    return p.price;
+  };
 
   const choose = async (planKey) => {
     setError(null);
@@ -114,7 +127,7 @@ export default function PlansPage() {
                   )}
                 </div>
                 <p className="mt-2 text-2xl font-bold">
-                  {p.price}
+                  {priceFor(p)}
                   {p.period && <span className="ml-1 text-sm font-normal text-muted">/ {p.period}</span>}
                 </p>
                 <p className="mt-1 text-xs text-muted">{p.tagline}</p>
