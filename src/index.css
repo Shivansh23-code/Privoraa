@@ -68,6 +68,52 @@ html.dark {
 }
 
 /* ------------------------------------------------------------------ *
+ * Per-plan dashboard theming. Free = default ink/violet. Plus =        *
+ * polished violet-purple. Pro = golden VVIP. Because the semantic      *
+ * surfaces are CSS vars, overriding them on the [data-plan] root        *
+ * re-tints the ENTIRE dashboard. --brand-grad re-skins primary CTAs    *
+ * and --plan-glow drives an ambient glow.                              *
+ * ------------------------------------------------------------------ */
+:root {
+  --brand-grad: linear-gradient(135deg, #8b7cff 0%, #2be0be 100%);
+  --plan-glow: transparent;
+}
+[data-plan='plus'] {
+  --bg: #0d0a1f;
+  --surface: #17112e;
+  --surface-2: #211842;
+  --elevated: #1d1640;
+  --line: rgba(167, 139, 250, 0.18);
+  --line-2: rgba(167, 139, 250, 0.30);
+  --brand-grad: linear-gradient(135deg, #a78bfa 0%, #7c5cff 100%);
+  --plan-glow: rgba(139, 92, 246, 0.22);
+}
+[data-plan='pro'] {
+  --bg: #15110a;
+  --surface: #1e1810;
+  --surface-2: #2a2114;
+  --elevated: #241d12;
+  --line: rgba(245, 200, 110, 0.20);
+  --line-2: rgba(245, 200, 110, 0.34);
+  --muted: #b7a684;
+  --brand-grad: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%);
+  --plan-glow: rgba(245, 158, 11, 0.22);
+}
+
+/* Primary CTAs use the per-plan brand gradient instead of hardcoded colors. */
+.brand-grad {
+  background-image: var(--brand-grad) !important;
+}
+/* Gold needs dark text for contrast; violet/teal keep their light text. */
+[data-plan='pro'] .brand-grad {
+  color: #1a1206;
+}
+/* Ambient glow behind the workspace (intensity/colour set per plan). */
+.plan-glow-bg {
+  background: radial-gradient(70% 55% at 50% -5%, var(--plan-glow), transparent 65%);
+}
+
+/* ------------------------------------------------------------------ *
  * Base element styles. MUST live in @layer base: unlayered CSS beats  *
  * Tailwind's layered utilities, which silently disables every         *
  * margin/padding utility in the app (the bug behind the broken UI).   *
