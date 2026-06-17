@@ -15,6 +15,8 @@ import {
   Activity,
   PanelLeftClose,
   Wand2,
+  Crown,
+  Gem,
 } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 import { useUserAuth } from '../../context/UserAuthContext';
@@ -22,6 +24,7 @@ import SettingsModal from './SettingsModal';
 import DocumentsPanel from './DocumentsPanel';
 import UsagePanel from './UsagePanel';
 import ResponseStyle from './ResponseStyle';
+import ProAssistants from './ProAssistants';
 
 function ConversationItem({ convo, active, onSelect, onRename, onDelete, onTogglePin }) {
   const [editing, setEditing] = useState(false);
@@ -67,7 +70,7 @@ function ConversationItem({ convo, active, onSelect, onRename, onDelete, onToggl
             <IconBtn title="Cancel" onClick={() => setEditing(false)}><X size={13} /></IconBtn>
           </>
         ) : (
-          <div className={`items-center gap-0.5 ${convo.pinned ? 'flex' : 'hidden group-hover:flex'}`}>
+          <div className={`items-center gap-0.5 ${convo.pinned ? 'flex' : 'flex lg:hidden lg:group-hover:flex'}`}>
             <IconBtn title={convo.pinned ? 'Unpin' : 'Pin'} onClick={() => onTogglePin(convo.id)}>
               {convo.pinned ? <PinOff size={13} /> : <Pin size={13} />}
             </IconBtn>
@@ -185,9 +188,13 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
           )}
         </button>
         <span className="font-display text-lg font-bold tracking-tight text-fg">Privoraa</span>
-        {user?.plan && user.plan !== 'FREE' ? (
-          <span className="brand-grad rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
-            {user.plan === 'PRO' ? 'VVIP' : 'Plus'}
+        {user?.plan === 'PRO' ? (
+          <span title="Pro member — thanks for upgrading" className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+            <Crown size={10} /> Pro
+          </span>
+        ) : user?.plan === 'PLUS' ? (
+          <span title="Plus member — thanks for upgrading" className="flex items-center gap-1 rounded-full border border-brand-400/40 bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-400">
+            <Gem size={10} /> Plus
           </span>
         ) : (
           <span className="rounded bg-accent-500/12 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent-500">
@@ -220,6 +227,9 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
         </p>
         <ResponseStyle />
       </div>
+
+      {/* Pro-exclusive specialist assistants. */}
+      {user?.plan === 'PRO' && <ProAssistants />}
 
       <div className="scroll-thin -mx-1 flex-1 overflow-y-auto px-1">
         {conversations.length === 0 && (

@@ -46,13 +46,39 @@ public final class Modes {
             "Explain like the reader is a curious beginner. Use a concrete analogy and a tiny example. "
                     + "Avoid jargon; when you must use a term, define it in one line.";
 
-    private static final Map<String, String> PROMPTS = Map.of(
-            "general", GENERAL,
-            "exam_tutor", EXAM_TUTOR,
-            "code_mentor", CODE_MENTOR,
-            "math_solver", MATH_SOLVER,
-            "interview_prep", INTERVIEW_PREP,
-            "explain_simply", EXPLAIN_SIMPLY
+    // ----- Pro-exclusive assistants ("bots") -----
+
+    private static final String ARCHITECT =
+            "You are a principal software architect — a Privoraa Pro assistant. Design robust, scalable "
+                    + "systems: clarify the requirements, propose a clear architecture with components and data "
+                    + "flow, and call out trade-offs, scaling, failure modes and security. Be decisive and senior.";
+
+    private static final String RESEARCHER =
+            "You are a meticulous research analyst — a Privoraa Pro assistant. Investigate the question "
+                    + "thoroughly, synthesize a clear briefing, separate established facts from inference, and "
+                    + "surface the key open questions. Be balanced and show your reasoning.";
+
+    private static final String STRATEGIST =
+            "You are a sharp product and business strategist — a Privoraa Pro assistant. Frame the problem, "
+                    + "weigh the options against the goals and constraints, then give a clear recommendation with "
+                    + "the reasoning and the main risks. Think like a seasoned operator.";
+
+    private static final String WRITER =
+            "You are an elite writer — a Privoraa Pro assistant. Produce polished, engaging, on-brand writing "
+                    + "(essays, copy, scripts, emails). Match the requested tone, keep it vivid and tight, and "
+                    + "offer one alternative angle when it helps.";
+
+    private static final Map<String, String> PROMPTS = Map.ofEntries(
+            Map.entry("general", GENERAL),
+            Map.entry("exam_tutor", EXAM_TUTOR),
+            Map.entry("code_mentor", CODE_MENTOR),
+            Map.entry("math_solver", MATH_SOLVER),
+            Map.entry("interview_prep", INTERVIEW_PREP),
+            Map.entry("explain_simply", EXPLAIN_SIMPLY),
+            Map.entry("architect", ARCHITECT),
+            Map.entry("researcher", RESEARCHER),
+            Map.entry("strategist", STRATEGIST),
+            Map.entry("writer", WRITER)
     );
 
     public static String systemPrompt(String mode) {
