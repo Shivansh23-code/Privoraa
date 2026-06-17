@@ -2,7 +2,7 @@
 // and transparently falls back to the local mock engine otherwise — so the UI
 // behaves identically today and once the Spring Boot service is live.
 
-import { apiFetch, streamFetch, pingBackend, refreshAccessToken } from './apiClient';
+import { apiFetch, streamFetch, pingBackend, refreshAccessToken, isDemoFallbackAllowed } from './apiClient';
 import { mockStreamChat } from './mockEngine';
 import { FALLBACK_MODELS } from './models';
 import { routeModel } from './router';
@@ -75,9 +75,23 @@ export async function streamChat(payload, callbacks) {
       return;
     } catch (err) {
       if (err?.name === 'AbortError') return;
-      // Live transport failed — degrade to mock rather than dead-ending the UI.
+      // Live transport failed. On a real domain, surface the error — never serve
+      // a fake canned answer. Only fall through to the demo engine in local dev.
+      if (!isDemoFallbackAllowed()) {
+        callbacks.onError?.(
+          err instanceof Error
+            ? err
+            : new Error('Could not reach the AI service. Please try again in a moment.')
+        );
+        return;
+      }
       backendAvailable = false;
     }
+  } else if (!isDemoFallbackAllowed()) {
+    callbacks.onError?.(
+      new Error('The AI service is unreachable right now. Please try again in a moment.')
+    );
+    return;
   }
 
   await mockStreamChat({ category, modelName, useRag }, callbacks);

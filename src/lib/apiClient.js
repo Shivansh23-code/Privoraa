@@ -24,6 +24,15 @@ function resolveApiBase() {
 
 export const API_BASE_URL = resolveApiBase();
 
+// The built-in demo/mock engine (canned answers, fake auth) is a LOCAL-DEV
+// convenience only. On a real deployed domain it must never run — users there
+// must get real LLM output or an honest error, never hardcoded responses.
+export function isDemoFallbackAllowed() {
+  if (typeof window === 'undefined') return true; // SSR/build: harmless
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0';
+}
+
 const ACCESS_KEY = 'userToken';
 const REFRESH_KEY = 'userRefreshToken';
 const USER_KEY = 'userData';
