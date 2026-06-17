@@ -86,6 +86,13 @@ function rawFetch(path, { method = 'GET', body, headers, signal } = {}) {
   });
 }
 
+// Auth endpoints that must NOT trigger a refresh-retry on 401: the ones that
+// establish a session (login/register) or rotate it (refresh) — retrying those
+// would recurse. Everything else, INCLUDING /auth/me, must refresh on a stale
+// access token; otherwise a 15-min-expired access token silently logs the user
+// out (fetchMe clears the still-valid refresh token on the un-refreshed 401).
+const NO_REFRESH_PATHS = ['/auth/login', '/auth/register', '/auth/refresh'];
+
 // Dedupe concurrent refreshes: many calls failing at once share one refresh.
 let refreshPromise = null;
 
@@ -123,7 +130,7 @@ export async function refreshAccessToken() {
 export async function apiFetch(path, opts = {}) {
   let res = await rawFetch(path, opts);
 
-  if (res.status === 401 && !path.startsWith('/auth/')) {
+  if (res.status === 401 && !NO_REFRESH_PATHS.some((p) => path.startsWith(p))) {
     const refreshed = await refreshAccessToken();
     if (refreshed) res = await rawFetch(path, opts);
   }
