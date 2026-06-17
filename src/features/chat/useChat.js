@@ -36,6 +36,7 @@ export function useChat(catalog) {
         {
           content,
           model: s.model,
+          provider: s.modelProvider,
           mode: convo.mode,
           useRag: s.useRag && s.documents.some((d) => d.status === 'READY'),
           conversationId,

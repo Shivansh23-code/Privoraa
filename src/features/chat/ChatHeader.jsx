@@ -8,8 +8,7 @@ import {
   CloudOff,
   HardDrive,
 } from 'lucide-react';
-import ModelPicker from './ModelPicker';
-import LocalModelPicker from './LocalModelPicker';
+import UnifiedModelPicker from './UnifiedModelPicker';
 import OfflineOffer from './OfflineOffer';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useClickOutside } from './useClickOutside';
@@ -59,7 +58,8 @@ function EditableTitle() {
 export default function ChatHeader({
   models,
   model,
-  onModelChange,
+  modelProvider,
+  onModelSelect,
   onToggleSidebar,
   onOpenModels,
   localLlm,
@@ -87,16 +87,17 @@ export default function ChatHeader({
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <EditableTitle />
-        {isLocal ? (
-          <LocalModelPicker
-            active={localLlm.activeModel}
-            online={localLlm.online}
-            onChanged={() => localLlm.refresh?.()}
-            onManage={onOpenModels}
-          />
-        ) : (
-          <ModelPicker models={models} value={model} onChange={onModelChange} />
-        )}
+        <UnifiedModelPicker
+          models={models}
+          value={model}
+          provider={modelProvider}
+          onChange={(m, p) => {
+            onModelSelect?.(m, p);
+            if (p === 'offline') localLlm.refresh?.();
+          }}
+          localLlm={localLlm}
+          onManage={onOpenModels}
+        />
       </div>
 
       {/* Backend status pill */}

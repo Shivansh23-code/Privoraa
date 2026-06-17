@@ -101,6 +101,7 @@ async function streamLive(payload, { onMeta, onToken, onDone, onError, signal })
   const requestBody = {
     conversationId: payload.conversationId,
     model: payload.model,
+    provider: payload.provider, // 'auto' | 'online' | 'offline' — picker's choice
     mode: payload.mode,
     content: payload.content,
     useRag: payload.useRag,

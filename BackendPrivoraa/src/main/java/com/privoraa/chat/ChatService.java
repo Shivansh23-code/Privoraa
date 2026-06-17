@@ -11,6 +11,7 @@ import com.privoraa.conversation.dto.MessageDto;
 import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.llm.ChatOptions;
 import com.privoraa.llm.ChatResult;
+import com.privoraa.llm.LlmProvider;
 import com.privoraa.llm.LlmProviderResolver;
 import com.privoraa.model.ModelCatalogService;
 import com.privoraa.ratelimit.RateLimitService;
@@ -18,6 +19,7 @@ import com.privoraa.rag.RagContext;
 import com.privoraa.rag.RagService;
 import com.privoraa.rag.DocumentService;
 import com.privoraa.routing.ModelRouter;
+import com.privoraa.routing.OfflineRouter;
 import com.privoraa.routing.Routed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +44,7 @@ public class ChatService {
     private final RateLimitService rateLimit;
     private final ConversationService conversations;
     private final ModelRouter router;
+    private final OfflineRouter offlineRouter;
     private final RagService ragService;
     private final DocumentService documentService;
     private final PromptBuilder promptBuilder;
@@ -50,11 +53,13 @@ public class ChatService {
     private final ModelCatalogService catalog;
 
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
-                       RagService ragService, DocumentService documentService, PromptBuilder promptBuilder,
-                       LlmProviderResolver providers, ActiveModelService activeModel, ModelCatalogService catalog) {
+                       OfflineRouter offlineRouter, RagService ragService, DocumentService documentService,
+                       PromptBuilder promptBuilder, LlmProviderResolver providers, ActiveModelService activeModel,
+                       ModelCatalogService catalog) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
+        this.offlineRouter = offlineRouter;
         this.ragService = ragService;
         this.documentService = documentService;
         this.promptBuilder = promptBuilder;
@@ -96,7 +101,7 @@ public class ChatService {
         send(emitter, "meta", metaPayload(modelName, p));
 
         AtomicBoolean emitted = new AtomicBoolean(false);
-        providers.active().streamChat(modelId, p.messages(), new ChatOptions(TEMPERATURE, null))
+        p.provider().streamChat(modelId, p.messages(), new ChatOptions(TEMPERATURE, null))
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                         delta -> {
@@ -134,7 +139,7 @@ public class ChatService {
         Exception last = null;
         for (String modelId : p.chain()) {
             try {
-                result = providers.active().chat(modelId, p.messages(), new ChatOptions(TEMPERATURE, null));
+                result = p.provider().chat(modelId, p.messages(), new ChatOptions(TEMPERATURE, null));
                 usedModel = nameOf(modelId);
                 break;
             } catch (Exception e) {
@@ -168,22 +173,34 @@ public class ChatService {
         boolean useRag = req.ragEnabled() && documentService.hasReadyDocuments(userId);
         RagContext rag = useRag ? ragService.retrieve(userId, req.content()) : RagContext.empty();
 
-        // An attached image forces a vision-capable model regardless of intent routing.
-        Routed routed = req.hasImage()
-                ? router.visionRoute(req.content())
-                : router.resolve(req.model(), req.content(), mode, useRag);
+        // Resolve the provider for THIS request — the unified picker can override
+        // the server default (online vs offline) per message.
+        LlmProvider provider = resolveProvider(req);
+        boolean offline = "ollama".equals(provider.id());
+
+        // Route per provider. Offline: "Auto" picks the best INSTALLED local model
+        // for the prompt (or honors an explicit local tag), and images go to a local
+        // vision model. Online: the health-aware cloud chain / vision chain.
+        Routed routed = offline
+                ? offlineRouter.resolve(req.model(), req.content(), mode, useRag, req.hasImage(),
+                        activeModel.activeFor(userId))
+                : (req.hasImage()
+                        ? router.visionRoute(req.content())
+                        : router.resolve(req.model(), req.content(), mode, useRag));
+
         List<Message> history = conversations.messages(conversationId);
         List<Map<String, Object>> messages = promptBuilder.build(
                 mode, history, rag, req.hasImage() ? req.image() : null);
         int promptTokens = promptBuilder.estimatePromptTokens(messages);
 
-        // With Ollama active, chat runs on the user's chosen active local model
-        // (no cloud routing/fallback chain). OpenRouter keeps its health-aware chain.
-        List<String> chain = providers.isOllamaActive()
-                ? List.of(activeModel.activeFor(userId))
-                : routed.chain();
+        return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
+                routed.chain(), provider);
+    }
 
-        return new Prepared(conversationId, mode, routed, rag, messages, promptTokens, chain);
+    /** The provider for this request: the picker's choice, else the server default. */
+    private LlmProvider resolveProvider(ChatRequest req) {
+        String id = req.providerId();
+        return id != null ? providers.byId(id) : providers.active();
     }
 
     private Message persistAssistant(Prepared p, String modelName, String content,
@@ -244,6 +261,7 @@ public class ChatService {
             RagContext rag,
             List<Map<String, Object>> messages,
             int promptTokens,
-            List<String> chain
+            List<String> chain,
+            LlmProvider provider
     ) {}
 }

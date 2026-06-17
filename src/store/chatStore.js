@@ -33,6 +33,7 @@ export const useChatStore = create(
       conversations: [],
       currentId: null,
       model: 'auto',
+      modelProvider: 'auto', // 'auto' | 'online' | 'offline' — which backend this model runs on
       mode: DEFAULT_MODE,
       documents: [],
       useRag: false, // "Use my notes" composer toggle
@@ -162,6 +163,8 @@ export const useChatStore = create(
 
       /* --------------------------- ui selections -------------------------- */
       setModel: (model) => set({ model }),
+      // Unified picker: choose a model AND which provider it runs on.
+      setModelSelection: (model, modelProvider = 'auto') => set({ model, modelProvider }),
       setMode: (mode) => {
         set({ mode });
         const id = get().currentId;
@@ -199,6 +202,7 @@ export const useChatStore = create(
         conversations: s.conversations,
         currentId: s.currentId,
         model: s.model,
+        modelProvider: s.modelProvider,
         mode: s.mode,
         documents: s.documents,
         useRag: s.useRag,
