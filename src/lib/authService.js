@@ -5,7 +5,7 @@
 // Real auth failures (wrong password, email taken) are surfaced as thrown
 // errors; only an unreachable backend triggers the mock path.
 
-import { apiFetch, setTokens, setStoredUser, clearAuth } from './apiClient';
+import { apiFetch, setTokens, setStoredUser, clearAuth, isDemoFallbackAllowed } from './apiClient';
 import { ensureBackend } from './chatService';
 
 function normalizeUser(u) {
@@ -42,7 +42,11 @@ export async function login(email, password) {
     setTokens(data);
     return persist(normalizeUser(data.user));
   }
-  // Backend unreachable — demo mode.
+  // Backend unreachable. Demo login is a local-dev convenience only — never on a
+  // real domain (no fake accounts in production).
+  if (!isDemoFallbackAllowed()) {
+    throw new Error('Cannot reach the server right now. Please try again in a moment.');
+  }
   setTokens({ accessToken: 'demo-token', refreshToken: 'demo-refresh' });
   return persist(mockUser(email));
 }
@@ -55,6 +59,9 @@ export async function register(name, email, password) {
     });
     setTokens(data);
     return persist(normalizeUser(data.user));
+  }
+  if (!isDemoFallbackAllowed()) {
+    throw new Error('Cannot reach the server right now. Please try again in a moment.');
   }
   setTokens({ accessToken: 'demo-token', refreshToken: 'demo-refresh' });
   return persist(mockUser(email, name));
