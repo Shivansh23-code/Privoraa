@@ -3,8 +3,26 @@
 // Every protected call sends `Authorization: Bearer`, and a 401 triggers one
 // silent refresh + retry before giving up.
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8099/api/v1';
+// Resolve the backend base URL. Priority:
+//   1. VITE_API_BASE_URL (set this in Vercel / .env to override)
+//   2. when served from a real domain (production build) -> the hosted backend
+//   3. localhost for local dev
+// Without (2), a prod build with no env var silently pointed at localhost, failed
+// the health probe, and ran the whole site in fake demo mode.
+const HOSTED_API = 'https://privoraa-backend.onrender.com/api/v1';
+const LOCAL_API = 'http://localhost:8099/api/v1';
+
+function resolveApiBase() {
+  if (import.meta.env.VITE_API_BASE_URL) return import.meta.env.VITE_API_BASE_URL;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0';
+    if (!isLocal) return HOSTED_API;
+  }
+  return LOCAL_API;
+}
+
+export const API_BASE_URL = resolveApiBase();
 
 const ACCESS_KEY = 'userToken';
 const REFRESH_KEY = 'userRefreshToken';

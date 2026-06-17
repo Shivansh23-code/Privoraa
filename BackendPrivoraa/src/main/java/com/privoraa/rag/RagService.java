@@ -16,7 +16,10 @@ import java.util.List;
 public class RagService {
 
     private static final Logger log = LoggerFactory.getLogger(RagService.class);
-    private static final double MIN_SCORE = 0.05;
+    // Low floor: keep any chunk with real lexical/semantic overlap. The local
+    // encoder produces smaller cosines than a neural model, so 0.05 dropped valid
+    // matches; 0.02 still excludes pure-noise (near-zero) chunks.
+    private static final double MIN_SCORE = 0.02;
 
     private final DocumentChunkRepository chunkRepository;
     private final EmbeddingService embeddingService;

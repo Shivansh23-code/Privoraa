@@ -61,9 +61,18 @@ export default function ChatWorkspace() {
     if (hydratedRef.current) return;
     hydratedRef.current = true;
     ensureBackend().then((live) => {
-      if (live) fetchDocuments().then(setDocuments);
+      if (!live) return;
+      fetchDocuments().then((docs) => {
+        setDocuments(docs);
+        // Auto-ground on existing notes: without this, a reload leaves useRag
+        // false (persisted) while docs are already READY, so chat silently
+        // ignores them — the "it can't read my document" complaint.
+        if (Array.isArray(docs) && docs.some((d) => d.status === 'READY')) {
+          setUseRag(true);
+        }
+      });
     });
-  }, [setDocuments]);
+  }, [setDocuments, setUseRag]);
 
   // Poll while ANY document is still processing — one shared loop for all docs
   // (replaces per-upload polling that fired a /documents request every 2s each).
