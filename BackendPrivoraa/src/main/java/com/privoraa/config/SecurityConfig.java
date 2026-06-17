@@ -32,6 +32,10 @@ public class SecurityConfig {
             "/api/v1/auth/login",
             "/api/v1/auth/register",
             "/api/v1/auth/refresh",
+            // Razorpay calls this server-to-server; it's verified by signature.
+            "/api/v1/billing/webhook",
+            // Plan prices + public key — safe to read on the public /plans page.
+            "/api/v1/billing/config",
             "/actuator/health",
             "/actuator/info",
             "/v3/api-docs/**",

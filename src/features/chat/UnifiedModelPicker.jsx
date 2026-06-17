@@ -1,16 +1,17 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Sparkles, Cloud, HardDrive, Check, ChevronDown, Zap, Lock, Download, Loader2, Boxes,
+  Sparkles, Cloud, HardDrive, Check, ChevronDown, ChevronRight, ArrowLeft,
+  Zap, Lock, Download, Loader2, Boxes,
 } from 'lucide-react';
 import { useClickOutside } from './useClickOutside';
 import { fetchCatalog, setActiveModel } from '../../lib/modelCatalogService';
 
 /**
- * One picker for every model: Auto (routes per-prompt), Online (OpenRouter free,
- * grouped by task) and Offline (Ollama, grouped by task). Offline models are
- * selectable when local Ollama is live and the model is installed; otherwise the
- * row deep-links to the download/setup catalog. Selecting sets both the model id
- * and the provider it runs on, so the chat request targets the right backend.
+ * Drill-down model picker. Level 1: Auto / Online / Offline. Choosing Online or
+ * Offline opens a second view listing that provider's models grouped by task.
+ * Offline models are runnable when local Ollama is the live backend and the model
+ * is installed; otherwise the row deep-links to download/setup. Selecting sets
+ * both the model id and the provider it runs on.
  */
 
 const TASK_LABEL = {
@@ -23,6 +24,29 @@ const TASK_LABEL = {
 };
 const taskLabel = (c) => TASK_LABEL[c] || (c ? c[0].toUpperCase() + c.slice(1) : 'General');
 const TASK_ORDER = ['General', 'Coding', 'Reasoning', 'Fast', 'Multilingual', 'Vision'];
+
+// Shown if the live catalog can't be fetched, so Offline always lists something.
+const STATIC_OFFLINE = {
+  categories: [
+    { key: 'daily', title: 'Daily / General', models: [
+      { tag: 'llama3.2:3b', displayName: 'Llama 3.2 3B', sizeGbApprox: 2.0, plan: 'free' },
+      { tag: 'qwen2.5:3b', displayName: 'Qwen2.5 3B', sizeGbApprox: 1.9, plan: 'free' },
+    ] },
+    { key: 'coding', title: 'Coding', models: [
+      { tag: 'qwen2.5-coder:3b', displayName: 'Qwen2.5 Coder 3B', sizeGbApprox: 1.9, plan: 'plus' },
+    ] },
+    { key: 'reasoning', title: 'Reasoning', models: [
+      { tag: 'qwen3:4b', displayName: 'Qwen3 4B', sizeGbApprox: 2.6, plan: 'plus' },
+    ] },
+    { key: 'lightweight', title: 'Lightweight', models: [
+      { tag: 'llama3.2:1b', displayName: 'Llama 3.2 1B', sizeGbApprox: 1.3, plan: 'free' },
+      { tag: 'gemma3:1b', displayName: 'Gemma 3 1B', sizeGbApprox: 0.8, plan: 'free' },
+    ] },
+    { key: 'vision', title: 'Vision', models: [
+      { tag: 'moondream', displayName: 'Moondream 2', sizeGbApprox: 1.7, plan: 'plus' },
+    ] },
+  ],
+};
 
 function groupOnline(models) {
   const map = new Map();
@@ -41,26 +65,27 @@ function groupOnline(models) {
 
 export default function UnifiedModelPicker({ models = [], value, provider, onChange, localLlm, onManage }) {
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState('root'); // 'root' | 'online' | 'offline'
   const [catalog, setCatalog] = useState(null);
   const [loadingCat, setLoadingCat] = useState(false);
   const [switching, setSwitching] = useState(null);
   const ref = useClickOutside(() => setOpen(false), open);
 
-  // True only when Ollama itself is the live local backend — NOT merely that the
-  // active (possibly cloud) provider is reachable. In cloud, offline rows then
-  // correctly deep-link to download instead of being treated as runnable.
+  // Ollama is the live local backend (not merely "the active cloud provider is up").
   const ollamaLive = localLlm?.provider === 'ollama' && !!localLlm?.online;
 
-  const toggle = () => {
-    const next = !open;
-    setOpen(next);
-    if (next && !catalog) {
-      setLoadingCat(true);
-      fetchCatalog()
-        .then(setCatalog)
-        .catch(() => setCatalog({ categories: [] }))
-        .finally(() => setLoadingCat(false));
-    }
+  // Reset to the top level each time the menu opens.
+  useEffect(() => {
+    if (open) setView('root');
+  }, [open]);
+
+  const loadCatalog = () => {
+    if (catalog) return;
+    setLoadingCat(true);
+    fetchCatalog()
+      .then((c) => setCatalog(c && c.categories && c.categories.length ? c : STATIC_OFFLINE))
+      .catch(() => setCatalog(STATIC_OFFLINE))
+      .finally(() => setLoadingCat(false));
   };
 
   const currentLabel = useMemo(() => {
@@ -72,8 +97,9 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
   const HeadIcon = provider === 'offline' ? HardDrive : provider === 'online' ? Cloud : Sparkles;
   const headTone = provider === 'offline' ? 'text-emerald-500' : provider === 'online' ? 'text-sky-500' : 'text-brand-500';
 
-  const pickAuto = () => { onChange('auto', 'auto'); setOpen(false); };
-  const pickOnline = (m) => { onChange(m.id, 'online'); setOpen(false); };
+  const close = () => setOpen(false);
+  const pickAuto = () => { onChange('auto', 'auto'); close(); };
+  const pickOnline = (m) => { onChange(m.id, 'online'); close(); };
   const pickOffline = async (m) => {
     if (ollamaLive && m.installed && !m.locked) {
       setSwitching(m.tag);
@@ -82,24 +108,24 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
         onChange(m.tag, 'offline');
       } finally {
         setSwitching(null);
-        setOpen(false);
+        close();
       }
     } else {
-      setOpen(false);
+      close();
       onManage?.(); // download / setup / upgrade lives in the catalog modal
     }
   };
 
   const onlineGroups = groupOnline(models);
   const offlineCats = (catalog?.categories || []).filter((c) => c.key !== 'embeddings');
-  const isOn = (id) => value === id;
+  const isOn = (id) => provider !== 'offline' && value === id;
   const isOffActive = (tag) => provider === 'offline' && (value === tag || value === `${tag}:latest`);
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={toggle}
-        title="Choose a model — Auto, online (cloud) or offline (on your device)"
+        onClick={() => setOpen((o) => !o)}
+        title="Choose a model — Auto, Online (cloud) or Offline (on your device)"
         className="flex max-w-[220px] items-center gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium transition hover:border-brand-400 hover:bg-surface-2"
       >
         <HeadIcon size={15} className={`shrink-0 ${headTone}`} />
@@ -109,106 +135,158 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
 
       {open && (
         <div className="scroll-thin absolute left-0 z-30 mt-2 max-h-[72vh] w-[min(22rem,calc(100vw-1.5rem))] overflow-y-auto rounded-xl border border-line bg-elevated p-1.5 shadow-xl">
-          {/* Auto */}
-          <Row
-            active={!value || value === 'auto'}
-            icon={<Sparkles size={15} className="text-brand-500" />}
-            title="Auto"
-            sub="Smart route — best model per prompt"
-            onClick={pickAuto}
-          />
-
-          {/* Online */}
-          <SectionHeader icon={Cloud} title="Online" sub="cloud · free" tone="text-sky-500" />
-          {onlineGroups.length === 0 ? (
-            <p className="px-2.5 py-2 text-xs text-muted">No online models available.</p>
-          ) : (
-            onlineGroups.map((g) => (
-              <div key={g.label}>
-                <GroupLabel>{g.label}</GroupLabel>
-                {g.items.map((m) => (
-                  <Row
-                    key={m.id}
-                    active={provider !== 'offline' && isOn(m.id)}
-                    icon={<Zap size={15} className="text-sky-500" />}
-                    title={m.name}
-                    sub={m.description}
-                    badge={m.isFree ? 'FREE' : null}
-                    onClick={() => pickOnline(m)}
-                  />
-                ))}
-              </div>
-            ))
+          {/* ---------------- Level 1: Auto / Online / Offline ---------------- */}
+          {view === 'root' && (
+            <>
+              <Row
+                active={!value || value === 'auto'}
+                icon={<Sparkles size={16} className="text-brand-500" />}
+                title="Auto"
+                sub="Smart route — best model per prompt"
+                onClick={pickAuto}
+              />
+              <NavRow
+                icon={<Cloud size={16} className="text-sky-500" />}
+                title="Online"
+                sub="Cloud · free models"
+                activeProvider={provider === 'online'}
+                onClick={() => setView('online')}
+              />
+              <NavRow
+                icon={<HardDrive size={16} className="text-emerald-500" />}
+                title="Offline"
+                sub="Run on your device"
+                activeProvider={provider === 'offline'}
+                onClick={() => { setView('offline'); loadCatalog(); }}
+              />
+            </>
           )}
 
-          {/* Offline */}
-          <SectionHeader
-            icon={HardDrive}
-            title="Offline"
-            sub={ollamaLive ? 'on your device' : 'run locally'}
-            tone="text-emerald-500"
-          />
-          {loadingCat ? (
-            <div className="flex items-center gap-2 px-2.5 py-3 text-sm text-muted">
-              <Loader2 size={15} className="animate-spin" /> Loading…
-            </div>
-          ) : offlineCats.length === 0 ? (
-            <p className="px-2.5 py-2 text-xs text-muted">Catalog unavailable.</p>
-          ) : (
-            offlineCats.map((c) => (
-              <div key={c.key}>
-                <GroupLabel>{taskLabel(c.key)}</GroupLabel>
-                {c.models.map((m) => {
-                  const runnable = ollamaLive && m.installed && !m.locked;
-                  return (
-                    <Row
-                      key={m.tag}
-                      active={isOffActive(m.tag)}
-                      icon={<Boxes size={15} className="text-emerald-500" />}
-                      title={m.displayName}
-                      sub={m.installed ? 'Installed' : m.locked ? `${(m.plan || '').toUpperCase()} plan` : `~${m.sizeGbApprox} GB · download`}
-                      trailing={
-                        switching === m.tag ? (
-                          <Loader2 size={14} className="animate-spin text-muted" />
-                        ) : m.locked ? (
-                          <Lock size={13} className="text-amber-500" />
-                        ) : runnable ? null : (
-                          <Download size={13} className="text-muted" />
-                        )
-                      }
-                      onClick={() => pickOffline(m)}
-                    />
-                  );
-                })}
-              </div>
-            ))
+          {/* ---------------- Level 2: Online models ---------------- */}
+          {view === 'online' && (
+            <>
+              <BackHeader icon={Cloud} title="Online" sub="cloud · free" tone="text-sky-500" onBack={() => setView('root')} />
+              {onlineGroups.length === 0 ? (
+                <p className="px-2.5 py-3 text-xs text-muted">No online models available.</p>
+              ) : (
+                onlineGroups.map((g) => (
+                  <div key={g.label}>
+                    <GroupLabel>{g.label}</GroupLabel>
+                    {g.items.map((m) => (
+                      <Row
+                        key={m.id}
+                        active={isOn(m.id)}
+                        icon={<Zap size={15} className="text-sky-500" />}
+                        title={m.name}
+                        sub={m.description}
+                        badge={m.isFree ? 'FREE' : null}
+                        onClick={() => pickOnline(m)}
+                      />
+                    ))}
+                  </div>
+                ))
+              )}
+            </>
           )}
 
-          <div className="my-1 h-px bg-line" />
-          <button
-            onClick={() => { setOpen(false); onManage?.(); }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-brand-500 transition hover:bg-surface-2"
-          >
-            <Download size={15} /> Browse &amp; download models
-          </button>
+          {/* ---------------- Level 2: Offline models ---------------- */}
+          {view === 'offline' && (
+            <>
+              <BackHeader
+                icon={HardDrive}
+                title="Offline"
+                sub={ollamaLive ? 'on your device' : 'run locally'}
+                tone="text-emerald-500"
+                onBack={() => setView('root')}
+              />
+              {loadingCat ? (
+                <div className="flex items-center gap-2 px-2.5 py-3 text-sm text-muted">
+                  <Loader2 size={15} className="animate-spin" /> Loading…
+                </div>
+              ) : (
+                offlineCats.map((c) => (
+                  <div key={c.key}>
+                    <GroupLabel>{taskLabel(c.key)}</GroupLabel>
+                    {c.models.map((m) => {
+                      const runnable = ollamaLive && m.installed && !m.locked;
+                      return (
+                        <Row
+                          key={m.tag}
+                          active={isOffActive(m.tag)}
+                          icon={<Boxes size={15} className="text-emerald-500" />}
+                          title={m.displayName}
+                          sub={m.installed ? 'Installed' : m.locked ? `${(m.plan || '').toUpperCase()} plan` : `~${m.sizeGbApprox} GB · download`}
+                          trailing={
+                            switching === m.tag ? (
+                              <Loader2 size={14} className="animate-spin text-muted" />
+                            ) : m.locked ? (
+                              <Lock size={13} className="text-amber-500" />
+                            ) : runnable ? null : (
+                              <Download size={13} className="text-muted" />
+                            )
+                          }
+                          onClick={() => pickOffline(m)}
+                        />
+                      );
+                    })}
+                  </div>
+                ))
+              )}
+              <div className="my-1 h-px bg-line" />
+              <button
+                onClick={() => { close(); onManage?.(); }}
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-brand-500 transition hover:bg-surface-2"
+              >
+                <Download size={15} /> Browse &amp; download models
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function SectionHeader({ icon, title, sub, tone }) {
+function NavRow({ icon, title, sub, activeProvider, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-surface-2"
+    >
+      <div className="shrink-0">{icon}</div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium">{title}</span>
+          {activeProvider && (
+            <span className="rounded bg-brand-500/15 px-1.5 py-px text-[10px] font-semibold text-brand-500">
+              SELECTED
+            </span>
+          )}
+        </div>
+        <p className="truncate text-xs text-muted">{sub}</p>
+      </div>
+      <ChevronRight size={16} className="shrink-0 text-muted" />
+    </button>
+  );
+}
+
+function BackHeader({ icon, title, sub, tone, onBack }) {
   const Icon = icon;
   return (
-    <div className="mt-1.5 flex items-center gap-1.5 px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
-      <Icon size={12} className={tone} /> {title}
-      {sub && <span className="font-normal normal-case text-faint/80">· {sub}</span>}
-    </div>
+    <button
+      onClick={onBack}
+      className="mb-1 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface-2"
+    >
+      <ArrowLeft size={16} className="shrink-0 text-muted" />
+      <Icon size={14} className={tone} />
+      <span className="text-sm font-semibold">{title}</span>
+      {sub && <span className="text-[11px] font-normal text-faint">· {sub}</span>}
+    </button>
   );
 }
 
 function GroupLabel({ children }) {
-  return <p className="px-2.5 pb-0.5 pt-1 text-[10px] font-medium uppercase tracking-wide text-faint/70">{children}</p>;
+  return <p className="px-2.5 pb-0.5 pt-1.5 text-[10px] font-medium uppercase tracking-wide text-faint/70">{children}</p>;
 }
 
 function Row({ active, icon, title, sub, badge, trailing, onClick }) {

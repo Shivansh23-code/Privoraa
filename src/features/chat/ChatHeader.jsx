@@ -9,13 +9,17 @@ import {
   CloudOff,
   HardDrive,
   Gem,
+  Zap,
+  Crown,
 } from 'lucide-react';
 import UnifiedModelPicker from './UnifiedModelPicker';
 import OfflineOffer from './OfflineOffer';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useClickOutside } from './useClickOutside';
 import { useChatStore } from '../../store/chatStore';
-import { planLabel } from '../../lib/plans';
+import { planLabel, planTheme } from '../../lib/plans';
+
+const PLAN_ICON = { gem: Gem, zap: Zap, crown: Crown };
 
 function EditableTitle() {
   const convo = useChatStore((s) =>
@@ -77,9 +81,15 @@ export default function ChatHeader({
   // model — bind the header to it instead of the cloud model picker.
   const isLocal = localLlm?.provider === 'ollama';
 
+  // Per-plan theming: chip, avatar ring, and a top accent bar reflect the tier.
+  const theme = planTheme(user?.plan);
+  const PlanIcon = PLAN_ICON[theme.iconKey] || Gem;
+  const isPaid = (user?.plan || 'FREE') !== 'FREE';
+
   return (
     <>
       <header className="relative z-30 flex items-center gap-2 border-b border-line bg-bg/80 px-3 py-2.5 backdrop-blur">
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r ${theme.accent}`} />
       <button
         onClick={onToggleSidebar}
         className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg lg:hidden"
@@ -138,15 +148,11 @@ export default function ChatHeader({
       {/* Plan chip — Free users see "Upgrade"; paid see their tier. */}
       <Link
         to="/plans"
-        title={user?.plan && user.plan !== 'FREE' ? `${planLabel(user.plan)} plan` : 'See plans & upgrade'}
-        className={`hidden items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition sm:flex ${
-          user?.plan && user.plan !== 'FREE'
-            ? 'border-brand-400/50 bg-brand-500/10 text-brand-500'
-            : 'border-line bg-surface text-muted hover:border-brand-400 hover:text-fg'
-        }`}
+        title={isPaid ? `${planLabel(user.plan)} plan` : 'See plans & upgrade'}
+        className={`hidden items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition sm:flex ${theme.chip}`}
       >
-        <Gem size={12} className={user?.plan && user.plan !== 'FREE' ? 'text-brand-400' : 'text-brand-400'} />
-        {user?.plan && user.plan !== 'FREE' ? planLabel(user.plan) : 'Upgrade'}
+        <PlanIcon size={12} />
+        {isPaid ? planLabel(user.plan) : 'Upgrade'}
       </Link>
 
       {/* User menu */}
@@ -155,7 +161,7 @@ export default function ChatHeader({
           onClick={() => setMenuOpen((o) => !o)}
           className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2 py-1.5 text-sm transition hover:bg-surface-2"
         >
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-[11px] font-bold text-white">
+          <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br ${theme.ring} text-[11px] font-bold text-white`}>
             {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
           </span>
           <ChevronDown size={14} className="text-muted" />
