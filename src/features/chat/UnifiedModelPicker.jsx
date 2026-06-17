@@ -46,7 +46,10 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
   const [switching, setSwitching] = useState(null);
   const ref = useClickOutside(() => setOpen(false), open);
 
-  const ollamaLive = !!localLlm?.online;
+  // True only when Ollama itself is the live local backend — NOT merely that the
+  // active (possibly cloud) provider is reachable. In cloud, offline rows then
+  // correctly deep-link to download instead of being treated as runnable.
+  const ollamaLive = localLlm?.provider === 'ollama' && !!localLlm?.online;
 
   const toggle = () => {
     const next = !open;
