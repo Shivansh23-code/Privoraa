@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, ArrowRight, Star, Loader2, Sparkles } from 'lucide-react';
 import { useUserAuth } from '../context/UserAuthContext';
@@ -16,11 +16,26 @@ export default function PlansPage() {
   const [busy, setBusy] = useState(null); // plan key being processed
   const [error, setError] = useState(null);
   const [config, setConfig] = useState(null); // billing config: prices + currency
+  const autoRan = useRef(false);
 
   useEffect(() => {
     window.scrollTo(0, 0);
     fetchBillingConfig().then(setConfig).catch(() => {});
   }, []);
+
+  // If the user picked a paid plan while logged out, we stashed it and sent them
+  // to sign up. Back here and now authenticated → finish the upgrade automatically.
+  useEffect(() => {
+    if (autoRan.current) return;
+    const intended = sessionStorage.getItem('privoraa_intended_plan');
+    if (isAuthenticated && intended) {
+      autoRan.current = true;
+      sessionStorage.removeItem('privoraa_intended_plan');
+      choose(intended);
+    }
+    // choose is stable enough for this one-shot; intentionally not a dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   // Real price from config when a paid amount is set; else the static label.
   const priceFor = (p) => {
@@ -41,6 +56,8 @@ export default function PlansPage() {
       return;
     }
     if (!isAuthenticated) {
+      // Remember the choice so we can finish it right after they sign up.
+      sessionStorage.setItem('privoraa_intended_plan', planKey);
       navigate('/signup');
       return;
     }
