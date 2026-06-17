@@ -75,9 +75,6 @@ export default function PlansPage() {
           </span>
           Privoraa
         </Link>
-        <Link to="/app" className="text-sm font-medium text-muted transition hover:text-fg">
-          Skip to app →
-        </Link>
       </header>
 
       {/* Hero */}
