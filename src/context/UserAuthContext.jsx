@@ -37,18 +37,23 @@ export const UserAuthProvider = ({ children }) => {
   }, []);
 
   // login/signUp throw on real auth failures (the pages catch + show the error).
+  // After auth, finish a pending plan upgrade (chosen on /plans before signing
+  // up) by returning to /plans; otherwise go straight to the app.
+  const postAuthDest = () =>
+    sessionStorage.getItem('privoraa_intended_plan') ? '/plans' : '/app';
+
   const login = async (email, password) => {
     const u = await authService.login(email, password);
     setUser(u);
     setIsAuthenticated(true);
-    navigate('/app');
+    navigate(postAuthDest());
   };
 
   const signUp = async (name, email, password) => {
     const u = await authService.register(name, email, password);
     setUser(u);
     setIsAuthenticated(true);
-    navigate('/app');
+    navigate(postAuthDest());
   };
 
   const updateProfile = (patch) => {

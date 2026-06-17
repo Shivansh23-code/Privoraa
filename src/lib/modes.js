@@ -8,6 +8,10 @@ import {
   Sigma,
   Briefcase,
   Baby,
+  Building2,
+  FlaskConical,
+  Target,
+  PenLine,
 } from 'lucide-react';
 
 export const MODES = [
@@ -66,8 +70,44 @@ export const MODES = [
   },
 ];
 
+// Pro-exclusive assistants ("bots") — a VVIP-only set of specialist personas.
+export const PRO_MODES = [
+  {
+    id: 'architect',
+    label: 'Architect',
+    short: 'System design & architecture',
+    description: 'Principal architect: scalable system design, trade-offs, failure modes, security.',
+    icon: Building2,
+    category: 'reasoning',
+  },
+  {
+    id: 'researcher',
+    label: 'Researcher',
+    short: 'Deep research & synthesis',
+    description: 'Research analyst: thorough investigation, clear briefings, facts vs. inference.',
+    icon: FlaskConical,
+    category: 'reasoning',
+  },
+  {
+    id: 'strategist',
+    label: 'Strategist',
+    short: 'Product & business strategy',
+    description: 'Seasoned strategist: frames problems, weighs options, gives a clear recommendation.',
+    icon: Target,
+    category: 'general',
+  },
+  {
+    id: 'writer',
+    label: 'Writer',
+    short: 'Polished, on-brand writing',
+    description: 'Elite writer: essays, copy, scripts and emails with the right tone.',
+    icon: PenLine,
+    category: 'general',
+  },
+];
+
 export const DEFAULT_MODE = 'general';
 
 export function getMode(id) {
-  return MODES.find((m) => m.id === id) || MODES[0];
+  return [...MODES, ...PRO_MODES].find((m) => m.id === id) || MODES[0];
 }
