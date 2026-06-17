@@ -11,10 +11,26 @@ public record ChatRequest(
         Boolean useRag,
         // Optional image for vision: a data URL ("data:image/png;base64,...") or a
         // plain https image URL. When present, the request is routed to a vision model.
-        String image
+        String image,
+        // Which backend to run on for THIS request, independent of the server's
+        // default: "online"/"openrouter", "offline"/"ollama", or null/"auto" to use
+        // the server's active provider. Lets the unified picker choose per message.
+        String provider
 ) {
     public String modeOrDefault() {
         return mode == null || mode.isBlank() ? "general" : mode;
+    }
+
+    /** Normalized provider id ("ollama" | "openrouter") or null to use the default. */
+    public String providerId() {
+        if (provider == null || provider.isBlank()) {
+            return null;
+        }
+        return switch (provider.trim().toLowerCase()) {
+            case "offline", "ollama", "local" -> "ollama";
+            case "online", "openrouter", "cloud" -> "openrouter";
+            default -> null;
+        };
     }
 
     public boolean ragEnabled() {

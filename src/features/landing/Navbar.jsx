@@ -30,7 +30,7 @@ export default function Navbar() {
           <a href="#how" onClick={closeMenu}>How it works</a>
           <a href="#vault" onClick={closeMenu}>Vault</a>
           <a href="#faq" onClick={closeMenu}>FAQ</a>
-          <Link to="/app" className="nav-cta" onClick={closeMenu}>
+          <Link to="/plans" className="nav-cta" onClick={closeMenu}>
             Launch app
           </Link>
         </nav>

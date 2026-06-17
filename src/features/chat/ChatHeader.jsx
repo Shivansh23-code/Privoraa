@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Menu,
   LogOut,
@@ -7,13 +8,14 @@ import {
   Cloud,
   CloudOff,
   HardDrive,
+  Gem,
 } from 'lucide-react';
-import ModelPicker from './ModelPicker';
-import LocalModelPicker from './LocalModelPicker';
+import UnifiedModelPicker from './UnifiedModelPicker';
 import OfflineOffer from './OfflineOffer';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useClickOutside } from './useClickOutside';
 import { useChatStore } from '../../store/chatStore';
+import { planLabel } from '../../lib/plans';
 
 function EditableTitle() {
   const convo = useChatStore((s) =>
@@ -59,7 +61,8 @@ function EditableTitle() {
 export default function ChatHeader({
   models,
   model,
-  onModelChange,
+  modelProvider,
+  onModelSelect,
   onToggleSidebar,
   onOpenModels,
   localLlm,
@@ -87,16 +90,17 @@ export default function ChatHeader({
 
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <EditableTitle />
-        {isLocal ? (
-          <LocalModelPicker
-            active={localLlm.activeModel}
-            online={localLlm.online}
-            onChanged={() => localLlm.refresh?.()}
-            onManage={onOpenModels}
-          />
-        ) : (
-          <ModelPicker models={models} value={model} onChange={onModelChange} />
-        )}
+        <UnifiedModelPicker
+          models={models}
+          value={model}
+          provider={modelProvider}
+          onChange={(m, p) => {
+            onModelSelect?.(m, p);
+            if (p === 'offline') localLlm.refresh?.();
+          }}
+          localLlm={localLlm}
+          onManage={onOpenModels}
+        />
       </div>
 
       {/* Backend status pill */}
@@ -131,6 +135,20 @@ export default function ChatHeader({
         </span>
       )}
 
+      {/* Plan chip — Free users see "Upgrade"; paid see their tier. */}
+      <Link
+        to="/plans"
+        title={user?.plan && user.plan !== 'FREE' ? `${planLabel(user.plan)} plan` : 'See plans & upgrade'}
+        className={`hidden items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition sm:flex ${
+          user?.plan && user.plan !== 'FREE'
+            ? 'border-brand-400/50 bg-brand-500/10 text-brand-500'
+            : 'border-line bg-surface text-muted hover:border-brand-400 hover:text-fg'
+        }`}
+      >
+        <Gem size={12} className={user?.plan && user.plan !== 'FREE' ? 'text-brand-400' : 'text-brand-400'} />
+        {user?.plan && user.plan !== 'FREE' ? planLabel(user.plan) : 'Upgrade'}
+      </Link>
+
       {/* User menu */}
       <div className="relative" ref={menuRef}>
         <button
@@ -153,6 +171,13 @@ export default function ChatHeader({
               </div>
             </div>
             <div className="my-1 h-px bg-line" />
+            <Link
+              to="/plans"
+              onClick={() => setMenuOpen(false)}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition hover:bg-surface-2"
+            >
+              <Gem size={15} className="text-brand-500" /> Plans &amp; upgrade
+            </Link>
             <button
               onClick={() => {
                 setMenuOpen(false);

@@ -16,6 +16,7 @@ function normalizeUser(u) {
     name: u.displayName || u.email?.split('@')[0] || 'User',
     displayName: u.displayName,
     role: u.role || 'USER',
+    plan: (u.plan || 'FREE').toUpperCase(),
   };
 }
 
