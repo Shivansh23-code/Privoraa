@@ -174,3 +174,4 @@ src/
 
 Built by [Shivansh Tiwari](https://github.com/Shivansh23-code) ·
 [Repository](https://github.com/Shivansh23-code/Privoraa)
+Make clear Privoraa is a personal portfolio/learning project, not a commercial service — shown in the landing-page footer (site-wide) and prominently on the Plans page above pricing, since that's where payments are presented.
