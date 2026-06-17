@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X, PanelLeftOpen } from 'lucide-react';
+import { X, PanelLeftOpen, Loader2 } from 'lucide-react';
 
 import Sidebar from './Sidebar';
 import ChatHeader from './ChatHeader';
@@ -47,11 +47,25 @@ export default function ChatWorkspace() {
   const [peek, setPeek] = useState(false); // collapsed sidebar temporarily shown on hover
   const [modelsOpen, setModelsOpen] = useState(false); // local-model catalog modal
   const [usingMock, setUsingMock] = useState(true);
+  const [serverWaking, setServerWaking] = useState(false); // cold-start in progress
   const fileInputRef = useRef(null);
   const hydratedRef = useRef(false);
 
   useEffect(() => {
-    ensureBackend().then(() => setUsingMock(isUsingMock()));
+    // On a free host the first request can wake a slept instance (~30-60s). If the
+    // health probe hasn't resolved in a few seconds, show a friendly banner rather
+    // than appearing frozen.
+    let settled = false;
+    const t = setTimeout(() => {
+      if (!settled) setServerWaking(true);
+    }, 4000);
+    ensureBackend().then(() => {
+      settled = true;
+      clearTimeout(t);
+      setServerWaking(false);
+      setUsingMock(isUsingMock());
+    });
+    return () => clearTimeout(t);
   }, []);
 
   // Hydrate the document list from the backend exactly once. The ref guard makes
@@ -178,6 +192,13 @@ export default function ChatWorkspace() {
           localLlm={localLlm}
           usingMock={usingMock}
         />
+
+        {serverWaking && (
+          <div className="flex items-center justify-center gap-2 border-b border-line bg-amber-500/10 px-4 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+            <Loader2 size={13} className="animate-spin" />
+            Waking the server — the free host sleeps when idle, so the first request can take ~30–60s.
+          </div>
+        )}
 
         {messages.length === 0 ? (
           <div className="flex-1 overflow-y-auto">
