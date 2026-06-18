@@ -6,7 +6,9 @@ const AdminAuthContext = createContext(null);
 
 export const AdminAuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // Render children during prerender (no localStorage on the server); the client
+  // still gates on its one-time token check.
+  const [loading, setLoading] = useState(typeof window !== 'undefined');
   const navigate = useNavigate();
 
   useEffect(() => {

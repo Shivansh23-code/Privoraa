@@ -1,28 +1,36 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 
-// Public pages
+// Public pages — kept eager so they prerender to static HTML (SEO / first paint).
 import LandingPage from './pages/LandingPage';
 import PlansPage from './pages/PlansPage';
 import DownloadPage from './pages/DownloadPage';
 import NotFound from './pages/NotFound';
-
-// User-side
 import UserLogin from './pages/Login';
 import SignUp from './pages/SignUp';
-import UserDashboard from './pages/Dashboard';
 import UserProtectedRoute from './components/UserProtectedRoute';
-
-// Admin-side
-import AdminLogin from './admin/Login';
-import AdminDashboard from './admin/Dashboard';
-import AdminPatternManager from './admin/AdminPatternManager';
 import AdminProtectedRoute from './admin/ProtectedRoute';
+
+// Heavy, auth-gated screens — lazy so the chat store (which touches localStorage
+// at module load) and other browser-only deps never load during prerender.
+const UserDashboard = lazy(() => import('./pages/Dashboard'));
+const AdminLogin = lazy(() => import('./admin/Login'));
+const AdminDashboard = lazy(() => import('./admin/Dashboard'));
+const AdminPatternManager = lazy(() => import('./admin/AdminPatternManager'));
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-bg text-muted">
+      <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-brand-500" />
+    </div>
+  );
+}
 
 function App() {
   return (
     <>
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
         {/* 🌐 Public Routes */}
         <Route path="/" element={<LandingPage />} />
@@ -51,6 +59,7 @@ function App() {
         {/* ❌ 404 Not Found */}
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </Suspense>
 
       <Analytics />
     </>
