@@ -6,6 +6,8 @@ import com.privoraa.config.RagProperties;
 import com.privoraa.llm.LlmProviderResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -30,14 +32,19 @@ public class EmbeddingService {
     private final OpenRouterProperties orProps;
     private final OllamaProperties ollamaProps;
     private final RagProperties ragProps;
+    // Spring AI's auto-configured EmbeddingModel (Ollama). Optional: present on the
+    // classpath always, but only usable when Ollama is reachable.
+    private final ObjectProvider<EmbeddingModel> springAiEmbedding;
     private final AtomicBoolean warnedLocal = new AtomicBoolean(false);
 
     public EmbeddingService(LlmProviderResolver resolver, OpenRouterProperties orProps,
-                            OllamaProperties ollamaProps, RagProperties ragProps) {
+                            OllamaProperties ollamaProps, RagProperties ragProps,
+                            ObjectProvider<EmbeddingModel> springAiEmbedding) {
         this.resolver = resolver;
         this.orProps = orProps;
         this.ollamaProps = ollamaProps;
         this.ragProps = ragProps;
+        this.springAiEmbedding = springAiEmbedding;
     }
 
     /** Embed a single text with the active model. */
@@ -56,6 +63,8 @@ public class EmbeddingService {
             return List.of();
         }
         switch (resolveProvider()) {
+            case "springai":
+                return normalizeList(springAiEmbedding.getObject().embed(texts));
             case "ollama":
                 return normalizeAll(resolver.byId("ollama").embed(texts, ollamaProps.embedModel()));
             case "openrouter":
@@ -86,6 +95,8 @@ public class EmbeddingService {
     private String resolveProvider() {
         String configured = ragProps.embeddingProvider();
         switch (configured) {
+            case "springai":
+                return springAiAvailable() ? "springai" : "local";
             case "ollama":
                 return "ollama";
             case "openrouter":
@@ -93,6 +104,11 @@ public class EmbeddingService {
             case "local":
                 return "local";
             default: // auto
+                // Prefer Spring AI's EmbeddingModel when Ollama is the live runtime
+                // (semantic embeddings via a clean, provider-agnostic abstraction).
+                if (springAiAvailable() && resolver.isOllamaActive()) {
+                    return "springai";
+                }
                 if (resolver.isOllamaActive()) {
                     return "ollama";
                 }
@@ -101,6 +117,11 @@ public class EmbeddingService {
                 }
                 return "local";
         }
+    }
+
+    /** Spring AI's EmbeddingModel bean is present (Ollama starter auto-config). */
+    private boolean springAiAvailable() {
+        return springAiEmbedding.getIfAvailable() != null;
     }
 
     /**
@@ -112,6 +133,8 @@ public class EmbeddingService {
      */
     public String activeEmbeddingTag() {
         switch (resolveProvider()) {
+            case "springai":
+                return "springai:" + ollamaProps.embedModel();
             case "ollama":
                 return "ollama:" + ollamaProps.embedModel();
             case "openrouter":
@@ -125,6 +148,15 @@ public class EmbeddingService {
 
     private List<float[]> normalizeAll(float[][] vectors) {
         List<float[]> out = new ArrayList<>(vectors.length);
+        for (float[] v : vectors) {
+            out.add(normalize(v));
+        }
+        return out;
+    }
+
+    /** L2-normalize a list of vectors (Spring AI returns List&lt;float[]&gt;). */
+    private List<float[]> normalizeList(List<float[]> vectors) {
+        List<float[]> out = new ArrayList<>(vectors.size());
         for (float[] v : vectors) {
             out.add(normalize(v));
         }
