@@ -4,6 +4,7 @@
 import { useCallback, useRef } from 'react';
 import { useChatStore } from '../../store/chatStore';
 import { streamChat } from '../../lib/chatService';
+import { retrieveContext } from '../../lib/ragService';
 import {
   ensureLocalOllama, localHasModel, streamLocalOllamaChat, buildLocalMessages,
 } from '../../lib/localOllama';
@@ -56,7 +57,9 @@ export function useChat(catalog) {
             pending: false,
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
-            citations: usage.citations ?? undefined,
+            // Only overwrite citations when this path actually carries them (the
+            // server path does); don't clobber ones onMeta already set (local path).
+            ...(usage.citations != null ? { citations: usage.citations } : {}),
             aborted: usage.aborted || undefined,
           }),
         onError: (err) =>
@@ -76,11 +79,29 @@ export function useChat(catalog) {
         const local = await ensureLocalOllama();
         if (local && localHasModel(local, s.model)) {
           handledLocally = true;
-          callbacks.onMeta({ model: s.model, category: 'general', reason: 'Running on your device' });
+
+          // "Chat with my notes" for on-device models: the server can't reach this
+          // local Ollama, so fetch the RAG context here and inject it into the
+          // local prompt (best-effort — answer without grounding if it fails).
+          const wantRag = s.useRag && s.documents.some((d) => d.status === 'READY');
+          let ragBlock = null;
+          let citations;
+          if (wantRag && content) {
+            try {
+              const r = await retrieveContext(content);
+              if (r?.contextBlock) { ragBlock = r.contextBlock; citations = r.citations; }
+            } catch { /* notes unavailable — fall back to ungrounded answer */ }
+          }
+
+          callbacks.onMeta({
+            model: s.model, category: 'general',
+            reason: ragBlock ? 'Running on your device · grounded on your notes' : 'Running on your device',
+            citations,
+          });
           const conv = store.getState().conversations.find((c) => c.id === conversationId);
           const history = (conv?.messages || []).filter((m) => m.id !== assistantId);
           await streamLocalOllamaChat(
-            { base: local.base, model: s.model, messages: buildLocalMessages(history, null) },
+            { base: local.base, model: s.model, messages: buildLocalMessages(history, null, ragBlock) },
             callbacks
           );
         }
