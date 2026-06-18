@@ -67,6 +67,15 @@ export default function EmptyState({ mode, onPick }) {
           </button>
         ))}
       </div>
+
+      {/* Signature motto */}
+      <div className="mt-9 flex items-center gap-3 text-faint">
+        <span className="h-px w-8 bg-gradient-to-r from-transparent to-line" />
+        <p className="bg-gradient-to-r from-brand-400 to-accent-400 bg-clip-text text-xs font-semibold italic tracking-wide text-transparent">
+          Your confidence decides who you are.
+        </p>
+        <span className="h-px w-8 bg-gradient-to-l from-transparent to-line" />
+      </div>
     </div>
   );
 }

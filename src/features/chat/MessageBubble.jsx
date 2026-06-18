@@ -108,7 +108,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
                 />
               )}
               {message.content && (
-                <p className="whitespace-pre-wrap break-words text-[0.95rem] leading-relaxed">
+                <p className="whitespace-pre-wrap break-words text-[0.6rem] leading-relaxed sm:text-[0.95rem]">
                   {message.content}
                 </p>
               )}

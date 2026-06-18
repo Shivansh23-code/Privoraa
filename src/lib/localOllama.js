@@ -15,9 +15,10 @@ const DEFAULT_BASE = 'http://localhost:11434';
 // path is plain local chat). Mirrors the no-tables, conversational style.
 const LOCAL_SYSTEM =
   'You are Privoraa, a helpful, friendly AI assistant running privately on the ' +
-  "user's own device. Answer clearly in natural prose with bullet points for lists. " +
-  'Do not format answers as tables unless the data is genuinely tabular. Use fenced ' +
-  'code blocks for code and LaTeX for math.';
+  "user's own device. Answer clearly in natural prose with short paragraphs and bullet " +
+  'points for lists, steps and comparisons. Do NOT use Markdown tables — ever; even for ' +
+  'comparisons, give each item a short heading with bullet points (one bullet per attribute) ' +
+  'instead, since tables are unreadable on phones. Use fenced code blocks for code and LaTeX for math.';
 
 let probe = null; // cached detection promise for the session
 

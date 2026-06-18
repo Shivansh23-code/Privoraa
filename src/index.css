@@ -229,3 +229,21 @@ html.dark {
 .prose-chat hr { margin: 1rem 0; border: 0; border-top: 1px solid var(--line); }
 .prose-chat .katex-display { margin: 0.8rem 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
 .prose-chat strong { font-weight: 700; }
+
+/* Phones: shrink chat typography ~40% so answers don't overwhelm the small
+ * viewport, and keep any stray table readable + horizontally scrollable
+ * instead of crushing it into unreadable wrapped columns. */
+@media (max-width: 640px) {
+  .prose-chat { font-size: 0.6rem; line-height: 1.55; }
+  .prose-chat p { margin: 0.45rem 0; }
+  .prose-chat h1 { font-size: 0.86rem; }
+  .prose-chat h2 { font-size: 0.74rem; }
+  .prose-chat h3 { font-size: 0.66rem; }
+  .prose-chat h4 { font-size: 0.62rem; }
+  .prose-chat ul,
+  .prose-chat ol { padding-left: 1.05rem; }
+  .prose-chat table { font-size: 0.58rem; min-width: 30rem; }
+  .prose-chat th,
+  .prose-chat td { padding: 0.28rem 0.45rem; }
+  .prose-chat pre { font-size: 0.62rem; }
+}
