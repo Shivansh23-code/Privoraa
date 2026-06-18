@@ -91,11 +91,17 @@ public class AuthService {
         return new TokenResponse(jwtService.generateAccessToken(user));
     }
 
-    @Transactional(readOnly = true)
+    // Writable: re-applies the owner's auto-PRO on every session check so the PRO
+    // UI shows up without needing a fresh login (and survives store resets).
+    @Transactional
     public UserDto me(String userId) {
-        return userRepository.findById(userId)
-                .map(UserDto::from)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> ApiException.unauthorized("Account no longer exists"));
+        if (access.isPro(user.getEmail()) && user.getPlan() != Plan.PRO) {
+            user.setPlan(Plan.PRO);
+            userRepository.save(user);
+        }
+        return UserDto.from(user);
     }
 
     private AuthResponse issue(User user) {
