@@ -25,6 +25,8 @@ export default function PlansPage() {
 
   // If the user picked a paid plan while logged out, we stashed it and sent them
   // to sign up. Back here and now authenticated → finish the upgrade automatically.
+  // And a user who ALREADY holds a paid plan shouldn't see the funnel at all —
+  // send them straight to their plan-themed workspace.
   useEffect(() => {
     if (autoRan.current) return;
     const intended = sessionStorage.getItem('privoraa_intended_plan');
@@ -32,10 +34,16 @@ export default function PlansPage() {
       autoRan.current = true;
       sessionStorage.removeItem('privoraa_intended_plan');
       choose(intended);
+      return;
+    }
+    const plan = (user?.plan || '').toUpperCase();
+    if (isAuthenticated && !intended && (plan === 'PLUS' || plan === 'PRO')) {
+      autoRan.current = true;
+      navigate('/app', { replace: true });
     }
     // choose is stable enough for this one-shot; intentionally not a dep.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
   // Real price from config when a paid amount is set; else the static label.
   const priceFor = (p) => {
