@@ -52,9 +52,19 @@ export function localHasModel(local, tag) {
   return local.models.some((m) => m === tag || norm(m) === norm(tag));
 }
 
-/** Build the Ollama /api/chat message array from the conversation history. */
-export function buildLocalMessages(history, content) {
-  const msgs = [{ role: 'system', content: LOCAL_SYSTEM }];
+/** Build the Ollama /api/chat message array from the conversation history.
+ *  When ragBlock is provided (the user's retrieved notes), it's grounded into the
+ *  system prompt with the same instruction the server uses, so on-device answers
+ *  cite the notes instead of ignoring them. */
+export function buildLocalMessages(history, content, ragBlock = null) {
+  let system = LOCAL_SYSTEM;
+  if (ragBlock && ragBlock.trim()) {
+    system +=
+      '\n\nThe user has provided notes. Answer using ONLY the context below and cite sources ' +
+      'inline as [1], [2], etc. If the answer is not in the context, say "I couldn\'t find that ' +
+      'in your notes."\n\nContext:\n' + ragBlock;
+  }
+  const msgs = [{ role: 'system', content: system }];
   for (const m of history) {
     if (!m.content) continue;
     msgs.push({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content });

@@ -53,20 +53,34 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   const reload = useCallback(async () => {
-    try {
-      const [h, c, a] = await Promise.all([fetchLlmHealth(), fetchCatalog(), fetchActiveModel()]);
-      setHealth(h);
-      setCatalog(c);
-      setActive(a?.active || null);
-      if (h?.running) {
-        const inst = await fetchInstalled().catch(() => null);
-        setInstalledRaw(inst?.models || []);
-      }
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
+    setError(null);
+    // Settle each independently: a transient failure of one call (e.g. Render
+    // cold-start) must NOT blank the whole modal. The catalog is the essential
+    // one — health/active are best-effort.
+    const [h, c, a] = await Promise.allSettled([
+      fetchLlmHealth(),
+      fetchCatalog(),
+      fetchActiveModel(),
+    ]);
+    const health = h.status === 'fulfilled' ? h.value : null;
+    const cat = c.status === 'fulfilled' ? c.value : null;
+    setHealth(health);
+    setCatalog(cat);
+    setActive(a.status === 'fulfilled' ? a.value?.active || null : null);
+    if (health?.running) {
+      const inst = await fetchInstalled().catch(() => null);
+      setInstalledRaw(inst?.models || []);
     }
+    // Only surface an error if the essential catalog itself couldn't load.
+    if (!cat) {
+      const reason = c.reason?.message || '';
+      setError(
+        /failed to fetch|networkerror|load failed/i.test(reason)
+          ? 'Couldn’t reach the server — it may be waking up from sleep. Give it a few seconds and retry.'
+          : reason || 'Couldn’t load the model catalog.'
+      );
+    }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -181,6 +195,20 @@ export default function ModelCatalogModal({ open, onClose, onActiveChange }) {
           {loading ? (
             <div className="flex h-full items-center justify-center text-muted">
               <Loader2 className="animate-spin" /> <span className="ml-2">Loading catalog…</span>
+            </div>
+          ) : !catalog && error ? (
+            <div className="mx-auto max-w-md rounded-2xl border border-line bg-surface p-6 text-center">
+              <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 text-amber-500">
+                <AlertTriangle size={24} />
+              </span>
+              <h3 className="text-base font-semibold">Couldn’t load the catalog</h3>
+              <p className="mt-1 text-sm text-muted">{error}</p>
+              <button
+                onClick={() => { setLoading(true); reload(); }}
+                className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
+              >
+                <Loader2 size={15} className={loading ? 'animate-spin' : 'hidden'} /> Retry
+              </button>
             </div>
           ) : ollamaDown ? (
             <SetupCard health={health} onRetry={reload} />
