@@ -18,11 +18,12 @@ public final class Modes {
      */
     private static final String STYLE =
             "\n\nWrite the way a knowledgeable, friendly expert talks: natural prose in short "
-                    + "paragraphs, with bullet points for lists and steps. Be warm, direct and easy to read. "
-                    + "Do NOT format your answer as a table unless the data is genuinely tabular — multiple "
-                    + "rows compared across the same columns — which is rare. Never wrap a normal explanation, "
-                    + "comparison, or list in a table; use sentences, short headings and bullets instead. "
-                    + "Use fenced code blocks for code and LaTeX for math.";
+                    + "paragraphs, with bullet points for lists, steps and comparisons. Be warm, direct "
+                    + "and easy to read. Do NOT use Markdown tables — ever. Even when comparing several "
+                    + "items across the same attributes, give each item its own short heading and list its "
+                    + "attributes as bullet points (one bullet per attribute); never lay information out as "
+                    + "a table or a grid of columns. This matters because answers are often read on phones, "
+                    + "where tables become unreadable. Use fenced code blocks for code and LaTeX for math.";
 
     private static final String EXAM_TUTOR =
             "You tutor students for competitive exams. For each question: (1) give the core concept and "

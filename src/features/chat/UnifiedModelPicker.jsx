@@ -8,6 +8,10 @@ import { fetchCatalog, setActiveModel } from '../../lib/modelCatalogService';
 import { ensureLocalOllama, localHasModel, resetLocalOllama } from '../../lib/localOllama';
 
 const SITE_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
+// Ollama is desktop-only (Win/Mac/Linux). On phones there's no localhost:11434 to
+// reach, so we tell mobile users the truth instead of a useless OLLAMA_ORIGINS hint.
+const IS_MOBILE =
+  typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
 /**
  * Drill-down model picker. Level 1: Auto / Online / Offline. Choosing Online or
@@ -224,6 +228,7 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
                 probing={probing}
                 ollama={browserOllama}
                 origin={SITE_ORIGIN}
+                isMobile={IS_MOBILE}
                 onRecheck={reCheckOllama}
                 onHelp={() => { close(); onManage?.(); }}
               />
@@ -324,11 +329,25 @@ function GroupLabel({ children }) {
  * every model would otherwise silently show "download" — so spell out the fix
  * and offer a re-check that doesn't need a page reload.
  */
-function OllamaStatus({ probing, ollama, origin, onRecheck, onHelp }) {
+function OllamaStatus({ probing, ollama, origin, isMobile, onRecheck, onHelp }) {
   if (probing && !ollama) {
     return (
       <div className="mx-1 mb-1 flex items-center gap-2 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-xs text-muted">
         <Loader2 size={13} className="shrink-0 animate-spin" /> Looking for your local Ollama…
+      </div>
+    );
+  }
+  // Phones can't run Ollama — don't show a desktop command they can't use.
+  if (!ollama && isMobile) {
+    return (
+      <div className="mx-1 mb-1 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-2 text-xs">
+        <p className="font-medium text-sky-600 dark:text-sky-400">On-device models need a computer.</p>
+        <p className="mt-1 text-muted">
+          Offline models run through Ollama, which only works on desktop (Windows, macOS, Linux) —
+          not on phones. On mobile, use <span className="font-medium text-fg">Online</span> or{' '}
+          <span className="font-medium text-fg">Auto</span>. To run your own local models, open
+          Privoraa on your computer.
+        </p>
       </div>
     );
   }
