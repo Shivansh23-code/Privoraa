@@ -9,7 +9,9 @@ const UserAuthContext = createContext(null);
 export const UserAuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loading, setLoading] = useState(true);
+  // On the server (prerender) there's no session to validate, so render children
+  // immediately; on the client we still gate on the one-time session check.
+  const [loading, setLoading] = useState(typeof window !== 'undefined');
   const navigate = useNavigate();
   const validatedRef = useRef(false);
 
