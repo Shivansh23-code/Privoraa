@@ -51,7 +51,7 @@ export const PLANS = [
   {
     key: 'FREE',
     name: 'Free',
-    price: '$0',
+    price: '₹0',
     period: 'forever',
     tagline: 'Everything you need to start — fully private.',
     accent: 'from-slate-500/20 to-slate-400/10',
