@@ -32,10 +32,24 @@ export function useChat(catalog) {
       });
       s.setStreaming(true, assistantId);
 
+      // A new request supersedes any in-flight one: abort it first so we never run
+      // two live streams (e.g. the user hits Stop then sends again immediately).
+      abortRef.current?.abort();
+
       const controller = new AbortController();
       abortRef.current = controller;
 
+      // Finalize the assistant bubble exactly once (clears the pending/"thinking"
+      // state). Without this, an aborted stream left the bubble stuck looking like
+      // it was still responding.
       let firstToken = true;
+      let finalized = false;
+      const finalize = (patch) =>
+        finalized
+          ? undefined
+          : ((finalized = true),
+            store.getState().updateMessage(conversationId, assistantId, { pending: false, ...patch }));
+
       const callbacks = {
         signal: controller.signal,
         onMeta: (meta) =>
@@ -53,8 +67,7 @@ export function useChat(catalog) {
           store.getState().appendToMessage(conversationId, assistantId, delta);
         },
         onDone: (usage) =>
-          store.getState().updateMessage(conversationId, assistantId, {
-            pending: false,
+          finalize({
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
             // Only overwrite citations when this path actually carries them (the
@@ -62,11 +75,7 @@ export function useChat(catalog) {
             ...(usage.citations != null ? { citations: usage.citations } : {}),
             aborted: usage.aborted || undefined,
           }),
-        onError: (err) =>
-          store.getState().updateMessage(conversationId, assistantId, {
-            pending: false,
-            error: err.message || 'Something went wrong.',
-          }),
+        onError: (err) => finalize({ error: err.message || 'Something went wrong.' }),
       };
 
       // Browser-direct local Ollama: if the user picked an offline model and has
@@ -75,56 +84,69 @@ export function useChat(catalog) {
       const wantLocal =
         s.modelProvider === 'offline' && s.model && s.model !== 'auto' && !s.model.includes('/');
       let handledLocally = false;
-      if (wantLocal) {
-        const local = await ensureLocalOllama();
-        if (local && localHasModel(local, s.model)) {
-          handledLocally = true;
+      try {
+        if (wantLocal) {
+          const local = await ensureLocalOllama();
+          if (local && localHasModel(local, s.model)) {
+            handledLocally = true;
 
-          // "Chat with my notes" for on-device models: the server can't reach this
-          // local Ollama, so fetch the RAG context here and inject it into the
-          // local prompt (best-effort — answer without grounding if it fails).
-          const wantRag = s.useRag && s.documents.some((d) => d.status === 'READY');
-          let ragBlock = null;
-          let citations;
-          if (wantRag && content) {
-            try {
-              const r = await retrieveContext(content);
-              if (r?.contextBlock) { ragBlock = r.contextBlock; citations = r.citations; }
-            } catch { /* notes unavailable — fall back to ungrounded answer */ }
+            // "Chat with my notes" for on-device models: the server can't reach this
+            // local Ollama, so fetch the RAG context here and inject it into the
+            // local prompt (best-effort — answer without grounding if it fails).
+            const wantRag = s.useRag && s.documents.some((d) => d.status === 'READY');
+            let ragBlock = null;
+            let citations;
+            if (wantRag && content) {
+              try {
+                const r = await retrieveContext(content);
+                if (r?.contextBlock) { ragBlock = r.contextBlock; citations = r.citations; }
+              } catch { /* notes unavailable — fall back to ungrounded answer */ }
+            }
+
+            callbacks.onMeta({
+              model: s.model, category: 'general',
+              reason: ragBlock ? 'Running on your device · grounded on your notes' : 'Running on your device',
+              citations,
+            });
+            const conv = store.getState().conversations.find((c) => c.id === conversationId);
+            const history = (conv?.messages || []).filter((m) => m.id !== assistantId);
+            await streamLocalOllamaChat(
+              { base: local.base, model: s.model, messages: buildLocalMessages(history, null, ragBlock) },
+              callbacks
+            );
           }
+        }
 
-          callbacks.onMeta({
-            model: s.model, category: 'general',
-            reason: ragBlock ? 'Running on your device · grounded on your notes' : 'Running on your device',
-            citations,
-          });
-          const conv = store.getState().conversations.find((c) => c.id === conversationId);
-          const history = (conv?.messages || []).filter((m) => m.id !== assistantId);
-          await streamLocalOllamaChat(
-            { base: local.base, model: s.model, messages: buildLocalMessages(history, null, ragBlock) },
+        if (!handledLocally) {
+          await streamChat(
+            {
+              content,
+              model: s.model,
+              provider: s.modelProvider,
+              mode: convo.mode,
+              useRag: s.useRag && s.documents.some((d) => d.status === 'READY'),
+              conversationId,
+              catalog,
+              image,
+            },
             callbacks
           );
         }
+      } catch (err) {
+        // Any transport throw not already routed through onError still finalizes
+        // the bubble (an AbortError is handled by the finally below).
+        if (err?.name !== 'AbortError') finalize({ error: err?.message || 'Something went wrong.' });
+      } finally {
+        // Stop ends the stream without an onDone — finalize so the bubble doesn't
+        // stay stuck "responding". finalize() is idempotent.
+        if (controller.signal.aborted) finalize({ aborted: true });
+        // Only clear the shared streaming/abort state if THIS run is still the
+        // active one; a newer request may have already taken over.
+        if (abortRef.current === controller) {
+          store.getState().setStreaming(false, null);
+          abortRef.current = null;
+        }
       }
-
-      if (!handledLocally) {
-        await streamChat(
-          {
-            content,
-            model: s.model,
-            provider: s.modelProvider,
-            mode: convo.mode,
-            useRag: s.useRag && s.documents.some((d) => d.status === 'READY'),
-            conversationId,
-            catalog,
-            image,
-          },
-          callbacks
-        );
-      }
-
-      store.getState().setStreaming(false, null);
-      abortRef.current = null;
     },
     [catalog, store]
   );

@@ -59,6 +59,18 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px';
   }, [value]);
 
+  // The full placeholder (with the keyboard hint) overflows on phones — use a
+  // short one on narrow screens.
+  const [narrow, setNarrow] = useState(
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const onChange = (e) => setNarrow(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
   const pickImage = async (file) => {
     if (!file) return;
     try {
@@ -191,7 +203,13 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={image ? 'Ask about the image…' : 'Ask anything…  (Enter to send, Shift+Enter for newline)'}
+            placeholder={
+              image
+                ? 'Ask about the image…'
+                : narrow
+                  ? 'Ask anything…'
+                  : 'Ask anything…  (Enter to send, Shift+Enter for newline)'
+            }
             className="scroll-thin max-h-[200px] flex-1 resize-none bg-transparent py-1.5 text-[0.72rem] leading-relaxed text-fg placeholder:text-faint focus:outline-none sm:text-[0.95rem]"
           />
 
