@@ -6,9 +6,11 @@ import com.privoraa.auth.dto.RegisterRequest;
 import com.privoraa.auth.dto.TokenResponse;
 import com.privoraa.auth.dto.UserDto;
 import com.privoraa.common.ApiException;
+import com.privoraa.config.AccessProperties;
 import org.springframework.dao.DataIntegrityViolationException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,16 +22,23 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final AccessProperties access;
 
-    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
+    public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService,
+                       AccessProperties access) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.access = access;
     }
 
     @Transactional
     public AuthResponse register(RegisterRequest req) {
         String email = req.email().trim().toLowerCase();
+        if (!access.allows(email)) {
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                    "Sign-ups are limited right now. This is a private learning project.");
+        }
         if (userRepository.existsByEmail(email)) {
             throw ApiException.conflict("An account with that email already exists");
         }
@@ -51,9 +60,13 @@ public class AuthService {
         return issue(user);
     }
 
-    @Transactional(readOnly = true)
+    // Writable (not readOnly): issue() may persist the owner's auto-PRO grant.
+    @Transactional
     public AuthResponse login(LoginRequest req) {
         String email = req.email().trim().toLowerCase();
+        if (!access.allows(email)) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "This account isn't permitted on this deployment.");
+        }
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
         if (!passwordEncoder.matches(req.password(), user.getPasswordHash())) {
@@ -86,6 +99,13 @@ public class AuthService {
     }
 
     private AuthResponse issue(User user) {
+        // Owner emails are always PRO — re-applied on every auth so a reset of the
+        // (in-memory) store never silently drops them back to Free and asks them to
+        // pay again.
+        if (access.isPro(user.getEmail()) && user.getPlan() != Plan.PRO) {
+            user.setPlan(Plan.PRO);
+            userRepository.save(user);
+        }
         return new AuthResponse(
                 jwtService.generateAccessToken(user),
                 jwtService.generateRefreshToken(user),
