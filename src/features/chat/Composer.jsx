@@ -210,7 +210,7 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
                   ? 'Ask anything…'
                   : 'Ask anything…  (Enter to send, Shift+Enter for newline)'
             }
-            className="scroll-thin max-h-[200px] flex-1 resize-none bg-transparent py-1.5 text-[0.72rem] leading-relaxed text-fg placeholder:text-faint focus:outline-none sm:text-[0.95rem]"
+            className="scroll-thin max-h-[200px] flex-1 resize-none bg-transparent py-1.5 text-[0.72rem] leading-relaxed text-fg placeholder:text-faint focus:outline-none sm:text-[0.85rem]"
           />
 
           {isStreaming ? (
