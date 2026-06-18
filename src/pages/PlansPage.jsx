@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Check, ArrowRight, Star, Loader2, Sparkles } from 'lucide-react';
 import { useUserAuth } from '../context/UserAuthContext';
-import { PLANS } from '../lib/plans';
+import { PLANS, PLAN_RANK, planLabel } from '../lib/plans';
 import { startUpgrade, fetchBillingConfig } from '../lib/billingService';
 
 /**
@@ -36,8 +36,10 @@ export default function PlansPage() {
       choose(intended);
       return;
     }
+    // Only PRO (the top tier) auto-skips the funnel — a PLUS user may still come
+    // here to upgrade to PRO.
     const plan = (user?.plan || '').toUpperCase();
-    if (isAuthenticated && !intended && (plan === 'PLUS' || plan === 'PRO')) {
+    if (isAuthenticated && !intended && plan === 'PRO') {
       autoRan.current = true;
       navigate('/app', { replace: true });
     }
@@ -58,6 +60,12 @@ export default function PlansPage() {
 
   const choose = async (planKey) => {
     setError(null);
+    // No downgrades while a paid plan is active — only upgrades (e.g. Plus -> Pro).
+    const cur = (user?.plan || 'FREE').toUpperCase();
+    if (isAuthenticated && (PLAN_RANK[planKey] ?? 0) < (PLAN_RANK[cur] ?? 0)) {
+      setError(`You're on ${planLabel(cur)} — you can upgrade, but can't switch to a lower plan while it's active.`);
+      return;
+    }
     // Free, or not signed in yet -> straight into the app / signup.
     if (planKey === 'FREE') {
       navigate(isAuthenticated ? '/app' : '/signup');
@@ -130,6 +138,9 @@ export default function PlansPage() {
       <div className="relative z-10 mx-auto grid max-w-6xl gap-5 px-5 pb-20 pt-10 md:grid-cols-3">
         {PLANS.map((p) => {
           const isCurrent = isAuthenticated && currentPlan === p.key;
+          // A lower tier than the user's current paid plan — can't downgrade.
+          const isDowngrade =
+            isAuthenticated && !isCurrent && (PLAN_RANK[p.key] ?? 0) < (PLAN_RANK[currentPlan] ?? 0);
           return (
             <div
               key={p.key}
@@ -170,15 +181,20 @@ export default function PlansPage() {
 
               <button
                 onClick={() => choose(p.key)}
-                disabled={busy === p.key}
+                disabled={busy === p.key || isDowngrade}
+                title={isDowngrade ? "You're already on a higher plan" : undefined}
                 className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition disabled:opacity-60 ${
                   p.popular
                     ? 'bg-gradient-to-r from-brand-600 to-accent-500 text-white hover:opacity-95'
                     : 'border border-line bg-surface-2 text-fg hover:border-brand-400'
                 }`}
               >
-                {busy === p.key ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
-                {isCurrent ? 'Continue' : p.cta}
+                {busy === p.key ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : isDowngrade ? null : (
+                  <ArrowRight size={16} />
+                )}
+                {isCurrent ? 'Continue' : isDowngrade ? 'Included in your plan' : p.cta}
               </button>
             </div>
           );
