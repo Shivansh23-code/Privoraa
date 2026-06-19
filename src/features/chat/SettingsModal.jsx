@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useChatStore } from '../../store/chatStore';
 import { MODES } from '../../lib/modes';
+import VaultPanel from './VaultPanel';
 
 export default function SettingsModal({ open, onClose }) {
   const { user, updateProfile } = useUserAuth();
@@ -27,7 +28,7 @@ export default function SettingsModal({ open, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
-        className="relative w-full max-w-md animate-rise rounded-2xl border border-line bg-elevated p-5 shadow-2xl"
+        className="relative max-h-[85vh] w-full max-w-md animate-rise overflow-y-auto rounded-2xl border border-line bg-elevated p-5 shadow-2xl"
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">Settings</h2>
@@ -69,6 +70,10 @@ export default function SettingsModal({ open, onClose }) {
           <p className="text-xs text-muted">
             Appearance follows your system's light/dark preference automatically.
           </p>
+        </div>
+
+        <div className="mt-4">
+          <VaultPanel />
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
