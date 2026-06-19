@@ -7,6 +7,7 @@ import ChatHeader from './ChatHeader';
 import MessageThread from './MessageThread';
 import EmptyState from './EmptyState';
 import Composer from './Composer';
+import VaultLockBar from './VaultLockBar';
 import ModelCatalogModal from '../models/ModelCatalogModal';
 
 import { useChatStore } from '../../store/chatStore';
@@ -197,6 +198,8 @@ export default function ChatWorkspace() {
           localLlm={localLlm}
           usingMock={usingMock}
         />
+
+        <VaultLockBar />
 
         {serverWaking && (
           <div className="flex items-center justify-center gap-2 border-b border-line bg-amber-500/10 px-4 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">

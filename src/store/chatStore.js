@@ -4,8 +4,9 @@
 // truth once it's live — this store then hydrates from it).
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { DEFAULT_MODE } from '../lib/modes';
+import { chatStorage, wireVaultPersistence } from './chatPersist';
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -198,6 +199,9 @@ export const useChatStore = create(
     }),
     {
       name: 'privoraa-chat',
+      // Vault-aware storage: plaintext when no vault exists (unchanged for
+      // existing users), AES-GCM encrypted at rest once a vault is unlocked.
+      storage: createJSONStorage(() => chatStorage),
       partialize: (s) => ({
         conversations: s.conversations,
         currentId: s.currentId,
@@ -210,6 +214,10 @@ export const useChatStore = create(
     }
   )
 );
+
+// Bridge the vault lifecycle to at-rest persistence (client-only; this module
+// only loads in the lazy chat workspace, never during prerender).
+wireVaultPersistence(useChatStore);
 
 function deriveTitle(text) {
   const clean = (text || '').replace(/\s+/g, ' ').trim();
