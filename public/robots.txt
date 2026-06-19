@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /$
+Allow: /plans
+Allow: /download
+# Auth-gated / private areas — no SEO value, keep them out of the index.
+Disallow: /app
+Disallow: /login
+Disallow: /signup
+Disallow: /admin
+
+Sitemap: https://privoraaai.vercel.app/sitemap.xml
