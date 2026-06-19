@@ -19,6 +19,7 @@ import React, {
 import { createVault, unlockVault, rewrapVault, cryptoAvailable } from '../lib/crypto';
 import { setMasterKey } from '../lib/vaultBridge';
 import { clearVaultData } from '../lib/secureStore';
+import { purgeChatAtRest } from '../store/chatPersist';
 
 const KEYFILE_STORAGE = 'privoraa-vault-keyfile';
 // Auto-lock after sustained inactivity — defense for shared/unattended devices.
@@ -98,6 +99,7 @@ export function VaultProvider({ children }) {
   // there is no way back — the ciphertext becomes permanently unreadable.
   const destroy = useCallback(async () => {
     localStorage.removeItem(KEYFILE_STORAGE);
+    purgeChatAtRest(); // drop the orphaned encrypted chat blob too
     try {
       await clearVaultData();
     } catch {
