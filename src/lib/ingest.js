@@ -49,19 +49,41 @@ async function extractPdf(file) {
   return text;
 }
 
+let tessP = null;
+async function loadTesseract() {
+  if (!tessP) tessP = import('tesseract.js'); // lazy: OCR engine stays out of the main bundle
+  return tessP;
+}
+
+// OCR an image entirely on-device (WASM). The image never leaves the machine;
+// only the OCR engine + language data are fetched once (then cached).
+async function extractImage(file) {
+  const { createWorker } = await loadTesseract();
+  const worker = await createWorker('eng');
+  try {
+    const { data } = await worker.recognize(file);
+    return data?.text || '';
+  } finally {
+    await worker.terminate();
+  }
+}
+
 const isPdf = (file) => /\.pdf$/i.test(file.name || '') || file.type === 'application/pdf';
 const isTextLike = (file) =>
   TEXT_EXT.test(file.name || '') || (file.type || '').startsWith('text/');
+const isImage = (file) =>
+  /\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(file.name || '') || (file.type || '').startsWith('image/');
 
 export function isSupported(file) {
-  return isPdf(file) || isTextLike(file);
+  return isPdf(file) || isTextLike(file) || isImage(file);
 }
 
-/** Extract plain text from a supported file (PDF or text-like). */
+/** Extract plain text from a supported file (PDF, text-like, or image via OCR). */
 export async function extractText(file) {
   if (isPdf(file)) return extractPdf(file);
+  if (isImage(file)) return extractImage(file);
   if (isTextLike(file)) return readAsText(file);
-  throw new Error('Unsupported file type — try a PDF or a text/markdown file.');
+  throw new Error('Unsupported file type — try a PDF, text file, or image.');
 }
 
 /** Split text into overlapping chunks, dropping trivial fragments. */
