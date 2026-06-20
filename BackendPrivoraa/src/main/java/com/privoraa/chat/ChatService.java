@@ -30,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.scheduler.Schedulers;
 
-import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -256,8 +255,9 @@ public class ChatService {
     private void send(SseEmitter emitter, String event, Object data) {
         try {
             emitter.send(SseEmitter.event().name(event).data(data, MediaType.APPLICATION_JSON));
-        } catch (IOException | IllegalStateException e) {
-            // Client disconnected or emitter already completed.
+        } catch (Exception e) {
+            // A disconnected client (broken pipe / AsyncRequestNotUsableException) must
+            // never surface as an ERROR — writing to a dead socket is expected and benign.
             log.debug("SSE send failed ({}): {}", event, e.getMessage());
         }
     }

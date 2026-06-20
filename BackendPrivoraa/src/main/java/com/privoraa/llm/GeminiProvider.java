@@ -6,6 +6,7 @@ import com.privoraa.common.ApiException;
 import com.privoraa.config.GeminiProperties;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Component;
@@ -56,6 +57,12 @@ public class GeminiProvider implements LlmProvider {
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .bodyValue(body)
                 .retrieve()
+                // Surface the real upstream reason instead of a generic "busy" — a
+                // 400 (bad request), 401/403 (bad key) or 429 (free-tier limit) all
+                // look the same otherwise.
+                .onStatus(HttpStatusCode::isError, resp -> resp.bodyToMono(String.class)
+                        .defaultIfEmpty("")
+                        .map(b -> upstreamError(resp.statusCode().value(), b)))
                 .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
                 .mapNotNull(ServerSentEvent::data)
                 .takeWhile(data -> !"[DONE]".equals(data.trim()))
@@ -73,6 +80,9 @@ public class GeminiProvider implements LlmProvider {
                 .uri("/chat/completions")
                 .bodyValue(body)
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, r -> r.bodyToMono(String.class)
+                        .defaultIfEmpty("")
+                        .map(b -> upstreamError(r.statusCode().value(), b)))
                 .bodyToMono(JsonNode.class)
                 .block();
         if (resp == null) {
@@ -112,14 +122,28 @@ public class GeminiProvider implements LlmProvider {
             if (opts.topP() != null) {
                 body.put("top_p", opts.topP());
             }
-            if (opts.frequencyPenalty() != null) {
-                body.put("frequency_penalty", opts.frequencyPenalty());
-            }
-            if (opts.presencePenalty() != null) {
-                body.put("presence_penalty", opts.presencePenalty());
-            }
+            // Gemini's OpenAI-compatible endpoint is strict about unknown fields and
+            // does not reliably accept frequency/presence penalties — omit them
+            // (they're 0 for coding anyway) to avoid a 400.
         }
         return body;
+    }
+
+    private ApiException upstreamError(int code, String body) {
+        String detail = (body == null || body.isBlank()) ? "" : " — " + truncate(body);
+        String msg = switch (code) {
+            case 400 -> "Gemini rejected the request (HTTP 400)" + detail;
+            case 401, 403 -> "Gemini rejected the API key (HTTP " + code
+                    + "). Check the GEMINI_API_KEY value." + detail;
+            case 429 -> "Gemini free-tier limit reached (HTTP 429) — wait a moment and try again.";
+            default -> "Gemini upstream error (HTTP " + code + ")" + detail;
+        };
+        return new ApiException(HttpStatus.BAD_GATEWAY, msg);
+    }
+
+    private static String truncate(String s) {
+        String t = s.replaceAll("\\s+", " ").trim();
+        return t.length() > 300 ? t.substring(0, 300) + "…" : t;
     }
 
     private String extractDelta(String data) {
