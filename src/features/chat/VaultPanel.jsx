@@ -348,7 +348,7 @@ function IngestControl({ namespace, onDone }) {
     e.target.value = ''; // allow re-picking the same file
     if (!file) return;
     if (!isSupported(file)) {
-      setStatus({ error: 'Use a PDF or a text/markdown file.' });
+      setStatus({ error: 'Use a PDF, text file, or image.' });
       return;
     }
     setStatus({ busy: true, name: file.name, done: 0, total: 0 });
@@ -372,12 +372,12 @@ function IngestControl({ namespace, onDone }) {
         className="flex w-fit items-center gap-1.5 rounded-lg border border-dashed border-line px-2.5 py-1.5 text-xs font-medium text-muted transition hover:border-brand-400 hover:text-fg disabled:opacity-50"
       >
         {status?.busy ? <Loader2 size={13} className="animate-spin" /> : <FileUp size={13} />}
-        Add a document (PDF / text)
+        Add a document or image
       </button>
       <input
         ref={ref}
         type="file"
-        accept=".pdf,.txt,.md,.markdown,.csv,.tsv,.json,.jsonl,.log,.yml,.yaml,.html,.htm,.xml,.rtf,text/*,application/pdf"
+        accept=".pdf,.txt,.md,.markdown,.csv,.tsv,.json,.jsonl,.log,.yml,.yaml,.html,.htm,.xml,.rtf,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff,text/*,application/pdf,image/*"
         className="hidden"
         onChange={onPick}
       />
