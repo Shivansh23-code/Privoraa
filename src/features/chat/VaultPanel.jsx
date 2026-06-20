@@ -15,13 +15,10 @@ import {
   Plus,
   Loader2,
   AlertTriangle,
+  Search,
 } from 'lucide-react';
 import { useVault } from '../../context/VaultContext';
-import {
-  listCollection,
-  putItem,
-  removeItem,
-} from '../../lib/secureStore';
+import { indexText, listTexts, removeVector, search } from '../../lib/vectorStore';
 
 const NOTES = 'notes';
 const uid = () =>
@@ -250,10 +247,12 @@ function Notes() {
   const [items, setItems] = useState(null); // null = loading
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState('');
+  const [results, setResults] = useState(null); // null = not searching
 
   const load = useCallback(async () => {
     try {
-      setItems(await listCollection(NOTES));
+      setItems(await listTexts(NOTES));
     } catch {
       setItems([]);
     }
@@ -263,12 +262,28 @@ function Notes() {
     load();
   }, [load]);
 
+  // Semantic search runs entirely on-device over the decrypted vectors. Cheap
+  // for a personal vault, so just re-run whenever the query or notes change.
+  useEffect(() => {
+    let alive = true;
+    if (!q.trim()) {
+      setResults(null);
+      return undefined;
+    }
+    search(NOTES, q, 5)
+      .then((r) => alive && setResults(r))
+      .catch(() => alive && setResults([]));
+    return () => {
+      alive = false;
+    };
+  }, [q, items]);
+
   const add = async () => {
     const text = draft.trim();
     if (!text) return;
     setBusy(true);
     try {
-      await putItem(NOTES, uid(), { text });
+      await indexText(NOTES, uid(), text);
       setDraft('');
       await load();
     } finally {
@@ -277,9 +292,11 @@ function Notes() {
   };
 
   const del = async (id) => {
-    await removeItem(id);
+    await removeVector(id);
     await load();
   };
+
+  const shown = results ?? items;
 
   return (
     <div className="flex flex-col gap-2">
@@ -303,24 +320,48 @@ function Notes() {
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={16} />}
         </button>
       </div>
+
       {items && items.length > 0 && (
+        <div className="relative">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search your notes…"
+            className={`${inputCls} w-full pl-8`}
+          />
+        </div>
+      )}
+
+      {shown && shown.length > 0 && (
         <ul className="flex max-h-40 flex-col gap-1 overflow-y-auto">
-          {items.map((it) => (
+          {shown.map((it) => (
             <li
               key={it.id}
               className="group flex items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-1.5"
             >
-              <span className="truncate text-xs">{it.value?.text}</span>
-              <button
-                onClick={() => del(it.id)}
-                className="shrink-0 text-muted opacity-0 transition hover:text-red-500 group-hover:opacity-100"
-                title="Delete note"
-              >
-                <Trash2 size={13} />
-              </button>
+              <span className="truncate text-xs">{it.text}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                {results && typeof it.score === 'number' && (
+                  <span className="text-[10px] tabular-nums text-muted">
+                    {Math.round(it.score * 100)}%
+                  </span>
+                )}
+                <button
+                  onClick={() => del(it.id)}
+                  className="text-muted opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+                  title="Delete note"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
             </li>
           ))}
         </ul>
+      )}
+
+      {results && results.length === 0 && q.trim() && (
+        <p className="text-xs text-muted">No matching notes.</p>
       )}
     </div>
   );
