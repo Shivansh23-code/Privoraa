@@ -52,7 +52,7 @@ export async function retrieveVaultContext(query, k = 4) {
   const contextBlock = hits.map((h, i) => `[${i + 1}] ${h.text}`).join('\n\n');
   const citations = hits.map((h, i) => ({
     chunk: i + 1,
-    doc: 'Sealed note',
+    doc: h.meta?.source || 'Sealed note',
     snippet: h.text.length > 160 ? h.text.slice(0, 160) + '…' : h.text,
   }));
   return { contextBlock, citations };

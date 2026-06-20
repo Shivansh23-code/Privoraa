@@ -6,7 +6,7 @@
 // Note: this surface is independent of the chat stream. It only reads/writes the
 // vault's own encrypted store; it does not touch conversation persistence.
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ShieldCheck,
   Lock,
@@ -16,9 +16,11 @@ import {
   Loader2,
   AlertTriangle,
   Search,
+  FileUp,
 } from 'lucide-react';
 import { useVault } from '../../context/VaultContext';
 import { indexText, listTexts, removeVector, search } from '../../lib/vectorStore';
+import { ingestFile, isSupported } from '../../lib/ingest';
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -199,6 +201,7 @@ function UnlockedVault({ onLock, onChangePassphrase, onDestroy }) {
         label="Private notes"
         placeholder="Write something private…"
         hint="encrypted on this device"
+        allowUpload
       />
 
       <button
@@ -253,9 +256,68 @@ function ChangePassphrase({ onChange, onDone }) {
   );
 }
 
+// Drop a PDF or text/markdown file → extracted + chunked + indexed into the
+// encrypted vault entirely on-device. Nothing is uploaded.
+function IngestControl({ namespace, onDone }) {
+  const ref = useRef(null);
+  const [status, setStatus] = useState(null); // { busy, done, total, name, error, ok }
+
+  const onPick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file
+    if (!file) return;
+    if (!isSupported(file)) {
+      setStatus({ error: 'Use a PDF or a text/markdown file.' });
+      return;
+    }
+    setStatus({ busy: true, name: file.name, done: 0, total: 0 });
+    try {
+      const { chunks } = await ingestFile(file, {
+        namespace,
+        onProgress: (done, total) => setStatus({ busy: true, name: file.name, done, total }),
+      });
+      setStatus({ ok: true, name: file.name, total: chunks });
+      onDone?.();
+    } catch (err) {
+      setStatus({ error: err?.message || 'Could not read that file.' });
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        onClick={() => ref.current?.click()}
+        disabled={status?.busy}
+        className="flex w-fit items-center gap-1.5 rounded-lg border border-dashed border-line px-2.5 py-1.5 text-xs font-medium text-muted transition hover:border-brand-400 hover:text-fg disabled:opacity-50"
+      >
+        {status?.busy ? <Loader2 size={13} className="animate-spin" /> : <FileUp size={13} />}
+        Add a document (PDF / text)
+      </button>
+      <input
+        ref={ref}
+        type="file"
+        accept=".pdf,.txt,.md,.markdown,.csv,.tsv,.json,.jsonl,.log,.yml,.yaml,.html,.htm,.xml,.rtf,text/*,application/pdf"
+        className="hidden"
+        onChange={onPick}
+      />
+      {status?.busy && (
+        <p className="text-xs text-muted">
+          Reading {status.name}…{status.total ? ` indexed ${status.done}/${status.total}` : ''}
+        </p>
+      )}
+      {status?.ok && (
+        <p className="text-xs text-emerald-500">
+          Added {status.name} — {status.total} encrypted chunk{status.total === 1 ? '' : 's'}.
+        </p>
+      )}
+      {status?.error && <p className="text-xs text-red-500">{status.error}</p>}
+    </div>
+  );
+}
+
 // A reusable encrypted-item list (used for both Memories and Notes — same store,
 // different namespace). Add / semantic-search / delete, all on-device.
-function VaultItems({ namespace, label, placeholder, hint }) {
+function VaultItems({ namespace, label, placeholder, hint, allowUpload = false }) {
   const [items, setItems] = useState(null); // null = loading
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -332,6 +394,8 @@ function VaultItems({ namespace, label, placeholder, hint }) {
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={16} />}
         </button>
       </div>
+
+      {allowUpload && <IngestControl namespace={namespace} onDone={load} />}
 
       {items && items.length > 2 && (
         <div className="relative">
