@@ -5,6 +5,8 @@ import { useCallback, useRef } from 'react';
 import { useChatStore } from '../../store/chatStore';
 import { streamChat } from '../../lib/chatService';
 import { retrieveContext } from '../../lib/ragService';
+import { retrieveVaultContext } from '../../lib/vectorStore';
+import { isUnlocked } from '../../lib/vaultBridge';
 import {
   ensureLocalOllama, localHasModel, streamLocalOllamaChat, buildLocalMessages,
 } from '../../lib/localOllama';
@@ -90,22 +92,36 @@ export function useChat(catalog) {
           if (local && localHasModel(local, s.model)) {
             handledLocally = true;
 
-            // "Chat with my notes" for on-device models: the server can't reach this
-            // local Ollama, so fetch the RAG context here and inject it into the
-            // local prompt (best-effort — answer without grounding if it fails).
-            const wantRag = s.useRag && s.documents.some((d) => d.status === 'READY');
+            // "Chat with my notes" for on-device models. Prefer the SEALED VAULT
+            // notes — searched and decrypted entirely in this browser, so the notes
+            // never leave the device (the whole point of the vault). Fall back to
+            // server-side documents only when the vault is locked or empty. Either
+            // way it's best-effort: answer ungrounded if retrieval fails.
             let ragBlock = null;
             let citations;
-            if (wantRag && content) {
-              try {
-                const r = await retrieveContext(content);
-                if (r?.contextBlock) { ragBlock = r.contextBlock; citations = r.citations; }
-              } catch { /* notes unavailable — fall back to ungrounded answer */ }
+            let sealed = false;
+            if (s.useRag && content) {
+              if (isUnlocked()) {
+                try {
+                  const r = await retrieveVaultContext(content);
+                  if (r.contextBlock) { ragBlock = r.contextBlock; citations = r.citations; sealed = true; }
+                } catch { /* vault unreadable — try server docs next */ }
+              }
+              if (!ragBlock && s.documents.some((d) => d.status === 'READY')) {
+                try {
+                  const r = await retrieveContext(content);
+                  if (r?.contextBlock) { ragBlock = r.contextBlock; citations = r.citations; }
+                } catch { /* notes unavailable — fall back to ungrounded answer */ }
+              }
             }
 
             callbacks.onMeta({
               model: s.model, category: 'general',
-              reason: ragBlock ? 'Running on your device · grounded on your notes' : 'Running on your device',
+              reason: ragBlock
+                ? (sealed
+                    ? 'Running on your device · grounded on your sealed notes'
+                    : 'Running on your device · grounded on your notes')
+                : 'Running on your device',
               citations,
             });
             const conv = store.getState().conversations.find((c) => c.id === conversationId);

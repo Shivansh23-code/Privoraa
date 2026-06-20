@@ -41,6 +41,23 @@ export async function countVectors(namespace) {
   return countCollection(col(namespace));
 }
 
+/**
+ * Build a RAG context block from the encrypted vault notes for a query, in the
+ * same { contextBlock, citations } shape the server returns — so the on-device
+ * chat path can ground on sealed notes without anything leaving the device.
+ */
+export async function retrieveVaultContext(query, k = 4) {
+  const hits = await search('notes', query, k);
+  if (!hits.length) return { contextBlock: '', citations: [] };
+  const contextBlock = hits.map((h, i) => `[${i + 1}] ${h.text}`).join('\n\n');
+  const citations = hits.map((h, i) => ({
+    chunk: i + 1,
+    doc: 'Sealed note',
+    snippet: h.text.length > 160 ? h.text.slice(0, 160) + '…' : h.text,
+  }));
+  return { contextBlock, citations };
+}
+
 /** Semantic search: embed query, cosine-rank decrypted vectors, return top-k
  *  [{ id, text, meta, model, score }]. */
 export async function search(namespace, query, k = 5) {
