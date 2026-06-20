@@ -14,6 +14,30 @@ import { embedText, cosine } from './embeddings';
 
 const col = (ns) => `vec:${ns}`;
 
+// The namespaces the vault uses; re-index walks all of them.
+const NAMESPACES = ['notes', 'memory'];
+
+/**
+ * Re-embed every stored item with the CURRENT embedding mode and overwrite it
+ * in place (same id). Run after switching modes so the whole store uses one
+ * model — otherwise a query embedded with a different model can't match. Returns
+ * { count }. Throws if the active mode's backend is unavailable (e.g. Ollama
+ * down in 'local' mode), leaving the store untouched on the failing item.
+ */
+export async function reindexAll(onProgress) {
+  const all = [];
+  for (const ns of NAMESPACES) {
+    const items = await listCollection(col(ns));
+    for (const it of items) all.push({ ns, id: it.id, value: it.value });
+  }
+  let done = 0;
+  for (const it of all) {
+    await indexText(it.ns, it.id, it.value.text, it.value.meta || {});
+    onProgress?.(++done, all.length);
+  }
+  return { count: all.length };
+}
+
 /** Embed + store text under (namespace, id). Returns { id, model }. */
 export async function indexText(namespace, id, text, meta = {}) {
   const { vector, model } = await embedText(text);

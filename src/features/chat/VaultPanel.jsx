@@ -17,10 +17,13 @@ import {
   AlertTriangle,
   Search,
   FileUp,
+  Cpu,
 } from 'lucide-react';
 import { useVault } from '../../context/VaultContext';
-import { indexText, listTexts, removeVector, search } from '../../lib/vectorStore';
+import { indexText, listTexts, removeVector, search, reindexAll } from '../../lib/vectorStore';
 import { ingestFile, isSupported } from '../../lib/ingest';
+import { getEmbedMode, setEmbedMode, localEmbedAvailable } from '../../lib/embeddings';
+import { resetLocalOllama } from '../../lib/localOllama';
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -204,6 +207,8 @@ function UnlockedVault({ onLock, onChangePassphrase, onDestroy }) {
         allowUpload
       />
 
+      <EmbeddingControl />
+
       <button
         onClick={() => setShowChange((v) => !v)}
         className="self-start text-xs font-medium text-brand-500 hover:underline"
@@ -253,6 +258,82 @@ function ChangePassphrase({ onChange, onDone }) {
         Update passphrase
       </button>
     </div>
+  );
+}
+
+// Switch the vault's embedding backend between fast on-device hashing and neural
+// local-Ollama embeddings, re-indexing the store so it stays consistent.
+function EmbeddingControl() {
+  const [mode, setMode] = useState(getEmbedMode());
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const [err, setErr] = useState('');
+
+  const switchTo = async (next) => {
+    if (next === mode || busy) return;
+    setErr('');
+    if (next === 'local') {
+      resetLocalOllama(); // re-probe in case Ollama was just started
+      if (!(await localEmbedAvailable())) {
+        setErr('Needs Ollama running with an embed model — run: ollama pull nomic-embed-text');
+        return;
+      }
+    }
+    const prev = getEmbedMode();
+    setBusy(true);
+    setProgress({ done: 0, total: 0 });
+    try {
+      setEmbedMode(next);
+      await reindexAll((done, total) => setProgress({ done, total }));
+      setMode(next);
+    } catch (e) {
+      setEmbedMode(prev); // roll back if the re-index failed
+      setErr(e?.message || 'Could not switch embeddings.');
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface p-3">
+      <span className="flex items-center gap-1.5 text-xs font-semibold">
+        <Cpu size={13} className="text-brand-500" /> Search quality
+      </span>
+      <div className="flex gap-2">
+        <ModeBtn active={mode === 'hash'} onClick={() => switchTo('hash')} disabled={busy} title="Fast" sub="instant · offline" />
+        <ModeBtn active={mode === 'local'} onClick={() => switchTo('local')} disabled={busy} title="Neural" sub="local Ollama" />
+      </div>
+      {busy && (
+        <p className="flex items-center gap-1.5 text-xs text-muted">
+          <Loader2 size={12} className="animate-spin" />
+          Re-indexing{progress?.total ? ` ${progress.done}/${progress.total}` : ''}…
+        </p>
+      )}
+      {err && <p className="text-xs text-red-500">{err}</p>}
+      {!busy && !err && (
+        <p className="text-[11px] text-muted">
+          {mode === 'local'
+            ? 'Neural embeddings via your local Ollama — higher-quality recall, fully on-device.'
+            : 'Fast on-device matching. Switch to Neural (needs Ollama + nomic-embed-text) for better recall.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ModeBtn({ active, onClick, disabled, title, sub }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex-1 rounded-lg border px-2.5 py-1.5 text-left transition disabled:opacity-50 ${
+        active ? 'border-brand-400 bg-brand-500/10' : 'border-line bg-surface hover:bg-surface-2'
+      }`}
+    >
+      <span className="block text-xs font-semibold">{title}</span>
+      <span className="block text-[10px] text-muted">{sub}</span>
+    </button>
   );
 }
 

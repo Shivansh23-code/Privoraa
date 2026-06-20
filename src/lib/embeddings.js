@@ -1,15 +1,35 @@
 // Client-side text embeddings for the sealed vault's semantic search.
 //
-// Phase 1 uses a deterministic, dependency-free hashing embedding: it runs in
-// the browser, never touches the network, and is consistent everywhere — so the
-// encrypted vector store always searches reliably (no embedding-model/dimension
-// drift). It captures lexical overlap; it is not neural-quality.
+// Two backends, chosen by a persisted mode:
+//   'hash'  (default) — deterministic, dependency-free hashing embedding. Runs
+//           anywhere, instantly, offline; captures lexical overlap (not neural).
+//   'local' (Phase 3) — the user's local Ollama (nomic-embed-text): real neural
+//           embeddings, fully on-device, much better semantic recall.
 //
-// Phase 3 will add the user's local Ollama (nomic-embed-text) as an opt-in
-// higher-quality backend, pinned per namespace with a re-index so vectors never
-// mix dimensions. Vectors are computed here and only ever stored encrypted.
+// Either way vectors are computed in the browser and only ever stored encrypted.
+// Switching modes requires a re-index (vectorStore.reindexAll) because different
+// models produce different dimensions; mixing them would break cosine.
+
+import { ensureLocalOllama, localHasModel } from './localOllama';
 
 const HASH_DIM = 256;
+const MODE_KEY = 'privoraa-embed-mode';
+const LOCAL_EMBED_MODEL = 'nomic-embed-text';
+
+export function getEmbedMode() {
+  try {
+    return localStorage.getItem(MODE_KEY) === 'local' ? 'local' : 'hash';
+  } catch {
+    return 'hash';
+  }
+}
+export function setEmbedMode(mode) {
+  try {
+    localStorage.setItem(MODE_KEY, mode === 'local' ? 'local' : 'hash');
+  } catch {
+    /* ignore */
+  }
+}
 
 function l2normalize(v) {
   let s = 0;
@@ -20,8 +40,7 @@ function l2normalize(v) {
 }
 
 // Tokenize → signed-hash tokens into fixed buckets with tf weighting →
-// L2-normalize. Signed hashing cancels some collisions; normalization makes
-// cosine a plain dot product.
+// L2-normalize. Signed hashing cancels some collisions.
 function hashEmbed(text) {
   const v = new Array(HASH_DIM).fill(0);
   const toks = String(text).toLowerCase().match(/[a-z0-9]+/g) || [];
@@ -37,9 +56,46 @@ function hashEmbed(text) {
   return l2normalize(v);
 }
 
-/** Embed text → { vector, model }. Never throws. */
+function pickEmbedModel(local) {
+  if (localHasModel(local, LOCAL_EMBED_MODEL)) return LOCAL_EMBED_MODEL;
+  return local.models.find((m) => /embed/i.test(m)) || null;
+}
+
+async function ollamaEmbed(text) {
+  const local = await ensureLocalOllama();
+  if (!local) throw new Error('Local Ollama is not reachable — start it or switch to Fast embeddings.');
+  const model = pickEmbedModel(local);
+  if (!model) throw new Error('No embedding model installed. Run: ollama pull nomic-embed-text');
+  const res = await fetch(`${local.base}/api/embed`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, input: text }),
+  });
+  if (!res.ok) throw new Error(`Local embedding failed (HTTP ${res.status}).`);
+  const data = await res.json();
+  const vec = data.embeddings?.[0] || data.embedding;
+  if (!Array.isArray(vec) || !vec.length) throw new Error('Local model returned no embedding.');
+  return { vector: l2normalize(vec.slice()), model: `ollama:${model}` };
+}
+
+/**
+ * Embed text → { vector, model }. In 'local' mode this hits Ollama and THROWS if
+ * it's unavailable (callers fall back / surface a clear message) rather than
+ * silently producing a mismatched hash vector that would corrupt the store.
+ */
 export async function embedText(text) {
+  if (getEmbedMode() === 'local') return ollamaEmbed(text);
   return { vector: hashEmbed(text), model: `hash:${HASH_DIM}` };
+}
+
+/** Is local neural embedding usable right now? (Ollama up + an embed model pulled) */
+export async function localEmbedAvailable() {
+  try {
+    const local = await ensureLocalOllama();
+    return !!(local && pickEmbedModel(local));
+  } catch {
+    return false;
+  }
 }
 
 /** Cosine similarity of two L2-normalized vectors (0 if shapes differ). */
