@@ -19,10 +19,10 @@ public record GeminiProperties(
             baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai";
         }
         if (codeModel == null || codeModel.isBlank()) {
-            codeModel = "gemini-2.5-flash";
+            codeModel = "gemini-2.0-flash";
         }
         if (fallbackModel == null || fallbackModel.isBlank()) {
-            fallbackModel = "gemini-2.0-flash";
+            fallbackModel = "gemini-2.5-flash";
         }
     }
 
