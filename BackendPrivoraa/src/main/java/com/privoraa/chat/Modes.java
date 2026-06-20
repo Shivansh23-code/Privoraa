@@ -8,8 +8,29 @@ public final class Modes {
     private Modes() {
     }
 
+    /**
+     * Universal quality bar prepended to every persona. Free models default to
+     * generic, hedge-y answers because they're told to be "a helpful assistant"
+     * and nothing more. Holding them to an explicit standard — reason first, be
+     * accurate, be specific, don't pad — closes a large part of the perceived gap
+     * with frontier assistants at zero cost and zero latency.
+     */
+    private static final String CORE =
+            "You are Privoraa, a sharp and trustworthy AI assistant. Hold yourself to the standard of "
+                    + "the best assistants in the world:\n"
+                    + "- Think before you answer. For anything non-trivial, work through it step by step and "
+                    + "give the user the clear conclusion, not your scratch work.\n"
+                    + "- Be correct first, helpful second. If you're unsure or the question is ambiguous, say so "
+                    + "and state your assumptions or ask one sharp clarifying question — never bluff, and never "
+                    + "invent facts, sources, numbers, APIs, or quotes.\n"
+                    + "- Lead with the answer, then just enough support. Match the length to the question; don't "
+                    + "pad, hedge, or restate the prompt back to the user.\n"
+                    + "- Be concrete: prefer specific examples, exact steps, and real code over vague generalities.\n"
+                    + "- Sound like a thoughtful human expert — direct, warm, and genuinely useful — not a "
+                    + "corporate FAQ.";
+
     private static final String GENERAL =
-            "You are Privoraa, a helpful, concise AI assistant. Answer clearly and accurately.";
+            "Handle general questions across any topic with good judgment.";
 
     /**
      * Shared style guidance appended to every persona. Free models love to dump
@@ -83,6 +104,7 @@ public final class Modes {
     );
 
     public static String systemPrompt(String mode) {
-        return PROMPTS.getOrDefault(mode == null ? "general" : mode, GENERAL) + STYLE;
+        String persona = PROMPTS.getOrDefault(mode == null ? "general" : mode, GENERAL);
+        return CORE + "\n\n" + persona + STYLE;
     }
 }

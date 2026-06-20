@@ -39,7 +39,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class ChatService {
 
     private static final Logger log = LoggerFactory.getLogger(ChatService.class);
-    private static final double TEMPERATURE = 0.7;
 
     private final RateLimitService rateLimit;
     private final ConversationService conversations;
@@ -101,7 +100,7 @@ public class ChatService {
         send(emitter, "meta", metaPayload(modelName, p));
 
         AtomicBoolean emitted = new AtomicBoolean(false);
-        p.provider().streamChat(modelId, p.messages(), new ChatOptions(TEMPERATURE, null))
+        p.provider().streamChat(modelId, p.messages(), p.options())
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
                         delta -> {
@@ -139,7 +138,7 @@ public class ChatService {
         Exception last = null;
         for (String modelId : p.chain()) {
             try {
-                result = p.provider().chat(modelId, p.messages(), new ChatOptions(TEMPERATURE, null));
+                result = p.provider().chat(modelId, p.messages(), p.options());
                 usedModel = nameOf(modelId);
                 break;
             } catch (Exception e) {
@@ -193,8 +192,12 @@ public class ChatService {
                 mode, history, rag, req.hasImage() ? req.image() : null);
         int promptTokens = promptBuilder.estimatePromptTokens(messages);
 
+        // Task-aware sampling: e.g. low temperature for code/math, a touch warmer
+        // for open-ended chat — tuned off the routed category.
+        ChatOptions options = ChatOptions.forCategory(routed.category());
+
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
-                routed.chain(), provider);
+                routed.chain(), provider, options);
     }
 
     /** The provider for this request: the picker's choice, else the server default. */
@@ -262,6 +265,7 @@ public class ChatService {
             List<Map<String, Object>> messages,
             int promptTokens,
             List<String> chain,
-            LlmProvider provider
+            LlmProvider provider,
+            ChatOptions options
     ) {}
 }

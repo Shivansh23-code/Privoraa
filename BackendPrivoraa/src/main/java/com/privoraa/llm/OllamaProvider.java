@@ -136,11 +136,22 @@ public class OllamaProvider implements LlmProvider {
                                          ChatOptions opts, boolean stream) {
         Map<String, Object> options = new LinkedHashMap<>();
         options.put("num_ctx", props.numCtx());
-        if (opts != null && opts.temperature() != null) {
-            options.put("temperature", opts.temperature());
-        }
-        if (opts != null && opts.maxTokens() != null) {
-            options.put("num_predict", opts.maxTokens());
+        if (opts != null) {
+            if (opts.temperature() != null) {
+                options.put("temperature", opts.temperature());
+            }
+            if (opts.maxTokens() != null) {
+                options.put("num_predict", opts.maxTokens());
+            }
+            if (opts.topP() != null) {
+                options.put("top_p", opts.topP());
+            }
+            if (opts.frequencyPenalty() != null) {
+                options.put("frequency_penalty", opts.frequencyPenalty());
+            }
+            if (opts.presencePenalty() != null) {
+                options.put("presence_penalty", opts.presencePenalty());
+            }
         }
 
         Map<String, Object> body = new LinkedHashMap<>();

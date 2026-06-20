@@ -30,16 +30,12 @@ public class OpenRouterProvider implements LlmProvider {
 
     @Override
     public Flux<String> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
-        Double temp = opts == null ? null : opts.temperature();
-        Integer max = opts == null ? null : opts.maxTokens();
-        return client.streamCompletion(model, messages, temp, max);
+        return client.streamCompletion(model, messages, opts);
     }
 
     @Override
     public ChatResult chat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
-        Double temp = opts == null ? null : opts.temperature();
-        Integer max = opts == null ? null : opts.maxTokens();
-        return client.completion(model, messages, temp, max);
+        return client.completion(model, messages, opts);
     }
 
     @Override

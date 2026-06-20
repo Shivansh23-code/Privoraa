@@ -41,10 +41,15 @@ public class OpenRouterClient {
     /** Stream a chat completion, emitting each content delta as it arrives. */
     public Flux<String> streamCompletion(String model, List<Map<String, Object>> messages,
                                          Double temperature, Integer maxTokens) {
+        return streamCompletion(model, messages, new ChatOptions(temperature, maxTokens));
+    }
+
+    /** Stream a chat completion with full sampling options. */
+    public Flux<String> streamCompletion(String model, List<Map<String, Object>> messages, ChatOptions opts) {
         if (!props.configured()) {
             return Flux.error(notConfigured());
         }
-        Map<String, Object> body = buildBody(model, messages, temperature, maxTokens, true);
+        Map<String, Object> body = buildBody(model, messages, opts, true);
         return webClient.post()
                 .uri("/chat/completions")
                 .accept(MediaType.TEXT_EVENT_STREAM)
@@ -81,10 +86,20 @@ public class OpenRouterClient {
     @Retry(name = "openrouter")
     public ChatResult completion(String model, List<Map<String, Object>> messages,
                                  Double temperature, Integer maxTokens) {
+        return completionWithOptions(model, messages, new ChatOptions(temperature, maxTokens));
+    }
+
+    /** Non-streaming completion with full sampling options. */
+    @Retry(name = "openrouter")
+    public ChatResult completion(String model, List<Map<String, Object>> messages, ChatOptions opts) {
+        return completionWithOptions(model, messages, opts);
+    }
+
+    private ChatResult completionWithOptions(String model, List<Map<String, Object>> messages, ChatOptions opts) {
         if (!props.configured()) {
             throw notConfigured();
         }
-        Map<String, Object> body = buildBody(model, messages, temperature, maxTokens, false);
+        Map<String, Object> body = buildBody(model, messages, opts, false);
         JsonNode resp = webClient.post()
                 .uri("/chat/completions")
                 .bodyValue(body)
@@ -143,16 +158,27 @@ public class OpenRouterClient {
     }
 
     private Map<String, Object> buildBody(String model, List<Map<String, Object>> messages,
-                                          Double temperature, Integer maxTokens, boolean stream) {
+                                          ChatOptions opts, boolean stream) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", model);
         body.put("messages", messages);
         body.put("stream", stream);
-        if (temperature != null) {
-            body.put("temperature", temperature);
-        }
-        if (maxTokens != null) {
-            body.put("max_tokens", maxTokens);
+        if (opts != null) {
+            if (opts.temperature() != null) {
+                body.put("temperature", opts.temperature());
+            }
+            if (opts.maxTokens() != null) {
+                body.put("max_tokens", opts.maxTokens());
+            }
+            if (opts.topP() != null) {
+                body.put("top_p", opts.topP());
+            }
+            if (opts.frequencyPenalty() != null) {
+                body.put("frequency_penalty", opts.frequencyPenalty());
+            }
+            if (opts.presencePenalty() != null) {
+                body.put("presence_penalty", opts.presencePenalty());
+            }
         }
         return body;
     }
