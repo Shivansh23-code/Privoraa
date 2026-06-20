@@ -58,6 +58,15 @@ export async function retrieveVaultContext(query, k = 4) {
   return { contextBlock, citations };
 }
 
+/**
+ * Recall the most relevant durable "memories" for a query, as a plain bullet
+ * block (soft background context, not strict RAG). Returns '' if none.
+ */
+export async function retrieveMemory(query, k = 4) {
+  const hits = await search('memory', query, k);
+  return hits.map((h) => `- ${h.text}`).join('\n');
+}
+
 /** Semantic search: embed query, cosine-rank decrypted vectors, return top-k
  *  [{ id, text, meta, model, score }]. */
 export async function search(namespace, query, k = 5) {

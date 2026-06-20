@@ -20,7 +20,6 @@ import {
 import { useVault } from '../../context/VaultContext';
 import { indexText, listTexts, removeVector, search } from '../../lib/vectorStore';
 
-const NOTES = 'notes';
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -189,7 +188,18 @@ function UnlockedVault({ onLock, onChangePassphrase, onDestroy }) {
         </button>
       </div>
 
-      <Notes />
+      <VaultItems
+        namespace="memory"
+        label="Memories"
+        placeholder="A fact to remember about you…"
+        hint="auto-recalled in on-device chats"
+      />
+      <VaultItems
+        namespace="notes"
+        label="Private notes"
+        placeholder="Write something private…"
+        hint="encrypted on this device"
+      />
 
       <button
         onClick={() => setShowChange((v) => !v)}
@@ -243,7 +253,9 @@ function ChangePassphrase({ onChange, onDone }) {
   );
 }
 
-function Notes() {
+// A reusable encrypted-item list (used for both Memories and Notes — same store,
+// different namespace). Add / semantic-search / delete, all on-device.
+function VaultItems({ namespace, label, placeholder, hint }) {
   const [items, setItems] = useState(null); // null = loading
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -252,38 +264,38 @@ function Notes() {
 
   const load = useCallback(async () => {
     try {
-      setItems(await listTexts(NOTES));
+      setItems(await listTexts(namespace));
     } catch {
       setItems([]);
     }
-  }, []);
+  }, [namespace]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   // Semantic search runs entirely on-device over the decrypted vectors. Cheap
-  // for a personal vault, so just re-run whenever the query or notes change.
+  // for a personal vault, so just re-run whenever the query or items change.
   useEffect(() => {
     let alive = true;
     if (!q.trim()) {
       setResults(null);
       return undefined;
     }
-    search(NOTES, q, 5)
+    search(namespace, q, 5)
       .then((r) => alive && setResults(r))
       .catch(() => alive && setResults([]));
     return () => {
       alive = false;
     };
-  }, [q, items]);
+  }, [q, items, namespace]);
 
   const add = async () => {
     const text = draft.trim();
     if (!text) return;
     setBusy(true);
     try {
-      await indexText(NOTES, uid(), text);
+      await indexText(namespace, uid(), text);
       setDraft('');
       await load();
     } finally {
@@ -301,33 +313,33 @@ function Notes() {
   return (
     <div className="flex flex-col gap-2">
       <span className="text-xs font-medium text-muted">
-        Private notes {items ? `(${items.length})` : ''} — encrypted on this device
+        {label} {items ? `(${items.length})` : ''} — {hint}
       </span>
       <div className="flex gap-2">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="Write something private…"
+          placeholder={placeholder}
           className={`${inputCls} flex-1`}
         />
         <button
           onClick={add}
           disabled={busy || !draft.trim()}
           className="flex items-center justify-center rounded-lg bg-brand-600 px-3 text-white transition hover:bg-brand-700 disabled:opacity-50"
-          title="Save encrypted note"
+          title="Save (encrypted)"
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={16} />}
         </button>
       </div>
 
-      {items && items.length > 0 && (
+      {items && items.length > 2 && (
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search your notes…"
+            placeholder={`Search ${label.toLowerCase()}…`}
             className={`${inputCls} w-full pl-8`}
           />
         </div>
@@ -350,7 +362,7 @@ function Notes() {
                 <button
                   onClick={() => del(it.id)}
                   className="text-muted opacity-0 transition hover:text-red-500 group-hover:opacity-100"
-                  title="Delete note"
+                  title="Delete"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -361,7 +373,7 @@ function Notes() {
       )}
 
       {results && results.length === 0 && q.trim() && (
-        <p className="text-xs text-muted">No matching notes.</p>
+        <p className="text-xs text-muted">No matches.</p>
       )}
     </div>
   );

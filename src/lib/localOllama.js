@@ -55,9 +55,16 @@ export function localHasModel(local, tag) {
 /** Build the Ollama /api/chat message array from the conversation history.
  *  When ragBlock is provided (the user's retrieved notes), it's grounded into the
  *  system prompt with the same instruction the server uses, so on-device answers
- *  cite the notes instead of ignoring them. */
-export function buildLocalMessages(history, content, ragBlock = null) {
+ *  cite the notes instead of ignoring them. When memoryBlock is provided (durable
+ *  facts the user asked to be remembered), it's added as soft background — used
+ *  when relevant, not recited. Both come from the sealed vault, on-device. */
+export function buildLocalMessages(history, content, ragBlock = null, memoryBlock = null) {
   let system = LOCAL_SYSTEM;
+  if (memoryBlock && memoryBlock.trim()) {
+    system +=
+      '\n\nThings you remember about this user (use them when relevant; do not list ' +
+      'them back unprompted):\n' + memoryBlock;
+  }
   if (ragBlock && ragBlock.trim()) {
     system +=
       '\n\nThe user has provided notes. Answer using ONLY the context below and cite sources ' +
