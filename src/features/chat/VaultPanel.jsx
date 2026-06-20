@@ -6,7 +6,7 @@
 // Note: this surface is independent of the chat stream. It only reads/writes the
 // vault's own encrypted store; it does not touch conversation persistence.
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   ShieldCheck,
   Lock,
@@ -16,11 +16,15 @@ import {
   Loader2,
   AlertTriangle,
   Search,
+  FileUp,
+  Cpu,
 } from 'lucide-react';
 import { useVault } from '../../context/VaultContext';
-import { indexText, listTexts, removeVector, search } from '../../lib/vectorStore';
+import { indexText, listTexts, removeVector, search, reindexAll } from '../../lib/vectorStore';
+import { ingestFile, isSupported } from '../../lib/ingest';
+import { getEmbedMode, setEmbedMode, localEmbedAvailable } from '../../lib/embeddings';
+import { resetLocalOllama } from '../../lib/localOllama';
 
-const NOTES = 'notes';
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -189,7 +193,21 @@ function UnlockedVault({ onLock, onChangePassphrase, onDestroy }) {
         </button>
       </div>
 
-      <Notes />
+      <VaultItems
+        namespace="memory"
+        label="Memories"
+        placeholder="A fact to remember about you…"
+        hint="auto-recalled in on-device chats"
+      />
+      <VaultItems
+        namespace="notes"
+        label="Private notes"
+        placeholder="Write something private…"
+        hint="encrypted on this device"
+        allowUpload
+      />
+
+      <EmbeddingControl />
 
       <button
         onClick={() => setShowChange((v) => !v)}
@@ -243,7 +261,144 @@ function ChangePassphrase({ onChange, onDone }) {
   );
 }
 
-function Notes() {
+// Switch the vault's embedding backend between fast on-device hashing and neural
+// local-Ollama embeddings, re-indexing the store so it stays consistent.
+function EmbeddingControl() {
+  const [mode, setMode] = useState(getEmbedMode());
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const [err, setErr] = useState('');
+
+  const switchTo = async (next) => {
+    if (next === mode || busy) return;
+    setErr('');
+    if (next === 'local') {
+      resetLocalOllama(); // re-probe in case Ollama was just started
+      if (!(await localEmbedAvailable())) {
+        setErr('Needs Ollama running with an embed model — run: ollama pull nomic-embed-text');
+        return;
+      }
+    }
+    const prev = getEmbedMode();
+    setBusy(true);
+    setProgress({ done: 0, total: 0 });
+    try {
+      setEmbedMode(next);
+      await reindexAll((done, total) => setProgress({ done, total }));
+      setMode(next);
+    } catch (e) {
+      setEmbedMode(prev); // roll back if the re-index failed
+      setErr(e?.message || 'Could not switch embeddings.');
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border border-line bg-surface p-3">
+      <span className="flex items-center gap-1.5 text-xs font-semibold">
+        <Cpu size={13} className="text-brand-500" /> Search quality
+      </span>
+      <div className="flex gap-2">
+        <ModeBtn active={mode === 'hash'} onClick={() => switchTo('hash')} disabled={busy} title="Fast" sub="instant · offline" />
+        <ModeBtn active={mode === 'local'} onClick={() => switchTo('local')} disabled={busy} title="Neural" sub="local Ollama" />
+      </div>
+      {busy && (
+        <p className="flex items-center gap-1.5 text-xs text-muted">
+          <Loader2 size={12} className="animate-spin" />
+          Re-indexing{progress?.total ? ` ${progress.done}/${progress.total}` : ''}…
+        </p>
+      )}
+      {err && <p className="text-xs text-red-500">{err}</p>}
+      {!busy && !err && (
+        <p className="text-[11px] text-muted">
+          {mode === 'local'
+            ? 'Neural embeddings via your local Ollama — higher-quality recall, fully on-device.'
+            : 'Fast on-device matching. Switch to Neural (needs Ollama + nomic-embed-text) for better recall.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ModeBtn({ active, onClick, disabled, title, sub }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex-1 rounded-lg border px-2.5 py-1.5 text-left transition disabled:opacity-50 ${
+        active ? 'border-brand-400 bg-brand-500/10' : 'border-line bg-surface hover:bg-surface-2'
+      }`}
+    >
+      <span className="block text-xs font-semibold">{title}</span>
+      <span className="block text-[10px] text-muted">{sub}</span>
+    </button>
+  );
+}
+
+// Drop a PDF or text/markdown file → extracted + chunked + indexed into the
+// encrypted vault entirely on-device. Nothing is uploaded.
+function IngestControl({ namespace, onDone }) {
+  const ref = useRef(null);
+  const [status, setStatus] = useState(null); // { busy, done, total, name, error, ok }
+
+  const onPick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file
+    if (!file) return;
+    if (!isSupported(file)) {
+      setStatus({ error: 'Use a PDF or a text/markdown file.' });
+      return;
+    }
+    setStatus({ busy: true, name: file.name, done: 0, total: 0 });
+    try {
+      const { chunks } = await ingestFile(file, {
+        namespace,
+        onProgress: (done, total) => setStatus({ busy: true, name: file.name, done, total }),
+      });
+      setStatus({ ok: true, name: file.name, total: chunks });
+      onDone?.();
+    } catch (err) {
+      setStatus({ error: err?.message || 'Could not read that file.' });
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        onClick={() => ref.current?.click()}
+        disabled={status?.busy}
+        className="flex w-fit items-center gap-1.5 rounded-lg border border-dashed border-line px-2.5 py-1.5 text-xs font-medium text-muted transition hover:border-brand-400 hover:text-fg disabled:opacity-50"
+      >
+        {status?.busy ? <Loader2 size={13} className="animate-spin" /> : <FileUp size={13} />}
+        Add a document (PDF / text)
+      </button>
+      <input
+        ref={ref}
+        type="file"
+        accept=".pdf,.txt,.md,.markdown,.csv,.tsv,.json,.jsonl,.log,.yml,.yaml,.html,.htm,.xml,.rtf,text/*,application/pdf"
+        className="hidden"
+        onChange={onPick}
+      />
+      {status?.busy && (
+        <p className="text-xs text-muted">
+          Reading {status.name}…{status.total ? ` indexed ${status.done}/${status.total}` : ''}
+        </p>
+      )}
+      {status?.ok && (
+        <p className="text-xs text-emerald-500">
+          Added {status.name} — {status.total} encrypted chunk{status.total === 1 ? '' : 's'}.
+        </p>
+      )}
+      {status?.error && <p className="text-xs text-red-500">{status.error}</p>}
+    </div>
+  );
+}
+
+// A reusable encrypted-item list (used for both Memories and Notes — same store,
+// different namespace). Add / semantic-search / delete, all on-device.
+function VaultItems({ namespace, label, placeholder, hint, allowUpload = false }) {
   const [items, setItems] = useState(null); // null = loading
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -252,38 +407,38 @@ function Notes() {
 
   const load = useCallback(async () => {
     try {
-      setItems(await listTexts(NOTES));
+      setItems(await listTexts(namespace));
     } catch {
       setItems([]);
     }
-  }, []);
+  }, [namespace]);
 
   useEffect(() => {
     load();
   }, [load]);
 
   // Semantic search runs entirely on-device over the decrypted vectors. Cheap
-  // for a personal vault, so just re-run whenever the query or notes change.
+  // for a personal vault, so just re-run whenever the query or items change.
   useEffect(() => {
     let alive = true;
     if (!q.trim()) {
       setResults(null);
       return undefined;
     }
-    search(NOTES, q, 5)
+    search(namespace, q, 5)
       .then((r) => alive && setResults(r))
       .catch(() => alive && setResults([]));
     return () => {
       alive = false;
     };
-  }, [q, items]);
+  }, [q, items, namespace]);
 
   const add = async () => {
     const text = draft.trim();
     if (!text) return;
     setBusy(true);
     try {
-      await indexText(NOTES, uid(), text);
+      await indexText(namespace, uid(), text);
       setDraft('');
       await load();
     } finally {
@@ -301,33 +456,35 @@ function Notes() {
   return (
     <div className="flex flex-col gap-2">
       <span className="text-xs font-medium text-muted">
-        Private notes {items ? `(${items.length})` : ''} — encrypted on this device
+        {label} {items ? `(${items.length})` : ''} — {hint}
       </span>
       <div className="flex gap-2">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && add()}
-          placeholder="Write something private…"
+          placeholder={placeholder}
           className={`${inputCls} flex-1`}
         />
         <button
           onClick={add}
           disabled={busy || !draft.trim()}
           className="flex items-center justify-center rounded-lg bg-brand-600 px-3 text-white transition hover:bg-brand-700 disabled:opacity-50"
-          title="Save encrypted note"
+          title="Save (encrypted)"
         >
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Plus size={16} />}
         </button>
       </div>
 
-      {items && items.length > 0 && (
+      {allowUpload && <IngestControl namespace={namespace} onDone={load} />}
+
+      {items && items.length > 2 && (
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search your notes…"
+            placeholder={`Search ${label.toLowerCase()}…`}
             className={`${inputCls} w-full pl-8`}
           />
         </div>
@@ -350,7 +507,7 @@ function Notes() {
                 <button
                   onClick={() => del(it.id)}
                   className="text-muted opacity-0 transition hover:text-red-500 group-hover:opacity-100"
-                  title="Delete note"
+                  title="Delete"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -361,7 +518,7 @@ function Notes() {
       )}
 
       {results && results.length === 0 && q.trim() && (
-        <p className="text-xs text-muted">No matching notes.</p>
+        <p className="text-xs text-muted">No matches.</p>
       )}
     </div>
   );

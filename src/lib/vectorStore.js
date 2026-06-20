@@ -14,6 +14,30 @@ import { embedText, cosine } from './embeddings';
 
 const col = (ns) => `vec:${ns}`;
 
+// The namespaces the vault uses; re-index walks all of them.
+const NAMESPACES = ['notes', 'memory'];
+
+/**
+ * Re-embed every stored item with the CURRENT embedding mode and overwrite it
+ * in place (same id). Run after switching modes so the whole store uses one
+ * model — otherwise a query embedded with a different model can't match. Returns
+ * { count }. Throws if the active mode's backend is unavailable (e.g. Ollama
+ * down in 'local' mode), leaving the store untouched on the failing item.
+ */
+export async function reindexAll(onProgress) {
+  const all = [];
+  for (const ns of NAMESPACES) {
+    const items = await listCollection(col(ns));
+    for (const it of items) all.push({ ns, id: it.id, value: it.value });
+  }
+  let done = 0;
+  for (const it of all) {
+    await indexText(it.ns, it.id, it.value.text, it.value.meta || {});
+    onProgress?.(++done, all.length);
+  }
+  return { count: all.length };
+}
+
 /** Embed + store text under (namespace, id). Returns { id, model }. */
 export async function indexText(namespace, id, text, meta = {}) {
   const { vector, model } = await embedText(text);
@@ -52,10 +76,19 @@ export async function retrieveVaultContext(query, k = 4) {
   const contextBlock = hits.map((h, i) => `[${i + 1}] ${h.text}`).join('\n\n');
   const citations = hits.map((h, i) => ({
     chunk: i + 1,
-    doc: 'Sealed note',
+    doc: h.meta?.source || 'Sealed note',
     snippet: h.text.length > 160 ? h.text.slice(0, 160) + '…' : h.text,
   }));
   return { contextBlock, citations };
+}
+
+/**
+ * Recall the most relevant durable "memories" for a query, as a plain bullet
+ * block (soft background context, not strict RAG). Returns '' if none.
+ */
+export async function retrieveMemory(query, k = 4) {
+  const hits = await search('memory', query, k);
+  return hits.map((h) => `- ${h.text}`).join('\n');
 }
 
 /** Semantic search: embed query, cosine-rank decrypted vectors, return top-k

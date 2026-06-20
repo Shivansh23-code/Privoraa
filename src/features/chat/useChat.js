@@ -5,7 +5,7 @@ import { useCallback, useRef } from 'react';
 import { useChatStore } from '../../store/chatStore';
 import { streamChat } from '../../lib/chatService';
 import { retrieveContext } from '../../lib/ragService';
-import { retrieveVaultContext } from '../../lib/vectorStore';
+import { retrieveVaultContext, retrieveMemory } from '../../lib/vectorStore';
 import { isUnlocked } from '../../lib/vaultBridge';
 import {
   ensureLocalOllama, localHasModel, streamLocalOllamaChat, buildLocalMessages,
@@ -115,19 +115,30 @@ export function useChat(catalog) {
               }
             }
 
-            callbacks.onMeta({
-              model: s.model, category: 'general',
-              reason: ragBlock
-                ? (sealed
-                    ? 'Running on your device · grounded on your sealed notes'
-                    : 'Running on your device · grounded on your notes')
-                : 'Running on your device',
-              citations,
-            });
+            // Sealed memory: auto-recall durable facts about the user whenever the
+            // vault is unlocked (not gated on "use my notes") — on-device only.
+            let memoryBlock = null;
+            if (isUnlocked() && content) {
+              try {
+                const m = await retrieveMemory(content);
+                if (m) memoryBlock = m;
+              } catch { /* memory unavailable — continue without it */ }
+            }
+
+            let reason = 'Running on your device';
+            if (memoryBlock && ragBlock) reason += ' · using your memory + notes';
+            else if (memoryBlock) reason += ' · using your memory';
+            else if (ragBlock) reason += sealed ? ' · grounded on your sealed notes' : ' · grounded on your notes';
+
+            callbacks.onMeta({ model: s.model, category: 'general', reason, citations });
             const conv = store.getState().conversations.find((c) => c.id === conversationId);
             const history = (conv?.messages || []).filter((m) => m.id !== assistantId);
             await streamLocalOllamaChat(
-              { base: local.base, model: s.model, messages: buildLocalMessages(history, null, ragBlock) },
+              {
+                base: local.base,
+                model: s.model,
+                messages: buildLocalMessages(history, null, ragBlock, memoryBlock),
+              },
               callbacks
             );
           }
