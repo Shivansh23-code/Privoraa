@@ -9,6 +9,7 @@ import com.privoraa.conversation.ConversationService;
 import com.privoraa.conversation.Message;
 import com.privoraa.conversation.dto.MessageDto;
 import com.privoraa.catalog.ActiveModelService;
+import com.privoraa.config.GeminiProperties;
 import com.privoraa.llm.ChatOptions;
 import com.privoraa.llm.ChatResult;
 import com.privoraa.llm.LlmProvider;
@@ -50,11 +51,12 @@ public class ChatService {
     private final LlmProviderResolver providers;
     private final ActiveModelService activeModel;
     private final ModelCatalogService catalog;
+    private final GeminiProperties gemini;
 
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
                        OfflineRouter offlineRouter, RagService ragService, DocumentService documentService,
                        PromptBuilder promptBuilder, LlmProviderResolver providers, ActiveModelService activeModel,
-                       ModelCatalogService catalog) {
+                       ModelCatalogService catalog, GeminiProperties gemini) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
@@ -65,6 +67,7 @@ public class ChatService {
         this.providers = providers;
         this.activeModel = activeModel;
         this.catalog = catalog;
+        this.gemini = gemini;
     }
 
     // ----------------------------------------------------------------- streaming
@@ -187,6 +190,16 @@ public class ChatService {
                         ? router.visionRoute(req.content())
                         : router.resolve(req.model(), req.content(), mode, useRag));
 
+        // Free coding upgrade: send "auto" online coding requests to Gemini — a far
+        // stronger free coder than the OpenRouter free tier — when a key is set.
+        // Offline/local requests stay local (privacy); an explicit model pick wins.
+        if (!offline && "code".equals(routed.category()) && gemini.configured() && isAuto(req.model())) {
+            provider = providers.byId("gemini");
+            routed = new Routed(gemini.codeModel(), gemini.codeModel(), "code",
+                    "Routed to Gemini for stronger coding",
+                    List.of(gemini.codeModel(), gemini.fallbackModel()));
+        }
+
         List<Message> history = conversations.messages(conversationId);
         List<Map<String, Object>> messages = promptBuilder.build(
                 mode, history, rag, req.hasImage() ? req.image() : null);
@@ -233,6 +246,11 @@ public class ChatService {
 
     private String nameOf(String modelId) {
         return catalog.find(modelId).map(com.privoraa.model.ModelDto::name).orElse(modelId);
+    }
+
+    /** True when the user left the model picker on "auto" (no explicit model). */
+    private static boolean isAuto(String model) {
+        return model == null || model.isBlank() || "auto".equalsIgnoreCase(model);
     }
 
     private void send(SseEmitter emitter, String event, Object data) {
