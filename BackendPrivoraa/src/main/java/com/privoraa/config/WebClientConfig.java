@@ -31,6 +31,23 @@ public class WebClientConfig {
     }
 
     /**
+     * WebClient pointed at Google Gemini's OpenAI-compatible endpoint. The key
+     * lives only here, server-side. Used as a stronger free coding backend; the
+     * header is only attached when a key is configured.
+     */
+    @Bean
+    public WebClient geminiWebClient(GeminiProperties props) {
+        WebClient.Builder builder = WebClient.builder()
+                .baseUrl(props.baseUrl())
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(8 * 1024 * 1024));
+        if (props.configured()) {
+            builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + props.apiKey());
+        }
+        return builder.build();
+    }
+
+    /**
      * WebClient pointed at the local Ollama server. No auth (Ollama is
      * unauthenticated on localhost). Streaming and embeddings can be large,
      * so the in-memory buffer is bumped like the OpenRouter client.
