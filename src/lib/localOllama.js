@@ -52,6 +52,60 @@ export function localHasModel(local, tag) {
   return local.models.some((m) => m === tag || norm(m) === norm(tag));
 }
 
+/**
+ * Pull a model straight into the user's OWN Ollama from the browser. The cloud
+ * backend can't reach localhost:11434, so in production this is the ONLY way to
+ * download into the user's local Ollama. Streams NDJSON progress.
+ */
+export async function pullLocalOllama(base = DEFAULT_BASE, tag, { onProgress, signal } = {}) {
+  let res;
+  try {
+    res = await fetch(`${base}/api/pull`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: tag, stream: true }),
+      signal,
+    });
+  } catch {
+    throw new Error('Could not reach your local Ollama. Is it running with this site allowed in OLLAMA_ORIGINS?');
+  }
+  if (!res.ok || !res.body) throw new Error(`Pull failed to start (${res.status}).`);
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += dec.decode(value, { stream: true });
+    let nl;
+    while ((nl = buffer.indexOf('\n')) !== -1) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line) continue;
+      let obj;
+      try { obj = JSON.parse(line); } catch { continue; }
+      if (obj.error) throw new Error(obj.error);
+      const total = obj.total || 0;
+      const completed = obj.completed || 0;
+      const percent = total > 0 ? Math.round((completed / total) * 100) : obj.status === 'success' ? 100 : 0;
+      onProgress?.({ status: obj.status || '', completed, total, percent });
+      if (obj.status === 'success') return { tag, percent: 100 };
+    }
+  }
+  return { tag, percent: 100 };
+}
+
+/** Delete a model from the user's own Ollama (browser-direct). */
+export async function deleteLocalOllama(base = DEFAULT_BASE, tag) {
+  const res = await fetch(`${base}/api/delete`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: tag }),
+  });
+  if (!res.ok) throw new Error(`Delete failed (${res.status}).`);
+}
+
 /** Build the Ollama /api/chat message array from the conversation history.
  *  When ragBlock is provided (the user's retrieved notes), it's grounded into the
  *  system prompt with the same instruction the server uses, so on-device answers

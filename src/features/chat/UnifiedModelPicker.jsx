@@ -5,7 +5,9 @@ import {
 } from 'lucide-react';
 import { useClickOutside } from './useClickOutside';
 import { fetchCatalog, setActiveModel } from '../../lib/modelCatalogService';
-import { ensureLocalOllama, localHasModel, resetLocalOllama } from '../../lib/localOllama';
+import {
+  ensureLocalOllama, localHasModel, resetLocalOllama, pullLocalOllama,
+} from '../../lib/localOllama';
 
 const SITE_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
 // Ollama is desktop-only (Win/Mac/Linux). On phones there's no localhost:11434 to
@@ -78,7 +80,9 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
   const [switching, setSwitching] = useState(null);
   const [browserOllama, setBrowserOllama] = useState(null); // user's own Ollama, reachable from the browser
   const [probing, setProbing] = useState(false); // detection in flight (vs. "detected = null")
-  const ref = useClickOutside(() => setOpen(false), open);
+  const [pulls, setPulls] = useState({}); // tag -> { percent, status } during a browser-direct download
+  // Don't let an outside click close the dropdown while a download is streaming.
+  const ref = useClickOutside(() => { if (!Object.keys(pulls).length) setOpen(false); }, open);
 
   // Ollama is the live local backend (not merely "the active cloud provider is up").
   const ollamaLive = localLlm?.provider === 'ollama' && !!localLlm?.online;
@@ -125,20 +129,47 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
   const close = () => setOpen(false);
   const pickAuto = () => { onChange('auto', 'auto'); close(); };
   const pickOnline = (m) => { onChange(m.id, 'online'); close(); };
-  const pickOffline = async (m) => {
-    if (offlineRunnable(m)) {
-      setSwitching(m.tag);
-      try {
-        await setActiveModel(m.tag).catch(() => {}); // best-effort; browser-direct doesn't need it
-        onChange(m.tag, 'offline');
-      } finally {
-        setSwitching(null);
-        close();
-      }
-    } else {
+  // Select an already-installed model → runs browser-direct in chat.
+  const selectModel = async (tag) => {
+    setSwitching(tag);
+    try {
+      await setActiveModel(tag).catch(() => {}); // best-effort; browser-direct doesn't need it
+      onChange(tag, 'offline');
+    } finally {
+      setSwitching(null);
       close();
-      onManage?.(); // download / setup / upgrade lives in the catalog modal
     }
+  };
+
+  // Download a model straight into the user's OWN Ollama (no server hop), then
+  // re-detect so it flips to "ready". The dropdown stays open during the pull.
+  const startPull = async (tag) => {
+    if (!browserOllama || pulls[tag]) return;
+    setPulls((p) => ({ ...p, [tag]: { percent: 0, status: 'starting' } }));
+    try {
+      await pullLocalOllama(browserOllama.base, tag, {
+        onProgress: (pr) =>
+          setPulls((p) => ({ ...p, [tag]: { percent: pr.percent || 0, status: pr.status } })),
+      });
+      resetLocalOllama();
+      setBrowserOllama(await ensureLocalOllama());
+    } catch {
+      /* leave as "download"; user can retry */
+    } finally {
+      setPulls((p) => {
+        const n = { ...p };
+        delete n[tag];
+        return n;
+      });
+    }
+  };
+
+  const pickOffline = (m) => {
+    if (offlineRunnable(m)) return selectModel(m.tag);
+    if (m.locked) { close(); onManage?.(); return; } // plan-gated → upgrade/setup
+    if (browserOllama) return startPull(m.tag); // browser-direct download, in place
+    close();
+    onManage?.(); // no local Ollama reachable → setup help
   };
 
   const onlineGroups = groupOnline(models);
@@ -232,6 +263,29 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
                 onRecheck={reCheckOllama}
                 onHelp={() => { close(); onManage?.(); }}
               />
+              {/* Everything actually installed in the user's Ollama — including
+                  models pulled via `ollama pull` that aren't in the curated list.
+                  This is the authoritative "what I can run right now" surface. */}
+              {(() => {
+                const installed = (browserOllama?.models || []).filter((t) => !/embed/i.test(t));
+                if (!installed.length) return null;
+                return (
+                  <div>
+                    <GroupLabel>On your device</GroupLabel>
+                    {installed.map((tag) => (
+                      <Row
+                        key={`dev-${tag}`}
+                        active={isOffActive(tag)}
+                        icon={<Boxes size={15} className="text-emerald-500" />}
+                        title={tag}
+                        sub="On your device — ready"
+                        trailing={switching === tag ? <Loader2 size={14} className="animate-spin text-muted" /> : null}
+                        onClick={() => selectModel(tag)}
+                      />
+                    ))}
+                  </div>
+                );
+              })()}
               {loadingCat ? (
                 <div className="flex items-center gap-2 px-2.5 py-3 text-sm text-muted">
                   <Loader2 size={15} className="animate-spin" /> Loading…
@@ -243,15 +297,28 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
                     {c.models.map((m) => {
                       const onDevice = browserOllama && localHasModel(browserOllama, m.tag);
                       const runnable = offlineRunnable(m);
+                      const pull = pulls[m.tag];
                       return (
                         <Row
                           key={m.tag}
                           active={isOffActive(m.tag)}
                           icon={<Boxes size={15} className="text-emerald-500" />}
                           title={m.displayName}
-                          sub={onDevice ? 'On your device — ready' : m.installed ? 'Installed' : m.locked ? `${(m.plan || '').toUpperCase()} plan` : `~${m.sizeGbApprox} GB · download`}
+                          sub={
+                            pull
+                              ? `Downloading to your device… ${pull.percent}%`
+                              : onDevice
+                                ? 'On your device — ready'
+                                : m.installed
+                                  ? 'Installed'
+                                  : m.locked
+                                    ? `${(m.plan || '').toUpperCase()} plan`
+                                    : `~${m.sizeGbApprox} GB · download`
+                          }
                           trailing={
-                            switching === m.tag ? (
+                            pull ? (
+                              <span className="text-[11px] tabular-nums text-muted">{pull.percent}%</span>
+                            ) : switching === m.tag ? (
                               <Loader2 size={14} className="animate-spin text-muted" />
                             ) : m.locked ? (
                               <Lock size={13} className="text-amber-500" />
