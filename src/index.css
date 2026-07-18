@@ -240,7 +240,7 @@ html.dark [data-plan='pro'] { --bg:#090a0c; --surface:#101216; --surface-2:#171a
  * ------------------------------------------------------------------ */
 .prose-chat {
   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: .984rem;
+  font-size: .79rem;
   line-height: 1.7;
   font-weight: 400;
   word-break: break-word;
@@ -257,10 +257,10 @@ html.dark [data-plan='pro'] { --bg:#090a0c; --surface:#101216; --surface-2:#171a
   line-height: 1.35;
   margin: 1.2rem 0 .45rem;
 }
-.prose-chat h1 { font-size: 1.4rem; }
-.prose-chat h2 { font-size: 1.18rem; }
-.prose-chat h3 { font-size: 1.06rem; }
-.prose-chat h4 { font-size: .94rem; }
+.prose-chat h1 { font-size: 1.12rem; }
+.prose-chat h2 { font-size: .94rem; }
+.prose-chat h3 { font-size: .85rem; }
+.prose-chat h4 { font-size: .75rem; }
 .prose-chat ul,
 .prose-chat ol { margin: .55rem 0; padding-left: 1.6rem; }
 .prose-chat li { margin: .22rem 0; }
@@ -273,13 +273,13 @@ html.dark [data-plan='pro'] { --bg:#090a0c; --surface:#101216; --surface-2:#171a
 
 /* Mobile assistant prose: 16px with comfortable line-height.         */
 @media (max-width: 640px) {
-  .prose-chat { font-size: 1rem; line-height: 1.65; }
+  .prose-chat { font-size: .8rem; line-height: 1.65; }
   .prose-chat p { margin: .55rem 0; }
-  .prose-chat h1 { font-size: 1.22rem; margin: 1rem 0 .35rem; }
-  .prose-chat h2 { font-size: 1.08rem; margin: .85rem 0 .3rem; }
-  .prose-chat h3 { font-size: 1rem; margin: .7rem 0 .25rem; }
-  .prose-chat h4 { font-size: .92rem; }
-  .prose-chat table { font-size: .8rem; min-width: 28rem; }
+  .prose-chat h1 { font-size: .98rem; margin: 1rem 0 .35rem; }
+  .prose-chat h2 { font-size: .86rem; margin: .85rem 0 .3rem; }
+  .prose-chat h3 { font-size: .8rem; margin: .7rem 0 .25rem; }
+  .prose-chat h4 { font-size: .74rem; }
+  .prose-chat table { font-size: .64rem; min-width: 28rem; }
   .prose-chat th,
   .prose-chat td { padding: .3rem .5rem; }
   .prose-chat pre { font-size: .82rem; }
