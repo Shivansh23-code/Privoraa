@@ -21,7 +21,9 @@ export default function SelectMenu({ items, value, onChange, accent = 'accent', 
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 rounded-lg border border-line bg-surface px-2.5 py-2 text-left text-sm transition hover:border-brand-400 hover:bg-surface-2"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        className="control-surface flex h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-sm transition"
       >
         {CurrentIcon ? (
           <CurrentIcon size={15} className={`shrink-0 ${tone}`} />
@@ -35,13 +37,15 @@ export default function SelectMenu({ items, value, onChange, accent = 'accent', 
       </button>
 
       {open && (
-        <div className="scroll-thin absolute inset-x-0 top-full z-30 mt-1 max-h-[44vh] overflow-y-auto rounded-lg border border-line bg-elevated p-1 shadow-xl">
+        <div role="listbox" aria-label={placeholder} className="elevated-surface floating-surface scroll-thin absolute inset-x-0 top-full z-30 mt-1.5 max-h-[44vh] overflow-y-auto rounded-xl p-1.5">
           {items.map((m) => {
             const Icon = m.icon;
             const active = m.id === value;
             return (
               <button
                 key={m.id}
+                role="option"
+                aria-selected={active}
                 onClick={() => { onChange(m.id); setOpen(false); }}
                 title={m.short}
                 className={`flex w-full items-start gap-2 rounded-md border px-2 py-1.5 text-left transition ${

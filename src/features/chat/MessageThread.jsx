@@ -25,13 +25,21 @@ export default function MessageThread({
     }
   });
 
+  useEffect(() => {
+    const onComposerResize = () => {
+      if (pinnedRef.current) endRef.current?.scrollIntoView({ behavior: 'auto' });
+    };
+    window.addEventListener('privoraa:composer-resize', onComposerResize);
+    return () => window.removeEventListener('privoraa:composer-resize', onComposerResize);
+  }, []);
+
   return (
     <div
       ref={containerRef}
       onScroll={onScroll}
       className="scroll-thin flex-1 overflow-y-auto"
     >
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-6 xl:max-w-4xl 2xl:max-w-5xl min-[2200px]:max-w-[88rem] min-[3200px]:max-w-[120rem]">
+      <div className="mx-auto flex w-full max-w-[920px] flex-col gap-8 px-4 pb-[calc(var(--composer-height,9rem)+2rem)] pt-8 sm:px-6 lg:px-8">
         {messages.map((m) => (
           <MessageBubble
             key={m.id}

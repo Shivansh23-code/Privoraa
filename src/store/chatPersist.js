@@ -29,7 +29,7 @@ const hasVault = () => {
 
 /** zustand StateStorage that transparently encrypts the chat blob at rest. */
 export const chatStorage = {
-  getItem: (_name) => {
+  getItem: () => {
     const key = getMasterKey();
     if (key) {
       // Unlocked: prefer the encrypted blob; fall back to any pre-vault plaintext
@@ -51,7 +51,8 @@ export const chatStorage = {
     return localStorage.getItem(PLAIN_KEY);
   },
 
-  setItem: async (_name, value) => {
+  setItem: async (...args) => {
+    const value = args[1];
     const key = getMasterKey();
     if (key) {
       const blob = await encryptString(value, key);
@@ -63,7 +64,7 @@ export const chatStorage = {
     localStorage.setItem(PLAIN_KEY, value);
   },
 
-  removeItem: (_name) => {
+  removeItem: () => {
     localStorage.removeItem(PLAIN_KEY);
     localStorage.removeItem(ENC_KEY);
   },

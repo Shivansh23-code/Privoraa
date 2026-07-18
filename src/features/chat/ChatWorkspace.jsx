@@ -54,6 +54,8 @@ export default function ChatWorkspace() {
   const [serverWaking, setServerWaking] = useState(false); // cold-start in progress
   const fileInputRef = useRef(null);
   const hydratedRef = useRef(false);
+  const drawerRef = useRef(null);
+  const mobileMenuTriggerRef = useRef(null);
 
   useEffect(() => {
     // On a free host the first request can wake a slept instance (~30-60s). If the
@@ -118,10 +120,46 @@ export default function ChatWorkspace() {
     };
   }, [hasProcessingDoc, updateDocument, setUseRag]);
 
+  useEffect(() => {
+    if (!sidebarOpen) return undefined;
+    const previous = document.body.style.overflow;
+    const returnFocus = mobileMenuTriggerRef.current;
+    document.body.style.overflow = 'hidden';
+    const drawer = drawerRef.current;
+    const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusables = () => [...(drawer?.querySelectorAll(focusableSelector) || [])];
+    requestAnimationFrame(() => focusables()[0]?.focus());
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setSidebarOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const items = focusables();
+      if (!items.length) { event.preventDefault(); drawer?.focus(); return; }
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener('keydown', onKeyDown);
+      returnFocus?.focus();
+    };
+  }, [sidebarOpen]);
+
   const desktopOpen = !collapsed || peek;
 
   return (
-    <div data-plan={plan} className="relative flex h-screen overflow-hidden bg-bg text-fg">
+    <div data-plan={plan} className="relative flex h-[100dvh] overflow-hidden bg-bg text-fg">
       {/* Per-plan ambient glow (violet for Plus, gold for Pro; none for Free). */}
       <div className="plan-glow-bg pointer-events-none absolute inset-x-0 top-0 z-0 h-72" />
       {/* ---------- Left sidebar (desktop) ---------- */}
@@ -129,7 +167,7 @@ export default function ChatWorkspace() {
       {collapsed && (
         <div
           onMouseEnter={() => setPeek(true)}
-          className="hidden w-[56px] shrink-0 flex-col items-center border-r border-line bg-surface pt-3 lg:flex"
+          className="hidden w-[60px] shrink-0 flex-col items-center border-r border-line bg-surface pt-3 lg:flex"
         >
           <button
             onClick={() => setCollapsed(false)}
@@ -155,7 +193,7 @@ export default function ChatWorkspace() {
           className={`hidden shrink-0 border-r border-line bg-surface lg:block ${
             collapsed
               ? 'absolute left-0 top-0 z-40 h-full w-[300px] shadow-2xl'
-              : 'w-[280px] 2xl:w-[320px]'
+              : 'w-[288px]'
           }`}
         >
           <Sidebar
@@ -171,12 +209,13 @@ export default function ChatWorkspace() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="absolute left-0 top-0 h-full w-[280px] border-r border-line bg-surface shadow-2xl">
+          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Navigation" tabIndex={-1} className="absolute left-0 top-0 h-full w-[min(300px,88vw)] border-r border-line bg-surface shadow-2xl">
             <button
               onClick={() => setSidebarOpen(false)}
+              aria-label="Close navigation"
               className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2"
             >
               <X size={18} />
@@ -187,7 +226,7 @@ export default function ChatWorkspace() {
       )}
 
       {/* ---------- Main column ---------- */}
-      <main className="flex min-w-0 flex-1 flex-col">
+      <main className="relative z-10 flex min-w-0 flex-1 flex-col overflow-hidden">
         <ChatHeader
           models={models}
           model={model}
@@ -197,6 +236,7 @@ export default function ChatWorkspace() {
           onOpenModels={() => setModelsOpen(true)}
           localLlm={localLlm}
           usingMock={usingMock}
+          mobileMenuTriggerRef={mobileMenuTriggerRef}
         />
 
         <VaultLockBar />

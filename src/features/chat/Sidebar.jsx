@@ -91,6 +91,7 @@ function IconBtn({ children, onClick, title, danger }) {
   return (
     <button
       title={title}
+      aria-label={title}
       onClick={onClick}
       className={`flex h-6 w-6 items-center justify-center rounded-md text-muted transition hover:bg-line ${
         danger ? 'hover:text-red-500' : 'hover:text-fg'
@@ -105,10 +106,11 @@ function SidebarSection({ title, icon, defaultOpen = false, children }) {
   const Icon = icon;
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border-t border-line pt-2">
+    <div className="pt-1">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-faint transition hover:text-fg"
+        aria-expanded={open}
+        className="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 text-xs font-medium text-muted transition hover:bg-surface-2 hover:text-fg"
       >
         <Icon size={13} className="shrink-0" />
         <span className="flex-1 text-left">{title}</span>
@@ -162,7 +164,7 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
   };
 
   return (
-    <div className="flex h-full flex-col gap-3 p-3">
+    <div className="flex h-full flex-col gap-3 p-3.5">
       <div className="flex items-center gap-2.5 px-1 pt-1">
         {/* Brand logo by default; reveals a collapse button on hover (desktop). */}
         <button
@@ -170,7 +172,8 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
           onClick={onCollapse}
           disabled={!onCollapse}
           title={onCollapse ? 'Collapse sidebar' : 'Privoraa'}
-          className="brand-grad group relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-[0_6px_18px_rgba(43,224,190,.25)]"
+          aria-label={onCollapse ? 'Collapse sidebar' : 'Privoraa'}
+          className="brand-grad group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm"
         >
           <svg
             viewBox="0 0 24 24"
@@ -189,7 +192,7 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
         </button>
         <span className="font-display text-lg font-bold tracking-tight text-fg">Privoraa</span>
         {user?.plan === 'PRO' ? (
-          <span title="Pro member — thanks for upgrading" className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500">
+          <span title="Pro member" className="flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent-primary)]">
             <Crown size={10} /> Pro
           </span>
         ) : user?.plan === 'PLUS' ? (
@@ -205,7 +208,7 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
 
       <button
         onClick={startNew}
-        className="brand-grad flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
+        className="brand-grad flex min-h-11 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-105 active:scale-[.99]"
       >
         <Plus size={16} /> New chat
       </button>
@@ -216,7 +219,8 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search chats…"
-          className="w-full rounded-lg border border-line bg-surface py-2 pl-8 pr-3 text-sm placeholder:text-faint focus:border-brand-400 focus:outline-none"
+          aria-label="Search conversations"
+          className="control-surface h-10 w-full rounded-xl py-2 pl-8 pr-3 text-sm placeholder:text-faint focus:outline-none"
         />
       </div>
 
@@ -300,7 +304,7 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
       </SidebarSection>
 
       {/* Footer: user + settings */}
-      <div className="flex items-center gap-2 border-t border-line pt-3">
+      <div className="flex items-center gap-2 rounded-xl bg-surface-2/60 p-2">
         <span className="brand-grad flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white">
           {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
         </span>
@@ -311,6 +315,7 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
         <button
           onClick={() => setSettingsOpen(true)}
           title="Settings"
+          aria-label="Open settings"
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg"
         >
           <Settings size={16} />

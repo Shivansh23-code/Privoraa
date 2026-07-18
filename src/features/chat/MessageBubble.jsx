@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Bot,
   Check,
   Copy,
   RefreshCw,
@@ -60,16 +59,16 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
   };
 
   return (
-    <div className={`group flex animate-rise gap-3 ${isUser ? 'flex-row-reverse' : ''}`}>
+    <article className={`group flex animate-rise gap-3 sm:gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
       {/* Avatar */}
       <div
-        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
           isUser
-            ? 'bg-brand-600 text-white'
-            : 'bg-gradient-to-br from-brand-500 to-accent-500 text-white'
+            ? 'bg-[var(--user-message-avatar)] text-white'
+            : 'bg-surface-2 text-[var(--accent-primary)] ring-1 ring-line'
         }`}
       >
-        {isUser ? <UserIcon size={16} /> : <Bot size={16} />}
+        {isUser ? <UserIcon size={15} /> : <span className="font-display text-sm font-bold">P</span>}
       </div>
 
       {/* Assistant answers fill the available column width (better for long
@@ -87,10 +86,10 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
 
         {/* Bubble */}
         <div
-          className={`rounded-2xl px-4 py-3 ${
+          className={`px-4 py-3 ${
             isUser
-              ? 'rounded-tr-sm bg-brand-600 text-white'
-              : 'rounded-tl-sm border border-line bg-surface'
+              ? 'rounded-2xl rounded-tr-md bg-[var(--user-message-bg)] text-white shadow-sm'
+              : 'w-full px-0 py-1'
           }`}
         >
           {message.error ? (
@@ -108,7 +107,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
                 />
               )}
               {message.content && (
-                <p className="whitespace-pre-wrap break-words text-[0.6rem] leading-relaxed sm:text-[0.82rem]">
+                <p className="whitespace-pre-wrap break-words text-sm leading-6 sm:text-[15px]">
                   {message.content}
                 </p>
               )}
@@ -130,7 +129,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
 
         {/* Actions */}
         {!isUser && !message.error && (
-          <div className="mt-1.5 flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+          <div className="mt-2 flex min-h-8 items-center gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
             {streaming ? (
               <button
                 onClick={onStop}
@@ -163,6 +162,6 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
           </div>
         )}
       </div>
-    </div>
+    </article>
   );
 }
