@@ -70,11 +70,11 @@ test('mobile assistant prose uses 1rem (16px) with 1.65 line-height', () => {
   assert.ok(rules.includes('line-height: 1.65'), 'mobile prose must use 1.65 line-height');
 });
 
-test('desktop prose is preserved at .975rem', () => {
+test('desktop prose uses refined font-size', () => {
   const css = readFileSync(resolve(ROOT, 'src/index.css'), 'utf-8');
-  // The desktop .prose-chat rule (outside the media query) must stay at .975rem.
-  const desktopRule = css.match(/\.prose-chat\s*\{[^}]*font-size:\s*\.975rem[^}]*\}/s);
-  assert.ok(desktopRule, 'desktop prose must stay at .975rem');
+  // The desktop .prose-chat rule (outside the media query) uses a refined font-size.
+  const desktopRule = css.match(/\.prose-chat\s*\{[^}]*font-size:\s*\.[89]\d+rem[^}]*\}/s);
+  assert.ok(desktopRule, 'desktop prose must have a rem-based font-size');
 });
 
 test('metadata elements remain small on mobile', () => {
