@@ -1,5 +1,10 @@
 package com.privoraa.chat;
 
+import com.privoraa.ai.classification.ExecutionTarget;
+import com.privoraa.ai.classification.PrivacyPolicyEvaluator;
+import com.privoraa.ai.classification.RequestClassification;
+import com.privoraa.ai.classification.RequestClassificationInput;
+import com.privoraa.ai.classification.RequestClassifier;
 import com.privoraa.chat.dto.ChatRequest;
 import com.privoraa.chat.dto.ChatResponse;
 import com.privoraa.common.ApiException;
@@ -51,11 +56,14 @@ public class ChatService {
     private final ActiveModelService activeModel;
     private final ModelCatalogService catalog;
     private final GeminiProperties gemini;
+    private final RequestClassifier requestClassifier;
+    private final PrivacyPolicyEvaluator privacyPolicy;
 
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
                        OfflineRouter offlineRouter, RagService ragService, DocumentService documentService,
                        PromptBuilder promptBuilder, LlmProviderResolver providers, ActiveModelService activeModel,
-                       ModelCatalogService catalog, GeminiProperties gemini) {
+                       ModelCatalogService catalog, GeminiProperties gemini, RequestClassifier requestClassifier,
+                       PrivacyPolicyEvaluator privacyPolicy) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
@@ -67,6 +75,8 @@ public class ChatService {
         this.activeModel = activeModel;
         this.catalog = catalog;
         this.gemini = gemini;
+        this.requestClassifier = requestClassifier;
+        this.privacyPolicy = privacyPolicy;
     }
 
     // ----------------------------------------------------------------- streaming
@@ -84,6 +94,7 @@ public class ChatService {
 
         Prepared p;
         try {
+            classifyAndEnforce(req);
             p = prepare(userId, req);
         } catch (Exception e) {
             send(emitter, "error", Map.of("message", friendly(e)));
@@ -133,6 +144,7 @@ public class ChatService {
 
     public ChatResponse chat(String userId, ChatRequest req) {
         rateLimit.check(userId);
+        classifyAndEnforce(req);
         Prepared p = prepare(userId, req);
 
         ChatResult result = null;
@@ -162,6 +174,28 @@ public class ChatService {
     }
 
     // ----------------------------------------------------------------- helpers
+
+    /**
+     * Fail-closed policy boundary. This must run before prepare(), which persists
+     * the prompt and performs RAG/provider selection. Classification metadata is
+     * intentionally internal in Phase 1 to preserve REST and SSE response shapes.
+     */
+    private RequestClassification classifyAndEnforce(ChatRequest req) {
+        RequestClassification classification = requestClassifier.classify(
+                new RequestClassificationInput(
+                        req.content(), req.modeOrDefault(), req.provider(), req.model(),
+                        req.hasImage(), req.ragEnabled(), req.content().length()));
+        ExecutionTarget target = "ollama".equals(req.providerId())
+                ? ExecutionTarget.SERVER_SIDE_OLLAMA
+                : ExecutionTarget.CLOUD_PROVIDER;
+        privacyPolicy.requireAllowed(classification, target);
+        log.debug("Request classified intent={} complexity={} freshness={} privacy={} capabilities={} "
+                        + "confidence={} reasons={} policy=ALLOWED",
+                classification.intent(), classification.complexity(), classification.freshness(),
+                classification.privacy(), classification.requiredCapabilities(),
+                classification.confidence(), classification.reasons());
+        return classification;
+    }
 
     /** Shared setup: persist the user message, route, retrieve RAG, build the prompt. */
     private Prepared prepare(String userId, ChatRequest req) {
@@ -263,6 +297,9 @@ public class ChatService {
     }
 
     private String friendly(Throwable err) {
+        if (err instanceof com.privoraa.ai.classification.PrivacyPolicyViolationException privacy) {
+            return privacy.getMessage();
+        }
         if (err instanceof ApiException api) {
             return api.getMessage();
         }

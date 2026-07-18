@@ -1,0 +1,11 @@
+package com.privoraa.ai.registry;
+
+public enum RegistryReasonCode {
+    REFRESH_SUCCEEDED,
+    CATALOGUE_TIMEOUT,
+    CATALOGUE_UNAVAILABLE,
+    MALFORMED_ENTRY,
+    CONFIGURATION_ONLY,
+    STATIC_FALLBACK_USED,
+    LAST_KNOWN_GOOD_USED
+}
