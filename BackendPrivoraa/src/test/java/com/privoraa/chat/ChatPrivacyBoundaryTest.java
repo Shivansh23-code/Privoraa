@@ -15,7 +15,9 @@ import com.privoraa.ratelimit.RateLimitService;
 import com.privoraa.routing.IntentClassifier;
 import com.privoraa.routing.ModelRouter;
 import com.privoraa.routing.OfflineRouter;
+import com.privoraa.routing.ScoredRouter;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -44,7 +46,8 @@ class ChatPrivacyBoundaryTest {
                 mock(ModelCatalogService.class),
                 mock(GeminiProperties.class),
                 new RequestClassifier(new IntentClassifier()),
-                new PrivacyPolicyEvaluator());
+                new PrivacyPolicyEvaluator(),
+                mock(ScoredRouter.class));
 
         ChatRequest request = new ChatRequest(null, "auto", "general",
                 "Do not send this to the cloud", false, null, "openrouter");

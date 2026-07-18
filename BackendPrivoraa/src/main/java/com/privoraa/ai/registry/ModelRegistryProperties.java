@@ -10,7 +10,9 @@ public record ModelRegistryProperties(
         Duration refreshInterval,
         Duration refreshTimeout,
         int maxMetadataEntries,
-        boolean includePaid
+        boolean includePaid,
+        boolean routingEnabled,
+        boolean dryRun
 ) {
     public ModelRegistryProperties {
         refreshInterval = refreshInterval == null ? Duration.ofHours(1) : refreshInterval;

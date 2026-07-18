@@ -21,7 +21,7 @@ class ProviderModelAdapterTest {
     private final ObjectMapper mapper = new ObjectMapper();
     private final ModelCapabilityNormalizer normalizer = new ModelCapabilityNormalizer();
     private final ModelRegistryProperties registryProperties =
-            new ModelRegistryProperties(true, Duration.ofHours(1), Duration.ofSeconds(1), 20, false);
+            new ModelRegistryProperties(true, Duration.ofHours(1), Duration.ofSeconds(1), 20, false, false, false);
 
     @Test
     void openRouterNormalizesPricingVisionAndMalformedEntries() throws Exception {
