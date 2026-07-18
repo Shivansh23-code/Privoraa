@@ -51,6 +51,18 @@
   --fg: #e9f0fa;
   --muted: #94a3bc;
   --faint: #5e6d86;
+  --surface-hover: rgba(255,255,255,.055);
+  --surface-active: rgba(139,124,255,.12);
+  --accent-primary: #8b7cff;
+  --accent-primary-hover: #a79cff;
+  --accent-soft: rgba(139,124,255,.12);
+  --focus-ring: rgba(139,124,255,.45);
+  --shadow-color: rgba(0,0,0,.38);
+  --danger: #f87171;
+  --success: #5dd6a7;
+  --warning: #e8bd72;
+  --user-message-bg: rgba(86, 70, 200, .82);
+  --user-message-avatar: #6a5ae8;
 }
 
 /* Kept identical to :root — the app is dark-only, but `dark:` utilities and
@@ -69,7 +81,7 @@ html.dark {
 
 /* ------------------------------------------------------------------ *
  * Per-plan dashboard theming. Free = default ink/violet. Plus =        *
- * polished violet-purple. Pro = golden VVIP. Because the semantic      *
+ * polished violet-purple. Pro = graphite/champagne. Semantic surface   *
  * surfaces are CSS vars, overriding them on the [data-plan] root        *
  * re-tints the ENTIRE dashboard. --brand-grad re-skins primary CTAs    *
  * and --plan-glow drives an ambient glow.                              *
@@ -87,17 +99,29 @@ html.dark {
   --line-2: rgba(167, 139, 250, 0.30);
   --brand-grad: linear-gradient(135deg, #a78bfa 0%, #7c5cff 100%);
   --plan-glow: rgba(139, 92, 246, 0.22);
+  --user-message-bg: rgba(124, 92, 255, .72);
+  --user-message-avatar: #7c5cff;
 }
 [data-plan='pro'] {
-  --bg: #15110a;
-  --surface: #1e1810;
-  --surface-2: #2a2114;
-  --elevated: #241d12;
-  --line: rgba(245, 200, 110, 0.20);
-  --line-2: rgba(245, 200, 110, 0.34);
-  --muted: #b7a684;
-  --brand-grad: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%);
-  --plan-glow: rgba(245, 158, 11, 0.22);
+  --bg: #090a0c;
+  --surface: #101216;
+  --surface-2: #171a20;
+  --elevated: #1c2027;
+  --line: rgba(255,255,255,.075);
+  --line-2: rgba(255,255,255,.13);
+  --fg: #f5f5f2;
+  --muted: #a6a8ad;
+  --faint: #737780;
+  --surface-hover: rgba(255,255,255,.06);
+  --surface-active: rgba(215,181,109,.10);
+  --accent-primary: #d7b56d;
+  --accent-primary-hover: #e2c582;
+  --accent-soft: rgba(215,181,109,.10);
+  --focus-ring: rgba(215,181,109,.42);
+  --brand-grad: linear-gradient(135deg, #e2c582 0%, #cda55c 100%);
+  --plan-glow: rgba(215,181,109,.10);
+  --user-message-bg: rgba(82, 68, 128, .82);
+  --user-message-avatar: #67558f;
 }
 
 /* Primary CTAs use the per-plan brand gradient instead of hardcoded colors. */
@@ -146,7 +170,21 @@ html.dark {
     cursor: pointer;
     font-family: inherit;
   }
+
+  :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 }
+
+.elevated-surface {
+  border: 1px solid var(--line);
+  background: var(--elevated);
+  background: color-mix(in srgb, var(--elevated) 94%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+}
+.floating-surface {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 18px 50px var(--shadow-color);
+}
+.control-surface { border: 1px solid var(--line); background: var(--surface-2); }
+.control-surface:hover { background: var(--surface-hover); border-color: var(--line-2); }
 
 /* Respect reduced-motion preferences (intentionally unlayered + !important) */
 @media (prefers-reduced-motion: reduce) {
@@ -202,15 +240,14 @@ html.dark {
  * Markdown answer typography (chat workspace)                         *
  * ------------------------------------------------------------------ */
 .prose-chat {
-  /* Base (tablet/desktop) — phones drop to 0.6rem in the max-640px block below. */
-  font-size: 0.82rem;
-  line-height: 1.65;
+  font-size: .975rem;
+  line-height: 1.75;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
 .prose-chat > :first-child { margin-top: 0; }
 .prose-chat > :last-child { margin-bottom: 0; }
-.prose-chat p { margin: 0.6rem 0; }
+.prose-chat p { margin: .8rem 0; }
 .prose-chat h1,
 .prose-chat h2,
 .prose-chat h3,
@@ -219,9 +256,9 @@ html.dark {
   line-height: 1.3;
   margin: 1.1rem 0 0.5rem;
 }
-.prose-chat h1 { font-size: 1.22rem; }
-.prose-chat h2 { font-size: 1.08rem; }
-.prose-chat h3 { font-size: 0.95rem; }
+.prose-chat h1 { font-size: 1.5rem; }
+.prose-chat h2 { font-size: 1.25rem; }
+.prose-chat h3 { font-size: 1.08rem; }
 .prose-chat ul,
 .prose-chat ol { margin: 0.6rem 0; padding-left: 1.4rem; }
 .prose-chat li { margin: 0.25rem 0; }
@@ -231,20 +268,16 @@ html.dark {
 .prose-chat .katex-display { margin: 0.8rem 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
 .prose-chat strong { font-weight: 700; }
 
-/* Phones: shrink chat typography ~40% so answers don't overwhelm the small
- * viewport, and keep any stray table readable + horizontally scrollable
- * instead of crushing it into unreadable wrapped columns. */
+/* Phones retain a readable 14px answer size; wide tables and code scroll
+ * horizontally instead of compressing into unreadable wrapped columns. */
 @media (max-width: 640px) {
-  .prose-chat { font-size: 0.6rem; line-height: 1.55; }
-  .prose-chat p { margin: 0.45rem 0; }
-  .prose-chat h1 { font-size: 0.86rem; }
-  .prose-chat h2 { font-size: 0.74rem; }
-  .prose-chat h3 { font-size: 0.66rem; }
-  .prose-chat h4 { font-size: 0.62rem; }
-  .prose-chat ul,
-  .prose-chat ol { padding-left: 1.05rem; }
-  .prose-chat table { font-size: 0.58rem; min-width: 30rem; }
+  .prose-chat { font-size: .875rem; line-height: 1.7; }
+  .prose-chat h1 { font-size: 1.25rem; }
+  .prose-chat h2 { font-size: 1.1rem; }
+  .prose-chat h3 { font-size: 1rem; }
+  .prose-chat h4 { font-size: .925rem; }
+  .prose-chat table { font-size: .8rem; min-width: 30rem; }
   .prose-chat th,
   .prose-chat td { padding: 0.28rem 0.45rem; }
-  .prose-chat pre { font-size: 0.62rem; }
+  .prose-chat pre { font-size: .78rem; }
 }

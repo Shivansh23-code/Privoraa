@@ -50,6 +50,25 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
   const [image, setImage] = useState(null); // downscaled data URL
   const taRef = useRef(null);
   const imageInputRef = useRef(null);
+  const composerRef = useRef(null);
+
+  // Keep the scrollable conversation clear of the floating composer at every
+  // textarea/attachment height, including zoom and mobile keyboard changes.
+  useEffect(() => {
+    const composer = composerRef.current;
+    const shell = composer?.parentElement;
+    if (!composer || !shell || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const height = Math.ceil(entry.borderBoxSize?.[0]?.blockSize || entry.contentRect.height);
+      shell.style.setProperty('--composer-height', `${height}px`);
+      window.dispatchEvent(new CustomEvent('privoraa:composer-resize'));
+    });
+    observer.observe(composer);
+    return () => {
+      observer.disconnect();
+      shell.style.removeProperty('--composer-height');
+    };
+  }, []);
 
   // Auto-grow the textarea up to a cap.
   useEffect(() => {
@@ -101,8 +120,8 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
   };
 
   return (
-    <div className="border-t border-line bg-bg/80 px-4 py-3 backdrop-blur">
-      <div className="mx-auto w-full max-w-3xl xl:max-w-4xl 2xl:max-w-5xl min-[2200px]:max-w-[88rem] min-[3200px]:max-w-[120rem]">
+    <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pb-3 pt-8 sm:px-6">
+      <div className="mx-auto w-full max-w-[920px]">
         {/* Attachments preview: uploaded documents (RAG) + the pending image */}
         {(image || documents.length > 0) && (
           <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -147,7 +166,7 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
           </div>
         )}
 
-        <div className="flex items-end gap-2 rounded-2xl border border-line bg-surface p-2 shadow-sm transition focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/15">
+        <div className="elevated-surface flex items-end gap-1 rounded-[22px] p-2 transition focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] sm:gap-2">
           <button
             type="button"
             onClick={onAttach}
@@ -210,7 +229,8 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
                   ? 'Ask anything…'
                   : 'Ask anything…  (Enter to send, Shift+Enter for newline)'
             }
-            className="scroll-thin max-h-[200px] flex-1 resize-none bg-transparent py-1.5 text-[0.72rem] leading-relaxed text-fg placeholder:text-faint focus:outline-none sm:text-[0.85rem]"
+            aria-label="Message"
+            className="scroll-thin max-h-[200px] min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-sm leading-6 text-fg placeholder:text-faint focus:outline-none sm:text-[15px]"
           />
 
           {isStreaming ? (
@@ -234,7 +254,7 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
             </button>
           )}
         </div>
-        <p className="mt-1.5 px-1 text-center text-[11px] text-faint">
+        <p className="mt-1.5 hidden px-1 text-center text-[11px] text-faint sm:block">
           Privoraa can make mistakes. Verify important info. · Mode: <span className="capitalize">{mode.replace('_', ' ')}</span>
         </p>
       </div>

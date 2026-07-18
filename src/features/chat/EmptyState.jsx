@@ -47,11 +47,11 @@ export default function EmptyState({ mode, onPick }) {
   const suggestions = SUGGESTIONS[mode] || SUGGESTIONS.general;
 
   return (
-    <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-4 text-center">
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 text-white shadow-lg shadow-brand-500/20">
+    <div className="mx-auto flex min-h-full max-w-[760px] flex-col items-center justify-center px-4 pb-[calc(var(--composer-height,9rem)+2rem)] pt-10 text-center">
+      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-[var(--accent-primary)] ring-1 ring-line shadow-xl">
         <Icon size={26} />
       </div>
-      <h2 className="font-display text-2xl font-bold">How can I help?</h2>
+      <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">How can I help?</h1>
       <p className="mt-2 max-w-md text-sm text-muted">
         {m.description}
       </p>
@@ -61,7 +61,7 @@ export default function EmptyState({ mode, onPick }) {
           <button
             key={s}
             onClick={() => onPick(s)}
-            className="rounded-xl border border-line bg-surface px-4 py-3 text-left text-sm text-fg/90 transition hover:-translate-y-0.5 hover:border-brand-400 hover:bg-surface-2"
+            className="control-surface min-h-14 rounded-2xl px-4 py-3 text-left text-sm leading-5 text-fg/90 transition hover:-translate-y-0.5"
           >
             {s}
           </button>

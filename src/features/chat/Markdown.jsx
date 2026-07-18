@@ -36,11 +36,12 @@ function CodeBlock({ className, children }) {
   };
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-line bg-[#070b14]">
+    <div className="my-5 overflow-hidden rounded-2xl border border-line bg-[#08090b] shadow-sm">
       <div className="flex items-center justify-between border-b border-line px-3 py-1.5">
         <span className="font-mono text-xs text-accent-500">{lang}</span>
         <button
           onClick={copy}
+          aria-label={`Copy ${lang} code`}
           className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-muted transition hover:bg-white/5 hover:text-fg"
         >
           {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -77,18 +78,18 @@ const components = {
     </a>
   ),
   table: ({ children }) => (
-    <div className="my-3 overflow-x-auto">
+    <div className="scroll-thin my-5 overflow-x-auto rounded-xl border border-line">
       <table className="w-full border-collapse text-sm">{children}</table>
     </div>
   ),
   th: ({ children }) => (
-    <th className="border border-line bg-surface-2 px-3 py-1.5 text-left font-semibold">
+    <th className="border-b border-line bg-surface-2 px-3 py-2 text-left font-semibold">
       {children}
     </th>
   ),
-  td: ({ children }) => <td className="border border-line px-3 py-1.5">{children}</td>,
+  td: ({ children }) => <td className="border-b border-line px-3 py-2">{children}</td>,
   blockquote: ({ children }) => (
-    <blockquote className="my-3 border-l-4 border-brand-400 bg-surface-2/60 py-1 pl-4 pr-2 text-muted">
+    <blockquote className="my-4 border-l-2 border-[var(--accent-primary)] bg-surface-2/50 py-1 pl-4 pr-3 text-muted">
       {children}
     </blockquote>
   ),

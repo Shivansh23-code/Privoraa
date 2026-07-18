@@ -55,7 +55,7 @@ function EditableTitle() {
         setEditing(true);
       }}
       title="Rename conversation"
-      className="hidden max-w-[180px] truncate rounded-md px-2 py-1 text-sm font-medium text-fg/90 transition hover:bg-surface-2 md:block"
+      className="hidden max-w-[240px] truncate rounded-md px-2 py-1 text-sm font-semibold text-fg/90 transition hover:bg-surface-2 md:block"
     >
       {convo.title}
     </button>
@@ -71,6 +71,7 @@ export default function ChatHeader({
   onOpenModels,
   localLlm,
   usingMock,
+  mobileMenuTriggerRef,
 }) {
   const { user, logOut } = useUserAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -88,10 +89,12 @@ export default function ChatHeader({
 
   return (
     <>
-      <header className="relative z-30 flex items-center gap-2 border-b border-line bg-bg/80 px-3 py-2.5 backdrop-blur">
+      <header className="relative z-30 flex h-16 shrink-0 items-center gap-2 border-b border-line bg-bg/75 px-3 backdrop-blur-xl sm:px-4">
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r ${theme.accent}`} />
       <button
+        ref={mobileMenuTriggerRef}
         onClick={onToggleSidebar}
+        aria-label="Open navigation"
         className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg lg:hidden"
         title="Menu"
       >
@@ -159,7 +162,10 @@ export default function ChatHeader({
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setMenuOpen((o) => !o)}
-          className="flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2 py-1.5 text-sm transition hover:bg-surface-2"
+          aria-label="Open account menu"
+          aria-expanded={menuOpen}
+          aria-haspopup="menu"
+          className="control-surface flex h-10 items-center gap-1.5 rounded-xl px-2 text-sm transition"
         >
           <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br ${theme.ring} text-[11px] font-bold text-white`}>
             {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
@@ -168,7 +174,7 @@ export default function ChatHeader({
         </button>
 
         {menuOpen && (
-          <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-line bg-elevated p-1.5 shadow-xl">
+          <div role="menu" aria-label="Account" className="elevated-surface floating-surface absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-2xl p-1.5">
             <div className="flex items-center gap-2 px-2.5 py-2">
               <UserIcon size={16} className="text-muted" />
               <div className="min-w-0">
@@ -179,12 +185,14 @@ export default function ChatHeader({
             <div className="my-1 h-px bg-line" />
             <Link
               to="/plans"
+              role="menuitem"
               onClick={() => setMenuOpen(false)}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition hover:bg-surface-2"
             >
               <Gem size={15} className="text-brand-500" /> Plans &amp; upgrade
             </Link>
             <button
+              role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
                 setOfferOpen(true);
@@ -195,6 +203,7 @@ export default function ChatHeader({
             </button>
             <div className="my-1 h-px bg-line" />
             <button
+              role="menuitem"
               onClick={logOut}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-red-500 transition hover:bg-red-500/10"
             >
