@@ -1,5 +1,6 @@
 package com.privoraa.common;
 
+import com.privoraa.ai.classification.PrivacyPolicyViolationException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,13 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(PrivacyPolicyViolationException.class)
+    public ResponseEntity<ApiError> handlePrivacyPolicy(PrivacyPolicyViolationException ex,
+                                                        HttpServletRequest req) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.of(409, ex.getCode(), ex.getMessage(), req.getRequestURI()));
+    }
 
     @ExceptionHandler(RateLimitException.class)
     public ResponseEntity<ApiError> handleRateLimit(RateLimitException ex, HttpServletRequest req) {

@@ -119,4 +119,9 @@ public class ModelCatalogService {
             new ModelDto("qwen/qwen3-next-80b-a3b-instruct:free", "Qwen3 Next 80B", "Qwen3 Next 80B",
                     "Large multilingual model.", "multilingual", 262000, true)
     );
+
+    /** Stable read-only fallback reused by the Phase 2 registry adapter. */
+    public static List<ModelDto> fallbackModels() {
+        return FALLBACK;
+    }
 }
