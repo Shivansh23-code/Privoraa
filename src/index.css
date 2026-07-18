@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 @import 'tailwindcss';
 
-/* Dark is the only theme — html always carries .dark (set in ThemeContext). */
+/* Explicit dark class is resolved from the persisted light/dark/system preference. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /* ------------------------------------------------------------------ *
@@ -42,41 +42,48 @@
 }
 
 :root {
-  --bg: #0b1220;        /* ink (lightened ~20%) */
-  --surface: #111a2c;   /* pane */
-  --surface-2: #16223a; /* pane2 */
-  --elevated: #16223a;
-  --line: rgba(141, 176, 255, 0.12);  /* hairline */
-  --line-2: rgba(141, 176, 255, 0.2);
-  --fg: #e9f0fa;
-  --muted: #94a3bc;
-  --faint: #5e6d86;
-  --surface-hover: rgba(255,255,255,.055);
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #efefec;
+  --elevated: #ffffff;
+  --line: rgba(20, 23, 31, .09);
+  --line-2: rgba(20, 23, 31, .15);
+  --fg: #17181c;
+  --muted: #63666d;
+  --faint: #8b8e95;
+  --surface-hover: rgba(20,23,31,.055);
   --surface-active: rgba(139,124,255,.12);
   --accent-primary: #8b7cff;
   --accent-primary-hover: #a79cff;
   --accent-soft: rgba(139,124,255,.12);
   --focus-ring: rgba(139,124,255,.45);
-  --shadow-color: rgba(0,0,0,.38);
+  --shadow-color: rgba(28,31,38,.16);
   --danger: #f87171;
   --success: #5dd6a7;
   --warning: #e8bd72;
+  --workspace: var(--bg);
+  --sidebar: var(--surface);
+  --composer: var(--elevated);
+  --overlay: rgba(15, 17, 22, .42);
+  --assistant-identity: #6a5ae8;
   --user-message-bg: rgba(86, 70, 200, .82);
   --user-message-avatar: #6a5ae8;
 }
 
-/* Kept identical to :root — the app is dark-only, but `dark:` utilities and
-   the .dark class remain so existing components keep working. */
 html.dark {
-  --bg: #0b1220;
-  --surface: #111a2c;
-  --surface-2: #16223a;
-  --elevated: #16223a;
-  --line: rgba(141, 176, 255, 0.12);
-  --line-2: rgba(141, 176, 255, 0.2);
-  --fg: #e9f0fa;
-  --muted: #94a3bc;
-  --faint: #5e6d86;
+  --bg: #0b0c0f;
+  --surface: #111318;
+  --surface-2: #191c22;
+  --elevated: #1d2027;
+  --line: rgba(255,255,255,.075);
+  --line-2: rgba(255,255,255,.13);
+  --fg: #f3f3f0;
+  --muted: #a4a6ac;
+  --faint: #737780;
+  --surface-hover: rgba(255,255,255,.06);
+  --shadow-color: rgba(0,0,0,.38);
+  --overlay: rgba(0,0,0,.64);
+  --assistant-identity: #d7b56d;
 }
 
 /* ------------------------------------------------------------------ *
@@ -91,28 +98,12 @@ html.dark {
   --plan-glow: transparent;
 }
 [data-plan='plus'] {
-  --bg: #0d0a1f;
-  --surface: #17112e;
-  --surface-2: #211842;
-  --elevated: #1d1640;
-  --line: rgba(167, 139, 250, 0.18);
-  --line-2: rgba(167, 139, 250, 0.30);
   --brand-grad: linear-gradient(135deg, #a78bfa 0%, #7c5cff 100%);
-  --plan-glow: rgba(139, 92, 246, 0.22);
+  --plan-glow: rgba(139, 92, 246, 0.10);
   --user-message-bg: rgba(124, 92, 255, .72);
   --user-message-avatar: #7c5cff;
 }
 [data-plan='pro'] {
-  --bg: #090a0c;
-  --surface: #101216;
-  --surface-2: #171a20;
-  --elevated: #1c2027;
-  --line: rgba(255,255,255,.075);
-  --line-2: rgba(255,255,255,.13);
-  --fg: #f5f5f2;
-  --muted: #a6a8ad;
-  --faint: #737780;
-  --surface-hover: rgba(255,255,255,.06);
   --surface-active: rgba(215,181,109,.10);
   --accent-primary: #d7b56d;
   --accent-primary-hover: #e2c582;
@@ -123,6 +114,9 @@ html.dark {
   --user-message-bg: rgba(82, 68, 128, .82);
   --user-message-avatar: #67558f;
 }
+
+html.dark [data-plan='plus'] { --bg:#0d0c12; --surface:#131119; --surface-2:#1d1927; --elevated:#211c2d; }
+html.dark [data-plan='pro'] { --bg:#090a0c; --surface:#101216; --surface-2:#171a20; --elevated:#1c2027; }
 
 /* Primary CTAs use the per-plan brand gradient instead of hardcoded colors. */
 .brand-grad {
@@ -146,7 +140,10 @@ html.dark {
   html,
   body,
   #root {
-    height: 100%;
+    width: 100%;
+    min-width: 0;
+    min-height: 100%;
+    margin: 0;
   }
 
   body {
@@ -154,6 +151,7 @@ html.dark {
     background-color: var(--bg);
     color: var(--fg);
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 
   a {

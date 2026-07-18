@@ -6,6 +6,8 @@ import {
 import { useChatStore } from '../../store/chatStore';
 import { ensureBackend } from '../../lib/chatService';
 import { deleteDocumentRemote } from '../../lib/documentService';
+import { clipboardImages, shouldSubmitFromKey, validateImageFile } from './composerInput';
+import { shouldDisableSourcesAfterRemoval } from './sourceState';
 
 const DOC_STATUS = {
   PROCESSING: { Icon: Loader2, cls: 'text-amber-500 animate-spin' },
@@ -40,7 +42,7 @@ function readAndResize(file, maxDim = 1024, quality = 0.85) {
   });
 }
 
-export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }) {
+export default function Composer({ onSend, onStop, isStreaming, onOpenSources, mode }) {
   const useRag = useChatStore((s) => s.useRag);
   const setUseRag = useChatStore((s) => s.setUseRag);
   const documents = useChatStore((s) => s.documents);
@@ -48,6 +50,8 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
   const hasReadyDocs = documents.some((d) => d.status === 'READY');
   const [value, setValue] = useState('');
   const [image, setImage] = useState(null); // downscaled data URL
+  const [imageName, setImageName] = useState('');
+  const [attachmentStatus, setAttachmentStatus] = useState('');
   const taRef = useRef(null);
   const imageInputRef = useRef(null);
   const composerRef = useRef(null);
@@ -90,42 +94,76 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  const pickImage = async (file) => {
+  const processImageAttachment = async (file, label = file?.name || 'Pasted image') => {
     if (!file) return;
+    const invalid = validateImageFile(file);
+    if (invalid) { setAttachmentStatus(invalid); return; }
+    setAttachmentStatus(`Preparing ${label}…`);
     try {
       setImage(await readAndResize(file));
+      setImageName(label);
+      setAttachmentStatus(`${label} attached.`);
     } catch {
-      /* ignore unreadable images */
+      setAttachmentStatus('This image could not be read.');
     }
   };
 
   const removeDoc = (id) => {
+    if (shouldDisableSourcesAfterRemoval(documents, id)) setUseRag(false);
     removeDocument(id);
     ensureBackend().then((live) => live && deleteDocumentRemote(id));
   };
 
-  const submit = () => {
+  const submittingRef = useRef(false);
+  const submitMessage = () => {
     const text = value.trim();
-    if ((!text && !image) || isStreaming) return;
+    if ((!text && !image) || isStreaming || submittingRef.current) return;
+    submittingRef.current = true;
     onSend(text, image);
     setValue('');
     setImage(null);
+    setImageName('');
+    setAttachmentStatus('Message sent.');
+    window.setTimeout(() => { submittingRef.current = false; }, 250);
   };
 
   const onKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (shouldSubmitFromKey(e)) {
       e.preventDefault();
-      submit();
+      submitMessage();
     }
   };
 
+  const onPaste = (event) => {
+    const files = clipboardImages(event.clipboardData);
+    if (!files.length) return;
+    const hasText = event.clipboardData?.getData('text/plain');
+    if (!hasText) event.preventDefault();
+    processImageAttachment(files[0], files[0].name || 'Pasted image');
+    if (files.length > 1) setAttachmentStatus('The first pasted image was attached.');
+  };
+
+  const onImageDrop = (event) => {
+    const file = Array.from(event.dataTransfer?.files || []).find((item) => item.type.startsWith('image/'));
+    if (!file) return;
+    event.preventDefault();
+    processImageAttachment(file);
+  };
+
   return (
-    <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pb-3 pt-8 sm:px-6">
+    <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-8 sm:px-6">
       <div className="mx-auto w-full max-w-[920px]">
-        {/* Attachments preview: uploaded documents (RAG) + the pending image */}
+        <p className="sr-only" aria-live="polite">{attachmentStatus}</p>
+        {/* Compact Sources and image previews. */}
         {(image || documents.length > 0) && (
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            {documents.map((d) => {
+            {hasReadyDocs && <button
+              type="button"
+              onClick={() => setUseRag(!useRag)}
+              aria-pressed={useRag}
+              className={`inline-flex min-h-9 items-center gap-1.5 rounded-xl px-3 text-xs font-medium sm:hidden ${useRag ? 'bg-brand-500/15 text-brand-600 dark:text-brand-300' : 'bg-surface text-muted'}`}
+            ><BookOpenCheck size={14} />Use sources ({documents.filter((d) => d.status === 'READY').length})</button>}
+            {documents.slice(0, 2).map((d) => {
               const st = DOC_STATUS[d.status] || DOC_STATUS.PROCESSING;
               const StIcon = st.Icon;
               return (
@@ -152,10 +190,10 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
             {image && (
               <span className="inline-flex items-center gap-2 rounded-xl border border-line bg-surface p-1.5 pr-2">
                 <img src={image} alt="to send" className="h-10 w-10 rounded-lg object-cover" />
-                <span className="text-xs text-muted">Image</span>
+                <span className="max-w-32 truncate text-xs text-muted">{imageName || 'Image'}</span>
                 <button
                   type="button"
-                  onClick={() => setImage(null)}
+                  onClick={() => { setImage(null); setImageName(''); setAttachmentStatus('Image removed.'); }}
                   title="Remove image"
                   className="flex h-6 w-6 items-center justify-center rounded-md text-muted transition hover:bg-surface-2 hover:text-red-500"
                 >
@@ -166,12 +204,21 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
           </div>
         )}
 
-        <div className="elevated-surface flex items-end gap-1 rounded-[22px] p-2 transition focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] sm:gap-2">
+        <form
+          onSubmit={(event) => { event.preventDefault(); submitMessage(); }}
+          onDragOver={(event) => {
+            const items = Array.from(event.dataTransfer?.items || []);
+            if (items.some((item) => item.type.startsWith('image/')) || Array.from(event.dataTransfer?.types || []).includes('Files')) event.preventDefault();
+          }}
+          onDrop={onImageDrop}
+          className="elevated-surface flex items-end gap-1 rounded-[22px] p-2 transition focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] sm:gap-2"
+        >
           <button
             type="button"
-            onClick={onAttach}
-            title="Attach a document (RAG)"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg"
+            onClick={onOpenSources}
+            title="Add or manage sources"
+            aria-label="Add or manage sources"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg"
           >
             <Paperclip size={18} />
           </button>
@@ -180,7 +227,8 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
             type="button"
             onClick={() => imageInputRef.current?.click()}
             title="Attach an image (the AI will look at it)"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg"
+            aria-label="Attach an image"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg"
           >
             <ImageIcon size={18} />
           </button>
@@ -190,15 +238,16 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
             accept="image/*"
             className="hidden"
             onChange={(e) => {
-              if (e.target.files?.[0]) pickImage(e.target.files[0]);
+              if (e.target.files?.[0]) processImageAttachment(e.target.files[0]);
               e.target.value = '';
             }}
           />
 
-          <button
+          {documents.length > 0 && <button
             type="button"
             onClick={() => setUseRag(!useRag)}
             disabled={!hasReadyDocs}
+            aria-pressed={useRag && hasReadyDocs}
             title={
               hasReadyDocs
                 ? useRag
@@ -206,15 +255,15 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
                   : 'Ground answers on your uploaded notes'
                 : 'Upload a document first to use your notes'
             }
-            className={`flex h-9 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+            className={`hidden h-11 shrink-0 items-center gap-1.5 rounded-xl px-2.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40 sm:flex ${
               useRag && hasReadyDocs
                 ? 'bg-brand-500/15 text-brand-600 dark:text-brand-300'
                 : 'text-muted hover:bg-surface-2 hover:text-fg'
             }`}
           >
             <BookOpenCheck size={16} />
-            <span className="hidden sm:inline">My notes</span>
-          </button>
+            <span>Use sources ({documents.filter((d) => d.status === 'READY').length})</span>
+          </button>}
 
           <textarea
             ref={taRef}
@@ -222,6 +271,8 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onKeyDown}
+            onPaste={onPaste}
+            enterKeyHint="send"
             placeholder={
               image
                 ? 'Ask about the image…'
@@ -230,7 +281,7 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
                   : 'Ask anything…  (Enter to send, Shift+Enter for newline)'
             }
             aria-label="Message"
-            className="scroll-thin max-h-[200px] min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-sm leading-6 text-fg placeholder:text-faint focus:outline-none sm:text-[15px]"
+            className="scroll-thin max-h-[200px] min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-base leading-6 text-fg placeholder:text-faint focus:outline-none"
           />
 
           {isStreaming ? (
@@ -238,22 +289,21 @@ export default function Composer({ onSend, onStop, isStreaming, onAttach, mode }
               type="button"
               onClick={onStop}
               title="Stop generating"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-fg transition hover:bg-line"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-fg transition hover:bg-line"
             >
               <Square size={16} className="fill-current" />
             </button>
           ) : (
             <button
-              type="button"
-              onClick={submit}
+              type="submit"
               disabled={!value.trim() && !image}
               title="Send"
-              className="brand-grad flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="brand-grad flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ArrowUp size={18} />
             </button>
           )}
-        </div>
+        </form>
         <p className="mt-1.5 hidden px-1 text-center text-[11px] text-faint sm:block">
           Privoraa can make mistakes. Verify important info. · Mode: <span className="capitalize">{mode.replace('_', ' ')}</span>
         </p>

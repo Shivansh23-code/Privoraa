@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { X, PanelLeftOpen, Loader2 } from 'lucide-react';
 
@@ -9,6 +9,7 @@ import EmptyState from './EmptyState';
 import Composer from './Composer';
 import VaultLockBar from './VaultLockBar';
 import ModelCatalogModal from '../models/ModelCatalogModal';
+import SourcesModal from './SourcesModal';
 
 import { useChatStore } from '../../store/chatStore';
 import { useUserAuth } from '../../context/UserAuthContext';
@@ -36,7 +37,6 @@ export default function ChatWorkspace() {
   const documents = useChatStore((s) => s.documents);
   const setDocuments = useChatStore((s) => s.setDocuments);
   const updateDocument = useChatStore((s) => s.updateDocument);
-  const setUseRag = useChatStore((s) => s.setUseRag);
 
   const convo = conversations.find((c) => c.id === currentId) || null;
   const messages = convo?.messages ?? [];
@@ -50,6 +50,8 @@ export default function ChatWorkspace() {
   const [collapsed, setCollapsed] = useState(false); // desktop sidebar collapsed (pinned)
   const [peek, setPeek] = useState(false); // collapsed sidebar temporarily shown on hover
   const [modelsOpen, setModelsOpen] = useState(false); // local-model catalog modal
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const closeSources = useCallback(() => setSourcesOpen(false), []);
   const [usingMock, setUsingMock] = useState(true);
   const [serverWaking, setServerWaking] = useState(false); // cold-start in progress
   const fileInputRef = useRef(null);
@@ -85,15 +87,10 @@ export default function ChatWorkspace() {
       if (!live) return;
       fetchDocuments().then((docs) => {
         setDocuments(docs);
-        // Auto-ground on existing notes: without this, a reload leaves useRag
-        // false (persisted) while docs are already READY, so chat silently
-        // ignores them — the "it can't read my document" complaint.
-        if (Array.isArray(docs) && docs.some((d) => d.status === 'READY')) {
-          setUseRag(true);
-        }
+        // Grounding remains an explicit user choice even when ready sources exist.
       });
     });
-  }, [setDocuments, setUseRag]);
+  }, [setDocuments]);
 
   // Poll while ANY document is still processing — one shared loop for all docs
   // (replaces per-upload polling that fired a /documents request every 2s each).
@@ -105,20 +102,16 @@ export default function ChatWorkspace() {
     const id = setInterval(async () => {
       const docs = await fetchDocuments().catch(() => null);
       if (!active || !Array.isArray(docs)) return;
-      const prev = useChatStore.getState().documents;
-      let becameReady = false;
       docs.forEach((d) => {
-        const before = prev.find((x) => x.id === d.id);
-        if (before?.status === 'PROCESSING' && d.status === 'READY') becameReady = true;
         updateDocument(d.id, { status: d.status, chunkCount: d.chunkCount });
       });
-      if (becameReady) setUseRag(true); // auto-ground once a doc finishes
+      // Ready sources become available, but are never enabled silently.
     }, 3500);
     return () => {
       active = false;
       clearInterval(id);
     };
-  }, [hasProcessingDoc, updateDocument, setUseRag]);
+  }, [hasProcessingDoc, updateDocument]);
 
   useEffect(() => {
     if (!sidebarOpen) return undefined;
@@ -159,7 +152,7 @@ export default function ChatWorkspace() {
   const desktopOpen = !collapsed || peek;
 
   return (
-    <div data-plan={plan} className="relative flex h-[100dvh] overflow-hidden bg-bg text-fg">
+    <div data-plan={plan} className="relative flex h-[100dvh] w-full min-w-0 max-w-none overflow-hidden bg-bg text-fg">
       {/* Per-plan ambient glow (violet for Plus, gold for Pro; none for Free). */}
       <div className="plan-glow-bg pointer-events-none absolute inset-x-0 top-0 z-0 h-72" />
       {/* ---------- Left sidebar (desktop) ---------- */}
@@ -212,7 +205,7 @@ export default function ChatWorkspace() {
             className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
-          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Navigation" tabIndex={-1} className="absolute left-0 top-0 h-full w-[min(300px,88vw)] border-r border-line bg-surface shadow-2xl">
+          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Navigation" tabIndex={-1} className="absolute left-0 top-0 h-full w-[min(320px,88vw)] border-r border-line bg-surface pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl">
             <button
               onClick={() => setSidebarOpen(false)}
               aria-label="Close navigation"
@@ -266,7 +259,7 @@ export default function ChatWorkspace() {
           onSend={send}
           onStop={stop}
           isStreaming={isStreaming}
-          onAttach={() => fileInputRef.current?.click()}
+          onOpenSources={() => setSourcesOpen(true)}
           mode={mode}
         />
       </main>
@@ -277,6 +270,7 @@ export default function ChatWorkspace() {
         onClose={() => setModelsOpen(false)}
         onActiveChange={() => localLlm.refresh()}
       />
+      <SourcesModal open={sourcesOpen} onClose={closeSources} />
     </div>
   );
 }

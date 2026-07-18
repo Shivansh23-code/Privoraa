@@ -21,6 +21,9 @@ export default function SelectMenu({ items, value, onChange, accent = 'accent', 
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(event) => {
+          if (event.key === 'ArrowDown') { event.preventDefault(); setOpen(true); }
+        }}
         aria-expanded={open}
         aria-haspopup="listbox"
         className="control-surface flex h-10 w-full items-center gap-2 rounded-xl px-3 text-left text-sm transition"
@@ -37,7 +40,19 @@ export default function SelectMenu({ items, value, onChange, accent = 'accent', 
       </button>
 
       {open && (
-        <div role="listbox" aria-label={placeholder} className="elevated-surface floating-surface scroll-thin absolute inset-x-0 top-full z-30 mt-1.5 max-h-[44vh] overflow-y-auto rounded-xl p-1.5">
+        <div
+          role="listbox"
+          aria-label={placeholder}
+          onKeyDown={(event) => {
+            if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const options = [...event.currentTarget.querySelectorAll('[role="option"]')];
+            const currentIndex = options.indexOf(document.activeElement);
+            const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : event.key === 'ArrowDown' ? Math.min(options.length - 1, currentIndex + 1) : Math.max(0, currentIndex - 1);
+            options[next]?.focus();
+          }}
+          className="elevated-surface floating-surface scroll-thin absolute inset-x-0 top-full z-30 mt-1.5 max-h-[44vh] overflow-y-auto rounded-xl p-1.5"
+        >
           {items.map((m) => {
             const Icon = m.icon;
             const active = m.id === value;

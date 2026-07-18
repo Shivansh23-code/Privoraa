@@ -17,6 +17,7 @@ import {
   Wand2,
   Crown,
   Gem,
+  MoreHorizontal,
 } from 'lucide-react';
 import { useChatStore } from '../../store/chatStore';
 import { useUserAuth } from '../../context/UserAuthContext';
@@ -29,6 +30,7 @@ import ProAssistants from './ProAssistants';
 function ConversationItem({ convo, active, onSelect, onRename, onDelete, onTogglePin }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(convo.title);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const commit = () => {
     onRename(convo.id, draft);
@@ -61,8 +63,9 @@ function ConversationItem({ convo, active, onSelect, onRename, onDelete, onToggl
       )}
 
       <div
-        className="flex shrink-0 items-center gap-0.5"
+        className="relative flex shrink-0 items-center"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.key === 'Escape' && setActionsOpen(false)}
       >
         {editing ? (
           <>
@@ -70,17 +73,14 @@ function ConversationItem({ convo, active, onSelect, onRename, onDelete, onToggl
             <IconBtn title="Cancel" onClick={() => setEditing(false)}><X size={13} /></IconBtn>
           </>
         ) : (
-          <div className={`items-center gap-0.5 ${convo.pinned ? 'flex' : 'flex lg:hidden lg:group-hover:flex'}`}>
-            <IconBtn title={convo.pinned ? 'Unpin' : 'Pin'} onClick={() => onTogglePin(convo.id)}>
-              {convo.pinned ? <PinOff size={13} /> : <Pin size={13} />}
-            </IconBtn>
-            <IconBtn title="Rename" onClick={() => { setDraft(convo.title); setEditing(true); }}>
-              <Pencil size={13} />
-            </IconBtn>
-            <IconBtn title="Delete" danger onClick={() => onDelete(convo.id)}>
-              <Trash2 size={13} />
-            </IconBtn>
-          </div>
+          <>
+            <button aria-label={`Actions for ${convo.title}`} aria-expanded={actionsOpen} onClick={() => setActionsOpen((open) => !open)} className={`flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg ${actionsOpen ? 'opacity-100' : 'opacity-100 lg:opacity-0 lg:group-hover:opacity-100 lg:focus:opacity-100'}`}><MoreHorizontal size={16} /></button>
+            {actionsOpen && <div className="elevated-surface floating-surface absolute right-0 top-10 z-20 w-36 rounded-xl p-1">
+              <button onClick={() => { onTogglePin(convo.id); setActionsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs hover:bg-surface-2">{convo.pinned ? <PinOff size={14} /> : <Pin size={14} />}{convo.pinned ? 'Unpin' : 'Pin'}</button>
+              <button onClick={() => { setDraft(convo.title); setEditing(true); setActionsOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs hover:bg-surface-2"><Pencil size={14} />Rename</button>
+              <button onClick={() => onDelete(convo.id)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs text-red-500 hover:bg-red-500/10"><Trash2 size={14} />Delete</button>
+            </div>}
+          </>
         )}
       </div>
     </div>
@@ -224,17 +224,6 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
         />
       </div>
 
-      {/* Response style (persona) — moved out of the header for small screens. */}
-      <div>
-        <p className="mb-1.5 flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-faint">
-          <Wand2 size={12} /> Response style
-        </p>
-        <ResponseStyle />
-      </div>
-
-      {/* Pro-exclusive specialist assistants. */}
-      {user?.plan === 'PRO' && <ProAssistants />}
-
       <div className="scroll-thin -mx-1 flex-1 overflow-y-auto px-1">
         {conversations.length === 0 && (
           <p className="px-2 py-6 text-center text-xs text-faint">
@@ -295,8 +284,16 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
         )}
       </div>
 
-      {/* Merged from the old right panel: notes (RAG) + usage */}
-      <SidebarSection title="Your notes (RAG)" icon={FileText} defaultOpen>
+      <SidebarSection title="Tools" icon={Wand2}>
+        <div className="space-y-3 py-2">
+          <div>
+            <p className="mb-1 px-1 text-xs text-faint">Response style</p>
+            <ResponseStyle />
+          </div>
+          {user?.plan === 'PRO' && <ProAssistants />}
+        </div>
+      </SidebarSection>
+      <SidebarSection title="Sources" icon={FileText}>
         <DocumentsPanel fileInputRef={fileInputRef} hideHeading />
       </SidebarSection>
       <SidebarSection title="Usage" icon={Activity}>

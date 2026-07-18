@@ -6,7 +6,7 @@ export default function TrustStrip() {
           <svg aria-hidden="true">
             <use href="#i-check" />
           </svg>
-          OFFLINE-FIRST
+          OFFLINE MODEL SUPPORT
         </span>
         <span>
           <svg aria-hidden="true">
@@ -18,13 +18,13 @@ export default function TrustStrip() {
           <svg aria-hidden="true">
             <use href="#i-check" />
           </svg>
-          ZERO TRACKING
+          EXPLICIT MODEL ROUTING
         </span>
         <span>
           <svg aria-hidden="true">
             <use href="#i-check" />
           </svg>
-          END-TO-END SEALED
+          ENCRYPTED LOCAL VAULT
         </span>
         <span>
           <svg aria-hidden="true">

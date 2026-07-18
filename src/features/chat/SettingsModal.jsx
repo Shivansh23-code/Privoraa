@@ -1,17 +1,37 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { useChatStore } from '../../store/chatStore';
 import { MODES } from '../../lib/modes';
 import VaultPanel from './VaultPanel';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function SettingsModal({ open, onClose }) {
   const { user, updateProfile } = useUserAuth();
   const mode = useChatStore((s) => s.mode);
   const setMode = useChatStore((s) => s.setMode);
+  const { theme, setTheme } = useTheme();
 
   const [name, setName] = useState(user?.name || '');
   const [defaultMode, setDefaultMode] = useState(mode);
+  const panelRef = useRef(null);
+  const closeRef = useRef(null);
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const returnFocus = document.activeElement;
+    closeRef.current?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') { onCloseRef.current(); return; }
+      if (event.key !== 'Tab') return;
+      const items = [...(panelRef.current?.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])') || [])];
+      if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1)?.focus(); }
+      else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0]?.focus(); }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => { window.removeEventListener('keydown', onKeyDown); returnFocus?.focus?.(); };
+  }, [open]);
 
   if (!open) return null;
 
@@ -25,6 +45,7 @@ export default function SettingsModal({ open, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
@@ -33,6 +54,7 @@ export default function SettingsModal({ open, onClose }) {
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">Settings</h2>
           <button
+            ref={closeRef}
             onClick={onClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg"
             title="Close"
@@ -67,9 +89,19 @@ export default function SettingsModal({ open, onClose }) {
             </select>
           </label>
 
-          <p className="text-xs text-muted">
-            Appearance follows your system's light/dark preference automatically.
-          </p>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Appearance</span>
+            <select
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+              className="rounded-lg border border-line bg-surface px-3 py-2 text-sm focus:border-brand-400 focus:outline-none"
+            >
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+            <span className="text-xs text-muted">System follows your device appearance.</span>
+          </label>
         </div>
 
         <div className="mt-4">

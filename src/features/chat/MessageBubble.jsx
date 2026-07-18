@@ -27,7 +27,8 @@ function ThinkingDots() {
 function Citations({ citations }) {
   if (!citations?.length) return null;
   return (
-    <div className="mt-3 flex flex-wrap gap-1.5">
+    <div className="mt-4 flex flex-wrap items-center gap-1.5">
+      <span className="mr-1 text-[11px] font-medium text-muted">Grounded in sources</span>
       {citations.map((c) => (
         <span
           key={c.chunk}
@@ -65,7 +66,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
         className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
           isUser
             ? 'bg-[var(--user-message-avatar)] text-white'
-            : 'bg-surface-2 text-[var(--accent-primary)] ring-1 ring-line'
+            : 'bg-surface-2 text-[var(--assistant-identity)] ring-1 ring-line'
         }`}
       >
         {isUser ? <UserIcon size={15} /> : <span className="font-display text-sm font-bold">P</span>}

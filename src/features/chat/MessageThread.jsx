@@ -38,8 +38,10 @@ export default function MessageThread({
       ref={containerRef}
       onScroll={onScroll}
       className="scroll-thin flex-1 overflow-y-auto"
+      aria-busy={isStreaming}
     >
-      <div className="mx-auto flex w-full max-w-[920px] flex-col gap-8 px-4 pb-[calc(var(--composer-height,9rem)+2rem)] pt-8 sm:px-6 lg:px-8">
+      <span className="sr-only" aria-live="polite">{isStreaming ? 'Assistant is responding.' : ''}</span>
+      <div className="mx-auto flex w-full max-w-[900px] flex-col gap-5 px-4 pb-[calc(var(--composer-height,9rem)+2rem)] pt-6 sm:gap-6 sm:px-6 lg:px-8">
         {messages.map((m) => (
           <MessageBubble
             key={m.id}
