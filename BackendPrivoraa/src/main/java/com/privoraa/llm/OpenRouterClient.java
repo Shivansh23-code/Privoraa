@@ -38,14 +38,14 @@ public class OpenRouterClient {
         this.props = props;
     }
 
-    /** Stream a chat completion, emitting each content delta as it arrives. */
-    public Flux<String> streamCompletion(String model, List<Map<String, Object>> messages,
-                                         Double temperature, Integer maxTokens) {
+    /** Stream a chat completion, emitting deltas and a terminal finish-reason event. */
+    public Flux<StreamEvent> streamCompletion(String model, List<Map<String, Object>> messages,
+                                               Double temperature, Integer maxTokens) {
         return streamCompletion(model, messages, new ChatOptions(temperature, maxTokens));
     }
 
-    /** Stream a chat completion with full sampling options. */
-    public Flux<String> streamCompletion(String model, List<Map<String, Object>> messages, ChatOptions opts) {
+    /** Stream a chat completion with full sampling options, emitting deltas + finish reason. */
+    public Flux<StreamEvent> streamCompletion(String model, List<Map<String, Object>> messages, ChatOptions opts) {
         if (!props.configured()) {
             return Flux.error(notConfigured());
         }
@@ -61,15 +61,15 @@ public class OpenRouterClient {
                 // them — otherwise the stream NPEs before the first token.
                 .mapNotNull(ServerSentEvent::data)
                 .takeWhile(data -> !"[DONE]".equals(data.trim()))
-                .map(this::extractDelta)
-                .filter(s -> !s.isEmpty())
+                .map(this::toEvent)
+                .filter(e -> e.terminal() || e.delta() != null)
                 // Free models frequently return a transient 429. The status is known
                 // before any token is emitted, so retrying the request is safe. A short
                 // backoff clears brief bursts; if it persists, ChatService falls back to
                 // the next (different-provider) model in the chain.
                 .retryWhen(reactor.util.retry.Retry.backoff(1, Duration.ofMillis(900))
                         .maxBackoff(Duration.ofSeconds(2))
-                        .filter(OpenRouterClient::isRateLimited));
+                        .filter(t -> OpenRouterClient.isRateLimited(t)));
     }
 
     /** True if the error is (or wraps) an HTTP 429 from the upstream. */
@@ -112,7 +112,8 @@ public class OpenRouterClient {
         String content = resp.path("choices").path(0).path("message").path("content").asText("");
         int prompt = resp.path("usage").path("prompt_tokens").asInt(0);
         int completion = resp.path("usage").path("completion_tokens").asInt(0);
-        return new ChatResult(content, prompt, completion);
+        String finishReason = resp.path("choices").path(0).path("finish_reason").asText(null);
+        return new ChatResult(content, prompt, completion, finishReason);
     }
 
     /** Fetch the full model catalog (public endpoint; works without a key). */
@@ -183,14 +184,27 @@ public class OpenRouterClient {
         return body;
     }
 
-    private String extractDelta(String data) {
+    /** Package-private for testability. */
+    StreamEvent toEvent(String data) {
         try {
             JsonNode node = mapper.readTree(data);
-            JsonNode content = node.path("choices").path(0).path("delta").path("content");
-            return content.isTextual() ? content.asText() : "";
+            JsonNode choices = node.path("choices");
+            if (choices.isArray() && choices.size() > 0) {
+                JsonNode choice = choices.get(0);
+                // The final chunk before [DONE] carries finish_reason.
+                String finishReason = choice.path("finish_reason").asText(null);
+                if (finishReason != null && !finishReason.isEmpty() && !"null".equals(finishReason)) {
+                    return StreamEvent.done(finishReason);
+                }
+                JsonNode content = choice.path("delta").path("content");
+                if (content.isTextual()) {
+                    return StreamEvent.delta(content.asText());
+                }
+            }
         } catch (Exception e) {
-            return "";
+            // ignore malformed chunks
         }
+        return StreamEvent.delta("");
     }
 
     private ApiException notConfigured() {

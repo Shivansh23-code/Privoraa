@@ -47,7 +47,7 @@ public class GeminiProvider implements LlmProvider {
     }
 
     @Override
-    public Flux<String> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
+    public Flux<StreamEvent> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
         if (!props.configured()) {
             return Flux.error(notConfigured());
         }
@@ -66,8 +66,8 @@ public class GeminiProvider implements LlmProvider {
                 .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
                 .mapNotNull(ServerSentEvent::data)
                 .takeWhile(data -> !"[DONE]".equals(data.trim()))
-                .map(this::extractDelta)
-                .filter(s -> !s.isEmpty());
+                .map(this::toEvent)
+                .filter(e -> e.terminal() || e.delta() != null);
     }
 
     @Override
@@ -91,7 +91,8 @@ public class GeminiProvider implements LlmProvider {
         String content = resp.path("choices").path(0).path("message").path("content").asText("");
         int prompt = resp.path("usage").path("prompt_tokens").asInt(0);
         int completion = resp.path("usage").path("completion_tokens").asInt(0);
-        return new ChatResult(content, prompt, completion);
+        String finishReason = resp.path("choices").path(0).path("finish_reason").asText(null);
+        return new ChatResult(content, prompt, completion, finishReason);
     }
 
     @Override
@@ -146,14 +147,26 @@ public class GeminiProvider implements LlmProvider {
         return t.length() > 300 ? t.substring(0, 300) + "…" : t;
     }
 
-    private String extractDelta(String data) {
+    /** Package-private for testability. */
+    StreamEvent toEvent(String data) {
         try {
             JsonNode node = mapper.readTree(data);
-            JsonNode content = node.path("choices").path(0).path("delta").path("content");
-            return content.isTextual() ? content.asText() : "";
+            JsonNode choices = node.path("choices");
+            if (choices.isArray() && choices.size() > 0) {
+                JsonNode choice = choices.get(0);
+                String finishReason = choice.path("finish_reason").asText(null);
+                if (finishReason != null && !finishReason.isEmpty() && !"null".equals(finishReason)) {
+                    return StreamEvent.done(finishReason);
+                }
+                JsonNode content = choice.path("delta").path("content");
+                if (content.isTextual()) {
+                    return StreamEvent.delta(content.asText());
+                }
+            }
         } catch (Exception e) {
-            return "";
+            // ignore malformed chunks
         }
+        return StreamEvent.delta("");
     }
 
     private ApiException notConfigured() {

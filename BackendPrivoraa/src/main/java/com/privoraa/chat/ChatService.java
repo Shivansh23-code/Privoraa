@@ -20,6 +20,7 @@ import com.privoraa.llm.ChatResult;
 import com.privoraa.llm.LlmProvider;
 import com.privoraa.llm.LlmProviderResolver;
 import com.privoraa.model.ModelCatalogService;
+import com.privoraa.model.ModelDto;
 import com.privoraa.ratelimit.RateLimitService;
 import com.privoraa.rag.RagContext;
 import com.privoraa.rag.RagService;
@@ -39,6 +40,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class ChatService {
@@ -113,13 +115,22 @@ public class ChatService {
         send(emitter, "meta", metaPayload(modelName, p));
 
         AtomicBoolean emitted = new AtomicBoolean(false);
+        AtomicBoolean terminalReceived = new AtomicBoolean(false);
+        AtomicReference<String> finishReason = new AtomicReference<>(null);
         p.provider().streamChat(modelId, p.messages(), p.options())
                 .subscribeOn(Schedulers.boundedElastic())
                 .subscribe(
-                        delta -> {
-                            emitted.set(true);
-                            sb.append(delta);
-                            send(emitter, "token", Map.of("delta", delta));
+                        event -> {
+                            if (event.terminal()) {
+                                terminalReceived.set(true);
+                                if (event.finishReason() != null) {
+                                    finishReason.set(event.finishReason());
+                                }
+                            } else if (event.delta() != null) {
+                                emitted.set(true);
+                                sb.append(event.delta());
+                                send(emitter, "token", Map.of("delta", event.delta()));
+                            }
                         },
                         err -> {
                             if (!emitted.get() && idx + 1 < p.chain().size()) {
@@ -134,8 +145,16 @@ public class ChatService {
                         () -> {
                             String content = sb.toString();
                             int completionTokens = Math.max(1, content.length() / 4);
+                            String reason;
+                            if (terminalReceived.get()) {
+                                // Terminal event seen — use its reason if present, else "unknown".
+                                reason = finishReason.get() != null ? finishReason.get() : "unknown";
+                            } else {
+                                // Flux completed without any terminal event from the provider.
+                                reason = emitted.get() ? "incomplete" : "unknown";
+                            }
                             persistAssistant(p, modelName, content, p.promptTokens(), completionTokens);
-                            send(emitter, "done", donePayload(modelName, p, p.promptTokens(), completionTokens));
+                            send(emitter, "done", donePayload(modelName, p, p.promptTokens(), completionTokens, reason));
                             emitter.complete();
                         });
     }
@@ -241,6 +260,12 @@ public class ChatService {
         // Task-aware sampling: e.g. low temperature for code/math, a touch warmer
         // for open-ended chat — tuned off the routed category.
         ChatOptions options = ChatOptions.forCategory(routed.category());
+        // Clamp output budget against the resolved model's context window so we
+        // never request more than half the available context or a conservative
+        // ceiling when the model's limits are unknown.
+        String firstModel = routed.chain().getFirst();
+        Integer ctx = catalog.find(firstModel).map(ModelDto::contextLength).orElse(null);
+        options = options.withClampedMaxTokens(ctx);
 
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
                 routed.chain(), provider, options);
@@ -268,12 +293,13 @@ public class ChatService {
         return m;
     }
 
-    private Map<String, Object> donePayload(String modelName, Prepared p, int promptTokens, int completionTokens) {
+    private Map<String, Object> donePayload(String modelName, Prepared p, int promptTokens, int completionTokens, String finishReason) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("model", modelName);
         m.put("promptTokens", promptTokens);
         m.put("completionTokens", completionTokens);
         m.put("citations", p.rag().citations());
+        m.put("finishReason", finishReason);
         return m;
     }
 

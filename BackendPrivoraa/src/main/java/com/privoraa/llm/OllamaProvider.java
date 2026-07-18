@@ -45,19 +45,20 @@ public class OllamaProvider implements LlmProvider {
     }
 
     @Override
-    public Flux<String> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
+    public Flux<StreamEvent> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
         Map<String, Object> body = chatBody(model, messages, opts, true);
         return web.post()
                 .uri("/api/chat")
                 .bodyValue(body)
                 .retrieve()
                 // Ollama emits application/x-ndjson; the Jackson decoder yields one
-                // JsonNode per line. The final line has done:true and empty content.
+                // JsonNode per line. The final line has done:true and empty content
+                // with done_reason indicating why generation stopped.
                 .bodyToFlux(JsonNode.class)
                 .timeout(Duration.ofSeconds(props.timeoutSeconds()))
                 .takeUntil(node -> node.path("done").asBoolean(false))
-                .mapNotNull(node -> node.path("message").path("content").asText(""))
-                .filter(s -> !s.isEmpty())
+                .map(this::toEvent)
+                .filter(e -> e.terminal() || e.delta() != null)
                 .onErrorMap(this::mapError);
     }
 
@@ -78,7 +79,8 @@ public class OllamaProvider implements LlmProvider {
         String content = resp.path("message").path("content").asText("");
         int prompt = resp.path("prompt_eval_count").asInt(0);
         int completion = resp.path("eval_count").asInt(0);
-        return new ChatResult(content, prompt, completion);
+        String finishReason = resp.path("done_reason").asText(null);
+        return new ChatResult(content, prompt, completion, finishReason);
     }
 
     @Override
@@ -222,5 +224,15 @@ public class OllamaProvider implements LlmProvider {
         return new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
                 "Local Ollama is unreachable at " + props.baseUrl()
                         + ". Is Ollama running? (" + t.getClass().getSimpleName() + ")");
+    }
+
+    /** Package-private for testability. */
+    StreamEvent toEvent(JsonNode node) {
+        if (node.path("done").asBoolean(false)) {
+            String reason = node.path("done_reason").asText(null);
+            return reason != null ? StreamEvent.done(reason) : StreamEvent.done(null);
+        }
+        String content = node.path("message").path("content").asText("");
+        return StreamEvent.delta(content);
     }
 }

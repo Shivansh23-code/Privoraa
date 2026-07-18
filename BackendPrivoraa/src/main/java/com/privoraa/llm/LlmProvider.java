@@ -16,8 +16,8 @@ public interface LlmProvider {
     /** Stable id used in config and {@code /api/llm/health}: "ollama" or "openrouter". */
     String id();
 
-    /** Stream a chat completion, emitting each content delta as it arrives. */
-    Flux<String> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts);
+    /** Stream a chat completion, emitting deltas and a terminal finish-reason event. */
+    Flux<StreamEvent> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts);
 
     /** Non-streaming chat completion with token usage when the backend reports it. */
     ChatResult chat(String model, List<Map<String, Object>> messages, ChatOptions opts);

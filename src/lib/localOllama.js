@@ -174,10 +174,10 @@ export async function streamLocalOllamaChat(
         try { obj = JSON.parse(line); } catch { continue; }
         const delta = obj.message?.content || '';
         if (delta) { full += delta; onToken?.(delta); }
-        if (obj.done) { onDone?.({ model, content: full }); return; }
+        if (obj.done) { onDone?.({ model, content: full, finishReason: obj.done_reason || null }); return; }
       }
     }
-    onDone?.({ model, content: full });
+    onDone?.({ model, content: full, finishReason: null });
   } catch (e) {
     if (e?.name === 'AbortError') { onDone?.({ model, content: full, aborted: true }); return; }
     onError?.(e instanceof Error ? e : new Error('Local stream failed.'));

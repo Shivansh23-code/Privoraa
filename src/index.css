@@ -266,16 +266,23 @@ html.dark [data-plan='pro'] { --bg:#090a0c; --surface:#101216; --surface-2:#171a
 .prose-chat .katex-display { margin: 0.8rem 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
 .prose-chat strong { font-weight: 700; }
 
-/* Phones retain a readable 14px answer size; wide tables and code scroll
- * horizontally instead of compressing into unreadable wrapped columns. */
+/* Mobile assistant prose: 16px (1rem) with compact line-height for comfortable
+ * reading. Tables and code blocks scroll horizontally; the prose wrapper itself
+ * does not (metadata such as the model badge stays small at text-xs). */
 @media (max-width: 640px) {
-  .prose-chat { font-size: .875rem; line-height: 1.7; }
-  .prose-chat h1 { font-size: 1.25rem; }
-  .prose-chat h2 { font-size: 1.1rem; }
-  .prose-chat h3 { font-size: 1rem; }
+  .prose-chat { font-size: 1rem; line-height: 1.65; }
+  .prose-chat h1 { font-size: 1.25rem; margin: .85rem 0 .4rem; }
+  .prose-chat h2 { font-size: 1.1rem; margin: .75rem 0 .35rem; }
+  .prose-chat h3 { font-size: 1rem; margin: .65rem 0 .3rem; }
   .prose-chat h4 { font-size: .925rem; }
   .prose-chat table { font-size: .8rem; min-width: 30rem; }
   .prose-chat th,
   .prose-chat td { padding: 0.28rem 0.45rem; }
   .prose-chat pre { font-size: .78rem; }
+  .prose-chat p { margin: .6rem 0; }
+  .prose-chat ul,
+  .prose-chat ol { margin: .45rem 0; padding-left: 1.2rem; }
+  .prose-chat blockquote { margin: .5rem 0; }
+  .prose-chat hr { margin: .7rem 0; }
+  .prose-chat .katex-display { margin: .5rem 0; }
 }
