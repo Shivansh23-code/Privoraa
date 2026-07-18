@@ -48,7 +48,7 @@ function CodeBlock({ className, children }) {
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <pre className="scroll-thin overflow-x-auto p-4 text-[13px] leading-relaxed">
+      <pre className="scroll-thin overflow-x-auto p-4 text-[14px] leading-relaxed sm:text-[13.5px]">
         <code className={`${className || ''} bg-transparent`}>{children}</code>
       </pre>
     </div>
@@ -62,7 +62,7 @@ const components = {
     const isBlock = /language-/.test(className || '') || text.includes('\n');
     if (isBlock) return <CodeBlock className={className}>{children}</CodeBlock>;
     return (
-      <code className="rounded-[5px] border border-line/70 bg-surface-2 px-1.5 py-0.5 font-mono text-[0.85em] text-brand-600 dark:text-brand-300">
+      <code className="rounded-[4px] border border-line/60 bg-surface-2/80 px-[5px] py-[2px] font-mono text-[.88em] text-brand-600 dark:text-brand-300">
         {children}
       </code>
     );

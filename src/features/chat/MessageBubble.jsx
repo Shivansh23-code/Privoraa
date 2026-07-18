@@ -60,16 +60,16 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
   };
 
   return (
-    <article className={`group flex animate-rise gap-3 sm:gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
-      {/* Avatar */}
+    <article className={`group flex animate-rise gap-2 sm:gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
+      {/* Avatar — slightly smaller on mobile to free width for prose */}
       <div
-        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${
+        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl sm:h-8 sm:w-8 ${
           isUser
             ? 'bg-[var(--user-message-avatar)] text-white'
             : 'bg-surface-2 text-[var(--assistant-identity)] ring-1 ring-line'
         }`}
       >
-        {isUser ? <UserIcon size={15} /> : <span className="font-display text-sm font-bold">P</span>}
+        {isUser ? <UserIcon size={13} /> : <span className="font-display text-xs font-bold sm:text-sm">P</span>}
       </div>
 
       {/* Assistant answers fill the available column width (better for long
