@@ -182,9 +182,9 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        aria-haspopup="menu"
+        aria-haspopup="dialog"
         title="Choose a model — Auto, Online (cloud) or Offline (on your device)"
-        className="control-surface flex h-10 max-w-[190px] items-center gap-2 rounded-xl px-3 text-sm font-medium transition sm:max-w-[240px]"
+        className="control-surface flex h-11 max-w-[160px] items-center gap-2 rounded-xl px-3 text-sm font-medium transition sm:max-w-[240px]"
       >
         <HeadIcon size={15} className={`shrink-0 ${headTone}`} />
         <span className="truncate">{currentLabel}</span>
@@ -192,7 +192,7 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
       </button>
 
       {open && (
-        <div role="menu" aria-label="Model selection" className="elevated-surface floating-surface scroll-thin fixed inset-x-2 top-[4.5rem] z-30 max-h-[72vh] overflow-y-auto rounded-2xl p-1.5 sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:mt-2 sm:w-[min(22rem,calc(100vw-1.5rem))]">
+        <div aria-label="Model selection" className="elevated-surface floating-surface scroll-thin fixed inset-x-2 top-[4.5rem] z-30 max-h-[72vh] overflow-y-auto rounded-2xl p-1.5 sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:mt-2 sm:w-[min(22rem,calc(100vw-1.5rem))]">
           {/* ---------------- Level 1: Auto / Online / Offline ---------------- */}
           {view === 'root' && (
             <>
@@ -354,7 +354,6 @@ function NavRow({ icon, title, sub, activeProvider, onClick }) {
   return (
     <button
       onClick={onClick}
-      role="menuitem"
       className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition hover:bg-surface-2"
     >
       <div className="shrink-0">{icon}</div>
@@ -379,7 +378,6 @@ function BackHeader({ icon, title, sub, tone, onBack }) {
   return (
     <button
       onClick={onBack}
-      role="menuitem"
       className="mb-1 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-surface-2"
     >
       <ArrowLeft size={16} className="shrink-0 text-muted" />
@@ -453,8 +451,7 @@ function Row({ active, icon, title, sub, badge, trailing, onClick }) {
   return (
     <button
       onClick={onClick}
-      role="menuitemradio"
-      aria-checked={active}
+      aria-pressed={active}
       className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition ${
         active ? 'bg-brand-500/10' : 'hover:bg-surface-2'
       }`}

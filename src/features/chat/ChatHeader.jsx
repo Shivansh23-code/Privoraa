@@ -95,7 +95,7 @@ export default function ChatHeader({
         ref={mobileMenuTriggerRef}
         onClick={onToggleSidebar}
         aria-label="Open navigation"
-        className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-fg lg:hidden"
+        className="flex h-11 w-11 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg lg:hidden"
         title="Menu"
       >
         <Menu size={18} />
@@ -164,8 +164,8 @@ export default function ChatHeader({
           onClick={() => setMenuOpen((o) => !o)}
           aria-label="Open account menu"
           aria-expanded={menuOpen}
-          aria-haspopup="menu"
-          className="control-surface flex h-10 items-center gap-1.5 rounded-xl px-2 text-sm transition"
+          aria-haspopup="true"
+          className="control-surface flex h-11 items-center gap-1.5 rounded-xl px-2 text-sm transition"
         >
           <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br ${theme.ring} text-[11px] font-bold text-white`}>
             {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
@@ -174,7 +174,7 @@ export default function ChatHeader({
         </button>
 
         {menuOpen && (
-          <div role="menu" aria-label="Account" className="elevated-surface floating-surface absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-2xl p-1.5">
+          <div aria-label="Account options" className="elevated-surface floating-surface absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-2xl p-1.5">
             <div className="flex items-center gap-2 px-2.5 py-2">
               <UserIcon size={16} className="text-muted" />
               <div className="min-w-0">
@@ -185,14 +185,12 @@ export default function ChatHeader({
             <div className="my-1 h-px bg-line" />
             <Link
               to="/plans"
-              role="menuitem"
               onClick={() => setMenuOpen(false)}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition hover:bg-surface-2"
             >
               <Gem size={15} className="text-brand-500" /> Plans &amp; upgrade
             </Link>
             <button
-              role="menuitem"
               onClick={() => {
                 setMenuOpen(false);
                 setOfferOpen(true);
@@ -203,7 +201,6 @@ export default function ChatHeader({
             </button>
             <div className="my-1 h-px bg-line" />
             <button
-              role="menuitem"
               onClick={logOut}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm text-red-500 transition hover:bg-red-500/10"
             >

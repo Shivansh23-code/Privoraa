@@ -55,9 +55,9 @@ export default function Hero() {
               </span>
             </h1>
             <p className="lead">
-              Privoraa helps you <strong>focus, remember, and feel safe</strong> — an AI that runs on{' '}
-              <strong>your device</strong>, keeps memory in a vault <strong>only you can open</strong>,
-              and works the same with the Wi-Fi off.
+              Privoraa brings cloud and supported local models into one focused workspace. Run
+              compatible models <strong>on your device</strong>, keep selected memory in an encrypted
+              vault, and continue local conversations without Wi-Fi.
             </p>
             <div className="hero-cta">
               <a href="#demo" className="btn btn-p">
@@ -72,10 +72,10 @@ export default function Hero() {
             </div>
             <div className="microproof">
               <span>
-                <b>0 B</b> SENT TO CLOUD
+                <b>LOCAL</b> MODEL OPTION
               </span>
               <span>
-                <b>100%</b> ON-DEVICE
+                <b>CLEAR</b> ROUTE STATUS
               </span>
               <span>
                 <b>AES-256</b> SEALED VAULT

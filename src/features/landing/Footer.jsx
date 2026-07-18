@@ -64,7 +64,7 @@ export default function Footer() {
           <span>
             © <span id="yr">{new Date().getFullYear()}</span> Privoraa. Sealed with care.
           </span>
-          <span>WHAT LEAVES YOUR DEVICE: NOTHING</span>
+          <span>LOCAL MODE KEEPS INFERENCE ON YOUR DEVICE</span>
         </div>
         <p
           style={{

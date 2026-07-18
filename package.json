@@ -8,6 +8,7 @@
     "build": "vite build && vite build --ssr src/entry-server.jsx --outDir dist-server && node scripts/prerender.mjs",
     "build:client": "vite build",
     "lint": "eslint .",
+    "test": "node --test test/composerInput.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
