@@ -28,6 +28,9 @@ import com.privoraa.rag.DocumentService;
 import com.privoraa.routing.ModelRouter;
 import com.privoraa.routing.OfflineRouter;
 import com.privoraa.routing.Routed;
+import com.privoraa.routing.ScoredRouter;
+import com.privoraa.routing.ScoredRoutingException;
+import com.privoraa.routing.ScoredRoutingResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -60,12 +63,13 @@ public class ChatService {
     private final GeminiProperties gemini;
     private final RequestClassifier requestClassifier;
     private final PrivacyPolicyEvaluator privacyPolicy;
+    private final ScoredRouter scoredRouter;
 
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
                        OfflineRouter offlineRouter, RagService ragService, DocumentService documentService,
                        PromptBuilder promptBuilder, LlmProviderResolver providers, ActiveModelService activeModel,
                        ModelCatalogService catalog, GeminiProperties gemini, RequestClassifier requestClassifier,
-                       PrivacyPolicyEvaluator privacyPolicy) {
+                       PrivacyPolicyEvaluator privacyPolicy, ScoredRouter scoredRouter) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
@@ -79,6 +83,7 @@ public class ChatService {
         this.gemini = gemini;
         this.requestClassifier = requestClassifier;
         this.privacyPolicy = privacyPolicy;
+        this.scoredRouter = scoredRouter;
     }
 
     // ----------------------------------------------------------------- streaming
@@ -96,8 +101,8 @@ public class ChatService {
 
         Prepared p;
         try {
-            classifyAndEnforce(req);
-            p = prepare(userId, req);
+            RequestClassification classification = classifyAndEnforce(req);
+            p = prepare(userId, req, classification);
         } catch (Exception e) {
             send(emitter, "error", Map.of("message", friendly(e)));
             emitter.complete();
@@ -163,8 +168,8 @@ public class ChatService {
 
     public ChatResponse chat(String userId, ChatRequest req) {
         rateLimit.check(userId);
-        classifyAndEnforce(req);
-        Prepared p = prepare(userId, req);
+        RequestClassification classification = classifyAndEnforce(req);
+        Prepared p = prepare(userId, req, classification);
 
         ChatResult result = null;
         String usedModel = null;
@@ -188,8 +193,12 @@ public class ChatService {
                 ? result.completionTokens() : Math.max(1, result.content().length() / 4);
 
         Message saved = persistAssistant(p, usedModel, result.content(), promptTokens, completionTokens);
+        String registryId = p.scoredResult() != null ? p.scoredResult().registryId() : null;
+        String pricingTier = p.scoredResult() != null ? p.scoredResult().pricingTier().name() : null;
+        String topology = p.scoredResult() != null ? p.scoredResult().topology().name() : null;
         return new ChatResponse(p.conversationId(), usedModel, p.routed().category(), p.routed().reason(),
-                MessageDto.from(saved), promptTokens, completionTokens, p.rag().citations());
+                MessageDto.from(saved), promptTokens, completionTokens, p.rag().citations(),
+                registryId, pricingTier, topology);
     }
 
     // ----------------------------------------------------------------- helpers
@@ -217,7 +226,7 @@ public class ChatService {
     }
 
     /** Shared setup: persist the user message, route, retrieve RAG, build the prompt. */
-    private Prepared prepare(String userId, ChatRequest req) {
+    private Prepared prepare(String userId, ChatRequest req, RequestClassification classification) {
         Conversation convo = conversations.getOrCreate(userId, req.conversationId(), req.modeOrDefault());
         String conversationId = convo.getId();
         String mode = convo.getMode();
@@ -232,24 +241,38 @@ public class ChatService {
         LlmProvider provider = resolveProvider(req);
         boolean offline = "ollama".equals(provider.id());
 
-        // Route per provider. Offline: "Auto" picks the best INSTALLED local model
-        // for the prompt (or honors an explicit local tag), and images go to a local
-        // vision model. Online: the health-aware cloud chain / vision chain.
-        Routed routed = offline
-                ? offlineRouter.resolve(req.model(), req.content(), mode, useRag, req.hasImage(),
-                        activeModel.activeFor(userId))
-                : (req.hasImage()
-                        ? router.visionRoute(req.content())
-                        : router.resolve(req.model(), req.content(), mode, useRag));
+        ScoredRoutingResult scoredResult = null;
+        Routed routed;
+        if (offline) {
+            routed = offlineRouter.resolve(req.model(), req.content(), mode, useRag, req.hasImage(),
+                    activeModel.activeFor(userId));
+        } else if (scoredRouter.appliesTo(req, provider)) {
+            try {
+                scoredResult = scoredRouter.resolve(classification, req, provider);
+                routed = scoredResult.toRouted();
+                if (scoredResult.provider() == com.privoraa.ai.registry.ModelProvider.GEMINI) {
+                    provider = providers.byId("gemini");
+                }
+            } catch (ScoredRoutingException e) {
+                scoredResult = null;
+                routed = resolveLegacy(req, mode, useRag);
+            }
+        } else {
+            routed = resolveLegacy(req, mode, useRag);
+        }
 
-        // Free coding upgrade: send "auto" online coding requests to Gemini — a far
-        // stronger free coder than the OpenRouter free tier — when a key is set.
-        // Offline/local requests stay local (privacy); an explicit model pick wins.
-        if (!offline && "code".equals(routed.category()) && gemini.configured() && isAuto(req.model())) {
+        // Legacy Gemini special case — active only when scored routing is NOT in use.
+        if (scoredResult == null && !offline && "code".equals(routed.category())
+                && gemini.configured() && isAuto(req.model())) {
             provider = providers.byId("gemini");
             routed = new Routed(gemini.codeModel(), gemini.codeModel(), "code",
                     "Routed to Gemini for stronger coding",
                     List.of(gemini.codeModel(), gemini.fallbackModel()));
+        }
+
+        // Dry-run: log what scored routing would have chosen (no execution impact).
+        if (scoredResult == null && !offline) {
+            scoredRouter.dryRun(classification, req, provider, routed);
         }
 
         List<Message> history = conversations.messages(conversationId);
@@ -268,7 +291,7 @@ public class ChatService {
         options = options.withClampedMaxTokens(ctx);
 
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
-                routed.chain(), provider, options);
+                routed.chain(), provider, options, scoredResult);
     }
 
     /** The provider for this request: the picker's choice, else the server default. */
@@ -290,6 +313,11 @@ public class ChatService {
         m.put("category", p.routed().category());
         m.put("reason", p.routed().reason());
         m.put("citations", p.rag().citations());
+        if (p.scoredResult() != null) {
+            m.put("registryId", p.scoredResult().registryId());
+            m.put("pricingTier", p.scoredResult().pricingTier().name());
+            m.put("topology", p.scoredResult().topology().name());
+        }
         return m;
     }
 
@@ -300,6 +328,11 @@ public class ChatService {
         m.put("completionTokens", completionTokens);
         m.put("citations", p.rag().citations());
         m.put("finishReason", finishReason);
+        if (p.scoredResult() != null) {
+            m.put("registryId", p.scoredResult().registryId());
+            m.put("pricingTier", p.scoredResult().pricingTier().name());
+            m.put("topology", p.scoredResult().topology().name());
+        }
         return m;
     }
 
@@ -337,6 +370,13 @@ public class ChatService {
         return "That model is busy right now — please try again.";
     }
 
+    /** Legacy routing path (non-scored). Does NOT apply the Gemini special case. */
+    private Routed resolveLegacy(ChatRequest req, String mode, boolean useRag) {
+        return req.hasImage()
+                ? router.visionRoute(req.content())
+                : router.resolve(req.model(), req.content(), mode, useRag);
+    }
+
     /** Immutable bundle threaded through streaming/non-streaming paths. */
     private record Prepared(
             String conversationId,
@@ -347,6 +387,7 @@ public class ChatService {
             int promptTokens,
             List<String> chain,
             LlmProvider provider,
-            ChatOptions options
+            ChatOptions options,
+            ScoredRoutingResult scoredResult
     ) {}
 }

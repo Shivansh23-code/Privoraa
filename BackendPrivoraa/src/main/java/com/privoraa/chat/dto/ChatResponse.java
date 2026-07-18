@@ -13,5 +13,16 @@ public record ChatResponse(
         MessageDto message,
         int promptTokens,
         int completionTokens,
-        List<Citation> citations
-) {}
+        List<Citation> citations,
+        // Phase 3 additive — null when scored routing is inactive
+        String registryId,
+        String pricingTier,
+        String topology
+) {
+    public ChatResponse(String conversationId, String model, String category, String reason,
+                        MessageDto message, int promptTokens, int completionTokens,
+                        List<Citation> citations) {
+        this(conversationId, model, category, reason, message, promptTokens, completionTokens,
+                citations, null, null, null);
+    }
+}

@@ -14,7 +14,8 @@ class ChatContractCompatibilityTest {
         assertEquals(List.of("conversationId", "model", "mode", "content", "useRag", "image", "provider"),
                 componentNames(ChatRequest.class));
         assertEquals(List.of("conversationId", "model", "category", "reason", "message",
-                        "promptTokens", "completionTokens", "citations"),
+                        "promptTokens", "completionTokens", "citations",
+                        "registryId", "pricingTier", "topology"),
                 componentNames(ChatResponse.class));
     }
 

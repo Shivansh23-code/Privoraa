@@ -58,10 +58,11 @@ public class ModelRegistry {
         return snapshot.get().models().stream().filter(m -> m.pricingTier() == pricing).toList();
     }
 
-    /** Diagnostic candidate query only; active routing remains legacy until Phase 3. */
+    /** Returns all models compatible with the given classification (no ranking). */
     public List<ModelDescriptor> compatibleModels(RequestClassification classification) {
         return snapshot.get().models().stream()
-                .filter(ModelDescriptor::selectable)
+                .filter(m -> m.selectable())
+                .filter(m -> m.pricingTier() != PricingTier.UNKNOWN)
                 .filter(m -> m.capabilities().containsAll(classification.requiredCapabilities().stream()
                         .filter(c -> c != Capability.WEB_SEARCH && c != Capability.RAG).toList()))
                 .filter(m -> privacyPolicy.evaluate(classification, ExecutionTargetMapper.map(m.topology())).allowed())

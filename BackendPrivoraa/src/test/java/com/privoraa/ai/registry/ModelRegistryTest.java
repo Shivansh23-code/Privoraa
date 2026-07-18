@@ -83,7 +83,7 @@ class ModelRegistryTest {
 
     private ModelRegistry registry(List<ProviderModelAdapter> adapters) {
         return new ModelRegistry(adapters, new ModelRegistryProperties(true, Duration.ofHours(1),
-                Duration.ofSeconds(1), 20, false), new PrivacyPolicyEvaluator());
+                Duration.ofSeconds(1), 20, false, false, false), new PrivacyPolicyEvaluator());
     }
 
     static ModelDescriptor descriptor(String id, ModelProvider provider, ExecutionTopology topology,
