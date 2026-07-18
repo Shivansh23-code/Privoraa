@@ -76,6 +76,7 @@ export function useChat(catalog) {
             // server path does); don't clobber ones onMeta already set (local path).
             ...(usage.citations != null ? { citations: usage.citations } : {}),
             aborted: usage.aborted || undefined,
+            finishReason: usage.finishReason,
           }),
         onError: (err) => finalize({ error: err.message || 'Something went wrong.' }),
       };

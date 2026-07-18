@@ -126,6 +126,11 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
           {message.aborted && (
             <p className="mt-2 text-xs italic text-muted">Generation stopped.</p>
           )}
+          {(message.finishReason === 'length' || message.finishReason === 'incomplete' || message.finishReason === 'unknown') && (
+            <p className="mt-2 text-xs italic text-amber-600 dark:text-amber-400">
+              Response was incomplete. Use Regenerate for a complete answer.
+            </p>
+          )}
         </div>
 
         {/* Actions */}

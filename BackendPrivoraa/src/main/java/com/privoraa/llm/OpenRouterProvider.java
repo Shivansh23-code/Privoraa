@@ -29,7 +29,7 @@ public class OpenRouterProvider implements LlmProvider {
     }
 
     @Override
-    public Flux<String> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
+    public Flux<StreamEvent> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
         return client.streamCompletion(model, messages, opts);
     }
 
