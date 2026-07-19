@@ -67,14 +67,14 @@ test('mobile assistant prose uses 1rem (16px) with 1.65 line-height', () => {
   assert.ok(mobileBlock, 'mobile media query must exist');
   const rules = mobileBlock[1];
   // prose-chat at mobile should have font-size: 1rem
-  assert.ok(rules.includes('font-size: .8rem'), 'mobile prose must use .8rem font-size');
-  assert.ok(rules.includes('line-height: 1.65'), 'mobile prose must use 1.65 line-height');
+  assert.ok(rules.includes('font-size: 1rem'), 'mobile prose must use 1rem font-size');
+  assert.ok(rules.includes('line-height: 1.72'), 'mobile prose must use 1.72 line-height');
 });
 
 test('desktop prose uses refined font-size', () => {
   const css = readFileSync(resolve(ROOT, 'src/index.css'), 'utf-8');
   // The desktop .prose-chat rule (outside the media query) uses a refined font-size.
-  const desktopRule = css.match(/\.prose-chat\s*\{[^}]*font-size:\s*\.7\d+rem[^}]*\}/s);
+  const desktopRule = css.match(/\.prose-chat\s*\{[^}]*font-size:\s*1rem[^}]*\}/s);
   assert.ok(desktopRule, 'desktop prose must have a rem-based font-size');
 });
 
@@ -89,6 +89,29 @@ test('metadata elements remain small on mobile', () => {
   // Ensure no rule overrides .text-xs or .text-[11px] within the mobile block.
   // (text-xs is a Tailwind utility not defined in index.css.)
   assert.equal(rules.includes('.text-xs'), false, 'mobile block must not override text-xs');
+});
+
+test('prose-chat uses reading font variable', () => {
+  const css = readFileSync(resolve(ROOT, 'src/index.css'), 'utf-8');
+  const proseRule = css.match(/\.prose-chat\s*\{[^}]*font-family:\s*var\(--font-reading\)[^}]*\}/s);
+  assert.ok(proseRule, '.prose-chat must use var(--font-reading)');
+  const fontDecl = css.match(/--font-reading:\s*'Source Serif 4',\s*Georgia,\s*serif;/);
+  assert.ok(fontDecl, '--font-reading must start with Source Serif 4');
+});
+
+test('mobile drawer close button is at least h-11 w-11', () => {
+  const src = readFileSync(resolve(ROOT, 'src/features/chat/ChatWorkspace.jsx'), 'utf-8');
+  // Find the close button in the mobile drawer section (attributes span lines)
+  assert.ok(src.includes('aria-label="Close navigation"'), 'drawer close button must exist');
+  assert.ok(src.includes('h-11 w-11'), 'drawer close button must have h-11 w-11');
+});
+
+test('mobile MessageThread uses full width', () => {
+  const src = readFileSync(resolve(ROOT, 'src/features/chat/MessageThread.jsx'), 'utf-8');
+  // Mobile must have max-w-none; desktop must have sm:max-w-[760px]
+  assert.ok(src.includes('max-w-none'), 'MessageThread must have max-w-none on mobile');
+  assert.ok(src.includes('sm:max-w-[760px]'), 'MessageThread must have sm:max-w-[760px] for tablet');
+  assert.ok(src.includes('lg:max-w-[860px]'), 'MessageThread must have lg:max-w-[860px] for desktop');
 });
 
 test('prose-chat does not have overflow-x: auto', () => {

@@ -13,9 +13,9 @@ export default function SelectMenu({ items, value, onChange, accent = 'accent', 
   const current = items.find((i) => i.id === value);
   const CurrentIcon = current?.icon;
 
-  const tone = accent === 'amber' ? 'text-amber-500' : 'text-accent-500';
+  const tone = accent === 'steel' ? 'text-[var(--accent-primary)]' : 'text-accent-500';
   const activeRow =
-    accent === 'amber' ? 'border-amber-400/50 bg-amber-500/10' : 'border-accent-400/50 bg-accent-500/10';
+    accent === 'steel' ? 'border-[var(--accent-primary)]/30 bg-[var(--accent-soft)]' : 'border-accent-400/50 bg-accent-500/10';
 
   return (
     <div className="relative" ref={ref}>

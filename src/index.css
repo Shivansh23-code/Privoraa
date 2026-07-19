@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&display=swap');
 @import 'tailwindcss';
 
 /* Explicit dark class is resolved from the persisted light/dark/system preference. */
@@ -11,6 +11,7 @@
 @theme inline {
   --font-sans: 'Manrope', system-ui, sans-serif;
   --font-display: 'Bricolage Grotesque', 'Manrope', sans-serif;
+  --font-reading: 'Source Serif 4', Georgia, serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   /* Brand = violet scale */
@@ -83,7 +84,7 @@ html.dark {
   --surface-hover: rgba(255,255,255,.06);
   --shadow-color: rgba(0,0,0,.38);
   --overlay: rgba(0,0,0,.64);
-  --assistant-identity: #d7b56d;
+  --assistant-identity: #8899b0;
 }
 
 /* ------------------------------------------------------------------ *
@@ -104,27 +105,27 @@ html.dark {
   --user-message-avatar: #7c5cff;
 }
 [data-plan='pro'] {
-  --surface-active: rgba(215,181,109,.10);
-  --accent-primary: #d7b56d;
-  --accent-primary-hover: #e2c582;
-  --accent-soft: rgba(215,181,109,.10);
-  --focus-ring: rgba(215,181,109,.42);
-  --brand-grad: linear-gradient(135deg, #e2c582 0%, #cda55c 100%);
-  --plan-glow: rgba(215,181,109,.10);
-  --user-message-bg: rgba(82, 68, 128, .82);
-  --user-message-avatar: #67558f;
+  --surface-active: rgba(136, 153, 176, .10);
+  --accent-primary: #8899b0;
+  --accent-primary-hover: #9eb0c7;
+  --accent-soft: rgba(136, 153, 176, .10);
+  --focus-ring: rgba(136, 153, 176, .40);
+  --brand-grad: linear-gradient(135deg, #8899b0 0%, #6b7d94 100%);
+  --plan-glow: rgba(136, 153, 176, .08);
+  --user-message-bg: rgba(155, 168, 186, .72);
+  --user-message-avatar: #8899b0;
 }
 
 html.dark [data-plan='plus'] { --bg:#0d0c12; --surface:#131119; --surface-2:#1d1927; --elevated:#211c2d; }
-html.dark [data-plan='pro'] { --bg:#090a0c; --surface:#101216; --surface-2:#171a20; --elevated:#1c2027; }
+html.dark [data-plan='pro'] { --bg:#080a0d; --surface:#0f1217; --surface-2:#151a21; --elevated:#1a2028; }
 
 /* Primary CTAs use the per-plan brand gradient instead of hardcoded colors. */
 .brand-grad {
   background-image: var(--brand-grad) !important;
 }
-/* Gold needs dark text for contrast; violet/teal keep their light text. */
+/* Steel needs dark text for contrast; violet/teal keep their light text. */
 [data-plan='pro'] .brand-grad {
-  color: #1a1206;
+  color: #0c0e12;
 }
 /* Ambient glow behind the workspace (intensity/colour set per plan). */
 .plan-glow-bg {
@@ -236,12 +237,13 @@ html.dark [data-plan='pro'] { --bg:#090a0c; --surface:#101216; --surface-2:#171a
 
 /* ------------------------------------------------------------------ *
  * Markdown answer typography (chat workspace)                         *
- * System font stack for clean, modern reading.                        *
+ * Consistent --font-sans (Manrope) for a refined, premium reading     *
+ * experience across all device sizes.                                 *
  * ------------------------------------------------------------------ */
 .prose-chat {
-  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: .79rem;
-  line-height: 1.7;
+  font-family: var(--font-reading);
+  font-size: 1rem;
+  line-height: 1.75;
   font-weight: 400;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -257,10 +259,10 @@ html.dark [data-plan='pro'] { --bg:#090a0c; --surface:#101216; --surface-2:#171a
   line-height: 1.35;
   margin: 1.2rem 0 .45rem;
 }
-.prose-chat h1 { font-size: 1.12rem; }
-.prose-chat h2 { font-size: .94rem; }
-.prose-chat h3 { font-size: .85rem; }
-.prose-chat h4 { font-size: .75rem; }
+.prose-chat h1 { font-size: 1.35rem; }
+.prose-chat h2 { font-size: 1.15rem; }
+.prose-chat h3 { font-size: 1.05rem; }
+.prose-chat h4 { font-size: .95rem; }
 .prose-chat ul,
 .prose-chat ol { margin: .55rem 0; padding-left: 1.6rem; }
 .prose-chat li { margin: .22rem 0; }
@@ -271,23 +273,23 @@ html.dark [data-plan='pro'] { --bg:#090a0c; --surface:#101216; --surface-2:#171a
 .prose-chat .katex-display { margin: .7rem 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
 .prose-chat strong { font-weight: 600; }
 
-/* Mobile assistant prose: 16px with comfortable line-height.         */
+/* Mobile assistant prose: comfortable reading on handheld screens.   */
 @media (max-width: 640px) {
-  .prose-chat { font-size: .8rem; line-height: 1.65; }
-  .prose-chat p { margin: .55rem 0; }
-  .prose-chat h1 { font-size: .98rem; margin: 1rem 0 .35rem; }
-  .prose-chat h2 { font-size: .86rem; margin: .85rem 0 .3rem; }
-  .prose-chat h3 { font-size: .8rem; margin: .7rem 0 .25rem; }
-  .prose-chat h4 { font-size: .74rem; }
-  .prose-chat table { font-size: .64rem; min-width: 28rem; }
+  .prose-chat { font-size: 1rem; line-height: 1.72; }
+  .prose-chat p { margin: .6rem 0; }
+  .prose-chat h1 { font-size: 1.2rem; margin: 1.1rem 0 .4rem; }
+  .prose-chat h2 { font-size: 1.06rem; margin: .9rem 0 .35rem; }
+  .prose-chat h3 { font-size: .96rem; margin: .75rem 0 .3rem; }
+  .prose-chat h4 { font-size: .88rem; }
+  .prose-chat table { font-size: .72rem; min-width: 28rem; }
   .prose-chat th,
-  .prose-chat td { padding: .3rem .5rem; }
+  .prose-chat td { padding: .35rem .55rem; }
   .prose-chat pre { font-size: .82rem; }
   .prose-chat ul,
-  .prose-chat ol { margin: .45rem 0; padding-left: 1.4rem; }
-  .prose-chat li { margin: .18rem 0; }
-  .prose-chat blockquote { margin: .5rem 0; }
-  .prose-chat hr { margin: .8rem 0; }
-  .prose-chat .katex-display { margin: .5rem 0; }
+  .prose-chat ol { margin: .5rem 0; padding-left: 1.5rem; }
+  .prose-chat li { margin: .2rem 0; }
+  .prose-chat blockquote { margin: .55rem 0; border-left-width: 3px; }
+  .prose-chat hr { margin: .9rem 0; }
+  .prose-chat .katex-display { margin: .55rem 0; }
   .prose-chat code:not(pre code) { font-size: .88em; }
 }

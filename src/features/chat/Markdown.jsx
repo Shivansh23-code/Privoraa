@@ -36,19 +36,19 @@ function CodeBlock({ className, children }) {
   };
 
   return (
-    <div className="my-5 overflow-hidden rounded-2xl border border-line bg-[#08090b] shadow-sm">
-      <div className="flex items-center justify-between border-b border-line px-3 py-1.5">
-        <span className="font-mono text-xs text-accent-500">{lang}</span>
+    <div className="my-5 overflow-hidden rounded-xl border border-line/80 bg-[#08090b] shadow-sm">
+      <div className="flex items-center justify-between border-b border-line/60 bg-white/[.03] px-4 py-2">
+        <span className="font-mono text-[11px] font-medium text-accent-500/80">{lang}</span>
         <button
           onClick={copy}
           aria-label={`Copy ${lang} code`}
-          className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs text-muted transition hover:bg-white/5 hover:text-fg"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted transition hover:bg-white/5 hover:text-fg"
         >
-          {copied ? <Check size={13} /> : <Copy size={13} />}
+          {copied ? <Check size={12} /> : <Copy size={12} />}
           {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
-      <pre className="scroll-thin overflow-x-auto p-4 text-[14px] leading-relaxed sm:text-[13.5px]">
+      <pre className="scroll-thin overflow-x-auto p-4 text-[13.5px] leading-relaxed">
         <code className={`${className || ''} bg-transparent`}>{children}</code>
       </pre>
     </div>
@@ -62,7 +62,7 @@ const components = {
     const isBlock = /language-/.test(className || '') || text.includes('\n');
     if (isBlock) return <CodeBlock className={className}>{children}</CodeBlock>;
     return (
-      <code className="rounded-[4px] border border-line/60 bg-surface-2/80 px-[5px] py-[2px] font-mono text-[.88em] text-brand-600 dark:text-brand-300">
+      <code className="rounded-md border border-line/50 bg-surface-2/70 px-[6px] py-[2px] font-mono text-[.88em] text-brand-600 dark:text-brand-300">
         {children}
       </code>
     );
@@ -89,7 +89,7 @@ const components = {
   ),
   td: ({ children }) => <td className="border-b border-line px-3 py-2">{children}</td>,
   blockquote: ({ children }) => (
-    <blockquote className="my-4 border-l-2 border-[var(--accent-primary)] bg-surface-2/50 py-1 pl-4 pr-3 text-muted">
+    <blockquote className="my-5 border-l-[3px] border-[var(--accent-primary)] bg-surface-2/40 py-2 pl-5 pr-4 text-muted leading-relaxed">
       {children}
     </blockquote>
   ),
