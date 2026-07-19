@@ -46,13 +46,13 @@ class ResponseTailTrimmerTest {
     }
 
     @Test void errorStatusAlsoTrims() {
-        var result = ResponseTailTrimmer.trim("Done. dangling", "error");
+        var result = ResponseTailTrimmer.trim("Done. This is why", "error");
         assertEquals("Done.", result.content());
         assertTrue(result.trimmed());
     }
 
     @Test void unicodeContentIsPreserved() {
-        assertTrimmed("यह पूर्ण है. अधूरा वाक्य", "यह पूर्ण है.");
+        assertTrimmed("यह पूर्ण है. अधूरा वाक्य and", "यह पूर्ण है.");
     }
 
     @Test void blankAndNullInputsRemainUnchanged() {

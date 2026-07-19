@@ -74,7 +74,8 @@ class ChatServiceScoredRoutingTest {
                 scoredRouter,
                 outputProps,
                 registry,
-                new ChatContinuationProperties(true, 3, 16000, 600));
+                new ChatContinuationProperties(true, 3, 16000, 600),
+                new com.privoraa.config.ChatCompletionRepairProperties(true, 1, 512));
     }
 
     @Test
@@ -101,7 +102,8 @@ class ChatServiceScoredRoutingTest {
                 providers, mock(ActiveModelService.class), catalog, gemini,
                 new RequestClassifier(new IntentClassifier()), new PrivacyPolicyEvaluator(),
                 disabledRouter, outProps, registry,
-                new ChatContinuationProperties(true, 3, 16000, 600));
+                new ChatContinuationProperties(true, 3, 16000, 600),
+                new com.privoraa.config.ChatCompletionRepairProperties(true, 1, 512));
         // If the flag is disabled, scoredRouter.appliesTo() returns false,
         // and the legacy path handles routing. No exception expected.
         assertDoesNotThrow(() -> {

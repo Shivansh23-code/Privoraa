@@ -17,6 +17,7 @@ import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.ai.registry.ModelDescriptor;
 import com.privoraa.ai.registry.ModelRegistry;
 import com.privoraa.config.ChatContinuationProperties;
+import com.privoraa.config.ChatCompletionRepairProperties;
 import com.privoraa.config.ChatOutputProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.llm.ChatOptions;
@@ -78,6 +79,7 @@ public class ChatService {
     private final ChatOutputProperties outputProps;
     private final ModelRegistry registry;
     private final ChatContinuationProperties continuationProps;
+    private final ChatCompletionRepairProperties repairProps;
 
     @Autowired
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
@@ -86,7 +88,8 @@ public class ChatService {
                        ModelCatalogService catalog, GeminiProperties gemini, RequestClassifier requestClassifier,
                        PrivacyPolicyEvaluator privacyPolicy, ScoredRouter scoredRouter,
                        ChatOutputProperties outputProps, ModelRegistry registry,
-                       ChatContinuationProperties continuationProps) {
+                       ChatContinuationProperties continuationProps,
+                       ChatCompletionRepairProperties repairProps) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
@@ -104,6 +107,7 @@ public class ChatService {
         this.outputProps = outputProps;
         this.registry = registry;
         this.continuationProps = continuationProps;
+        this.repairProps = repairProps;
     }
 
     // ----------------------------------------------------------------- streaming
@@ -145,13 +149,17 @@ public class ChatService {
         return emitter;
     }
 
-    private enum StreamState { ACTIVE_SEGMENT, CONTINUING, COMPLETED, FAILED, LIMIT_REACHED, ABORTED }
+    private enum StreamState { ACTIVE_SEGMENT, CONTINUING, REPAIRING, COMPLETED, FAILED, LIMIT_REACHED, ABORTED }
 
     private final class StreamSession {
         private static final String CONTINUE_INSTRUCTION = "Continue exactly from the prior assistant response. "
                 + "Do not restart or repeat earlier headings or paragraphs. Preserve markdown structure, "
                 + "complete every remaining requested section, and begin immediately with continuation content. "
                 + "Do not mention token limits or continuation mechanics.";
+        private static final String REPAIR_INSTRUCTION = "Complete only the unfinished final thought from the prior assistant response. "
+                + "Do not restart the answer. Do not repeat previous sections. "
+                + "Begin immediately with the missing continuation. Finish with a complete sentence. "
+                + "Do not mention continuation, token limits, or repair.";
         private final SseEmitter emitter;
         private final Prepared prepared;
         private final String requestId;
@@ -162,6 +170,9 @@ public class ChatService {
         private final AtomicInteger totalPromptTokens = new AtomicInteger();
         private final AtomicInteger totalCompletionTokens = new AtomicInteger();
         private volatile boolean tokenCountEstimated;
+        private volatile boolean repairAttempted;
+        private volatile boolean completionRepaired;
+        private int repairSegments;
         private volatile StreamState state = StreamState.ACTIVE_SEGMENT;
         private int segments;
         private int modelIndex;
@@ -277,8 +288,15 @@ public class ChatService {
                 state = StreamState.LIMIT_REACHED;
                 finish("length", "limit_reached", false);
             } else if ("stop".equals(reason)) {
-                state = StreamState.COMPLETED;
-                finish("stop", "complete", false);
+                ResponseCompletenessAnalyzer.Result analysis = ResponseCompletenessAnalyzer.analyze(
+                        accumulated.toString());
+                if (repairProps.enabled() && repairProps.maxAttempts() > 0
+                        && analysis.repairRecommended() && !accumulated.isEmpty()) {
+                    runRepair();
+                } else {
+                    state = StreamState.COMPLETED;
+                    finish("stop", "complete", false);
+                }
             } else if ("content_filter".equals(reason) || "safety".equals(reason)) {
                 state = StreamState.COMPLETED;
                 finish(reason, "incomplete", false);
@@ -286,6 +304,67 @@ public class ChatService {
                 state = StreamState.FAILED;
                 finish(reason, "incomplete", false);
             }
+        }
+
+        private void runRepair() {
+            if (cancelled.get() || finalized.get() || repairAttempted) return;
+            state = StreamState.REPAIRING;
+            repairAttempted = true;
+            repairSegments = 1;
+            List<Map<String, Object>> messages = new ArrayList<>(prepared.messages());
+            messages.add(Map.of("role", "assistant", "content", accumulated.toString()));
+            messages.add(Map.of("role", "user", "content", REPAIR_INSTRUCTION));
+            StringBuilder repair = new StringBuilder();
+            AtomicReference<String> terminalReason = new AtomicReference<>("unknown");
+            AtomicInteger providerPrompt = new AtomicInteger();
+            AtomicInteger providerCompletion = new AtomicInteger();
+            ChatOptions options = prepared.options().withMaxTokens(repairProps.maxOutputTokens());
+
+            Disposable subscription = prepared.provider().streamChat(activeModel, messages, options)
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .subscribe(event -> {
+                        if (cancelled.get()) return;
+                        if (event.promptTokens() > 0) providerPrompt.set(event.promptTokens());
+                        if (event.completionTokens() > 0) providerCompletion.set(event.completionTokens());
+                        if (event.terminal()) terminalReason.set(normalizeReason(event.finishReason()));
+                        else if (event.delta() != null) repair.append(event.delta());
+                    }, error -> {
+                        if (cancelled.get() || finalized.get()) return;
+                        if (!repair.isEmpty()) addUsage(0, 0, repair.length(), messages);
+                        finishAfterFailedRepair(repair.toString());
+                    }, () -> {
+                        if (cancelled.get() || finalized.get()) return;
+                        addUsage(providerPrompt.get(), providerCompletion.get(), repair.length(), messages);
+                        String merged = mergeRepair(repair.toString());
+                        ResponseCompletenessAnalyzer.Result result = ResponseCompletenessAnalyzer.analyze(merged);
+                        if ("stop".equals(terminalReason.get())
+                                && result.state() == ResponseCompletenessAnalyzer.State.COMPLETE) {
+                            completionRepaired = true;
+                            state = StreamState.COMPLETED;
+                            finish("stop", "complete", false);
+                        } else {
+                            state = StreamState.COMPLETED;
+                            finish("stop", "complete", false);
+                        }
+                    });
+            active.update(subscription);
+        }
+
+        private void finishAfterFailedRepair(String repair) {
+            mergeRepair(repair);
+            state = StreamState.COMPLETED;
+            finish("stop", "complete", false);
+        }
+
+        private String mergeRepair(String repair) {
+            if (repair == null || repair.isBlank()) return accumulated.toString();
+            String merged = ContinuationMerger.merge(accumulated.toString(), repair,
+                    continuationProps.overlapWindowChars());
+            String unique = merged.substring(accumulated.length());
+            accumulated.setLength(0);
+            accumulated.append(merged);
+            if (!unique.isEmpty()) send(emitter, "token", Map.of("delta", unique));
+            return merged;
         }
 
         private boolean canContinue() {
@@ -338,6 +417,9 @@ public class ChatService {
             payload.put("completionStatus", completionStatus);
             payload.put("finalContent", finalResponse.content());
             payload.put("tailTrimmed", finalResponse.trimmed());
+            payload.put("repairAttempted", repairAttempted);
+            payload.put("completionRepaired", completionRepaired);
+            payload.put("repairSegments", repairSegments);
             payload.put("segments", segments);
             payload.put("continued", segments > 1);
             payload.put("tokenCountEstimated", tokenCountEstimated);
