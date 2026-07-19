@@ -14,6 +14,9 @@ import com.privoraa.conversation.ConversationService;
 import com.privoraa.conversation.Message;
 import com.privoraa.conversation.dto.MessageDto;
 import com.privoraa.catalog.ActiveModelService;
+import com.privoraa.ai.registry.ModelDescriptor;
+import com.privoraa.ai.registry.ModelRegistry;
+import com.privoraa.config.ChatOutputProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.llm.ChatOptions;
 import com.privoraa.llm.ChatResult;
@@ -42,6 +45,7 @@ import reactor.core.scheduler.Schedulers;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -64,12 +68,15 @@ public class ChatService {
     private final RequestClassifier requestClassifier;
     private final PrivacyPolicyEvaluator privacyPolicy;
     private final ScoredRouter scoredRouter;
+    private final ChatOutputProperties outputProps;
+    private final ModelRegistry registry;
 
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
                        OfflineRouter offlineRouter, RagService ragService, DocumentService documentService,
                        PromptBuilder promptBuilder, LlmProviderResolver providers, ActiveModelService activeModel,
                        ModelCatalogService catalog, GeminiProperties gemini, RequestClassifier requestClassifier,
-                       PrivacyPolicyEvaluator privacyPolicy, ScoredRouter scoredRouter) {
+                       PrivacyPolicyEvaluator privacyPolicy, ScoredRouter scoredRouter,
+                       ChatOutputProperties outputProps, ModelRegistry registry) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
@@ -84,6 +91,8 @@ public class ChatService {
         this.requestClassifier = requestClassifier;
         this.privacyPolicy = privacyPolicy;
         this.scoredRouter = scoredRouter;
+        this.outputProps = outputProps;
+        this.registry = registry;
     }
 
     // ----------------------------------------------------------------- streaming
@@ -280,15 +289,24 @@ public class ChatService {
                 mode, history, rag, req.hasImage() ? req.image() : null);
         int promptTokens = promptBuilder.estimatePromptTokens(messages);
 
-        // Task-aware sampling: e.g. low temperature for code/math, a touch warmer
-        // for open-ended chat — tuned off the routed category.
-        ChatOptions options = ChatOptions.forCategory(routed.category());
-        // Clamp output budget against the resolved model's context window so we
-        // never request more than half the available context or a conservative
-        // ceiling when the model's limits are unknown.
+        // Config-driven output budgets — read from privoraa.chat.output.* properties.
+        ChatOptions options = ChatOptions.forCategory(routed.category(), outputProps);
         String firstModel = routed.chain().getFirst();
         Integer ctx = catalog.find(firstModel).map(ModelDto::contextLength).orElse(null);
-        options = options.withClampedMaxTokens(ctx);
+        Integer descriptorLimit = findDescriptorMaxOutput(firstModel, scoredResult);
+        int configuredBudget = outputProps.budgetForCategory(routed.category());
+        int safetyMargin = outputProps.safetyMargin();
+        int unknownFallback = outputProps.unknownModelMaxTokens();
+        options = options.withOutputClamp(configuredBudget, ctx, descriptorLimit, promptTokens, safetyMargin, unknownFallback);
+
+        if (log.isDebugEnabled()) {
+            log.debug("Output budget: category={} configuredBudget={} modelContext={} "
+                            + "descriptorLimit={} promptTokens={} safetyMargin={} unknownFallback={} finalMaxTokens={} "
+                            + "provider={} modelId={}",
+                    routed.category(), configuredBudget, ctx, descriptorLimit,
+                    promptTokens, safetyMargin, unknownFallback, options.maxTokens(),
+                    provider.id(), firstModel);
+        }
 
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
                 routed.chain(), provider, options, scoredResult);
@@ -375,6 +393,24 @@ public class ChatService {
         return req.hasImage()
                 ? router.visionRoute(req.content())
                 : router.resolve(req.model(), req.content(), mode, useRag);
+    }
+
+    /**
+     * Look up the model's declared max output tokens from the registry. Uses the
+     * scored result's registryId when available; otherwise searches by the
+     * provider model ID across all descriptors.
+     */
+    private Integer findDescriptorMaxOutput(String modelId, ScoredRoutingResult scoredResult) {
+        if (scoredResult != null) {
+            return registry.find(scoredResult.registryId())
+                    .map(ModelDescriptor::maxOutputTokens)
+                    .orElse(null);
+        }
+        return registry.currentSnapshot().models().stream()
+                .filter(m -> m.providerModelId().equals(modelId))
+                .findFirst()
+                .map(ModelDescriptor::maxOutputTokens)
+                .orElse(null);
     }
 
     /** Immutable bundle threaded through streaming/non-streaming paths. */

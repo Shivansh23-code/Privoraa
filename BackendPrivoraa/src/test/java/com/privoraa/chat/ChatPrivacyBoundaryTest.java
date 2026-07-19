@@ -3,8 +3,10 @@ package com.privoraa.chat;
 import com.privoraa.ai.classification.PrivacyPolicyEvaluator;
 import com.privoraa.ai.classification.PrivacyPolicyViolationException;
 import com.privoraa.ai.classification.RequestClassifier;
+import com.privoraa.ai.registry.ModelRegistry;
 import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.chat.dto.ChatRequest;
+import com.privoraa.config.ChatOutputProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.conversation.ConversationService;
 import com.privoraa.llm.LlmProviderResolver;
@@ -47,7 +49,9 @@ class ChatPrivacyBoundaryTest {
                 mock(GeminiProperties.class),
                 new RequestClassifier(new IntentClassifier()),
                 new PrivacyPolicyEvaluator(),
-                mock(ScoredRouter.class));
+                mock(ScoredRouter.class),
+                new ChatOutputProperties(0, 0, 0, 0, 0, 0, 0, 0, 0),
+                mock(ModelRegistry.class));
 
         ChatRequest request = new ChatRequest(null, "auto", "general",
                 "Do not send this to the cloud", false, null, "openrouter");
