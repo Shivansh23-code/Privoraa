@@ -22,3 +22,22 @@ test('complete responses are not trimmed', () => {
 test('tailTrimmed metadata is preserved', () => {
   assert.equal(finalContentPatch({ tailTrimmed: true }).tailTrimmed, true);
 });
+
+test('repair metadata is preserved with repaired final content', () => {
+  const patch = finalContentPatch({
+    finalContent: 'A repaired complete sentence.',
+    repairAttempted: true,
+    completionRepaired: true,
+    repairSegments: 1,
+  });
+  assert.equal(patch.repairAttempted, true);
+  assert.equal(patch.completionRepaired, true);
+  assert.equal(patch.repairSegments, 1);
+});
+
+test('terminal finalContent wins atomically over a stale streamed snapshot', () => {
+  const stale = { content: 'Complete. However, the cost', pending: true };
+  const finalized = { ...stale, ...finalContentPatch({ finalContent: 'Complete.', tailTrimmed: true }), pending: false };
+  assert.equal(finalized.content, 'Complete.');
+  assert.equal(finalized.pending, false);
+});

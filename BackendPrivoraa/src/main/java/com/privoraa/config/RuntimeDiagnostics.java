@@ -12,12 +12,15 @@ public class RuntimeDiagnostics {
     private static final Logger log = LoggerFactory.getLogger(RuntimeDiagnostics.class);
     private final ChatOutputProperties output;
     private final ChatContinuationProperties continuation;
+    private final ChatCompletionRepairProperties completionRepair;
     private final Environment environment;
 
     public RuntimeDiagnostics(ChatOutputProperties output, ChatContinuationProperties continuation,
+                              ChatCompletionRepairProperties completionRepair,
                               Environment environment) {
         this.output = output;
         this.continuation = continuation;
+        this.completionRepair = completionRepair;
         this.environment = environment;
     }
 
@@ -32,6 +35,8 @@ public class RuntimeDiagnostics {
                         + "maxTotalCompletionTokens={} overlapWindowChars={}",
                 continuation.enabled(), continuation.maxSegments(),
                 continuation.maxTotalCompletionTokens(), continuation.overlapWindowChars());
+        log.info("Chat completion repair configuration loaded: enabled={} maxAttempts={} maxOutputTokens={}",
+                completionRepair.enabled(), completionRepair.maxAttempts(), completionRepair.maxOutputTokens());
         log.info("Build identity: version={} gitCommit={} buildTimestamp={}",
                 environment.getProperty("info.app.version", "unknown"),
                 environment.getProperty("info.git.commit", "unknown"),

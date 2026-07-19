@@ -44,6 +44,7 @@ class ChatServiceStreamingIntegrationTest {
     private ModelRouter router;
     private ScriptedProvider provider;
     private ChatContinuationProperties continuation;
+    private RateLimitService rateLimit;
 
     @BeforeEach
     void setUp() {
@@ -54,6 +55,7 @@ class ChatServiceStreamingIntegrationTest {
         router = mock(ModelRouter.class);
         provider = new ScriptedProvider();
         continuation = new ChatContinuationProperties(true, 3, 16000, 600);
+        rateLimit = mock(RateLimitService.class);
 
         when(conversations.getOrCreate(anyString(), any(), anyString())).thenReturn(
                 Conversation.builder().id("conversation-1").mode("general").title("test").build());
@@ -107,6 +109,58 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(1, done.get("segments"));
         assertEquals(false, done.get("continued"));
         assertEquals(1, provider.requests.size());
+        assertEquals(false, done.get("repairAttempted"));
+        assertEquals(false, done.get("completionRepaired"));
+        assertEquals(0, done.get("repairSegments"));
+    }
+
+    @Test
+    void suspiciousStopIsRepairedOnceWithoutRepeatingTurnWork() throws Exception {
+        provider.enqueue("m1", segment("First sentence. However, the cost", "stop", 10, 4));
+        provider.enqueue("m1", segment(" increases with every insertion.", "stop", 12, 5));
+
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        Map<String, Object> done = emitter.awaitDone();
+
+        assertEquals("First sentence. However, the cost increases with every insertion.", done.get("finalContent"));
+        assertEquals(true, done.get("repairAttempted"));
+        assertEquals(true, done.get("completionRepaired"));
+        assertEquals(1, done.get("repairSegments"));
+        assertEquals(false, done.get("tailTrimmed"));
+        assertEquals(1, emitter.count("done"));
+        assertEquals(2, provider.requests.size());
+        assertEquals(512, provider.options.get(1).maxTokens());
+        verify(rateLimit, times(1)).check("user-1");
+        verify(router, times(1)).resolve(any(), anyString(), anyString(), anyBoolean());
+        verify(conversations, times(1)).addUserMessage("conversation-1", "original prompt");
+        verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
+                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
+        assertEquals("assistant", provider.requests.get(1).get(1).get("role"));
+        assertEquals("user", provider.requests.get(1).get(2).get("role"));
+        assertTrue(provider.requests.get(1).get(2).get("content").toString()
+                .startsWith("Complete only the unfinished final thought"));
+        assertFalse(emitter.containsData("Complete only the unfinished final thought"));
+    }
+
+    @Test
+    void repairErrorFallsBackToSafeTrim() throws Exception {
+        provider.enqueue("m1", segment("First sentence. However, the cost", "stop", 10, 4));
+        provider.enqueue("m1", Flux.error(new IllegalStateException("quota")));
+        Map<String, Object> done = run(false, List.of("m1")).awaitDone();
+        assertEquals("First sentence.", done.get("finalContent"));
+        assertEquals(true, done.get("repairAttempted"));
+        assertEquals(false, done.get("completionRepaired"));
+        assertEquals(true, done.get("tailTrimmed"));
+    }
+
+    @Test
+    void stillSuspiciousRepairFallsBackToSafeTrim() throws Exception {
+        provider.enqueue("m1", segment("First sentence. However, the cost", "stop", 10, 4));
+        provider.enqueue("m1", segment(" and", "stop", 12, 1));
+        Map<String, Object> done = run(false, List.of("m1")).awaitDone();
+        assertEquals("First sentence.", done.get("finalContent"));
+        assertEquals(false, done.get("completionRepaired"));
+        assertEquals(true, done.get("tailTrimmed"));
     }
 
     @Test
@@ -165,6 +219,7 @@ class ChatServiceStreamingIntegrationTest {
         emitter.triggerClientCompletion();
         Map<String, Object> done = emitter.awaitDone();
         assertEquals("aborted", done.get("completionStatus"));
+        assertEquals(false, done.get("repairAttempted"));
         assertEquals(1, emitter.count("done"));
         assertTrue(cancelled.await(2, TimeUnit.SECONDS));
         sink.get().next(StreamEvent.done("length"));
@@ -200,6 +255,7 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals("content_filter", done.get("finishReason"));
         assertEquals("incomplete", done.get("completionStatus"));
         assertEquals(1, provider.requests.size());
+        assertEquals(false, done.get("repairAttempted"));
     }
 
     @Test
@@ -232,12 +288,13 @@ class ChatServiceStreamingIntegrationTest {
         ModelRegistry registry = new ModelRegistry(List.of(), registryProps, new PrivacyPolicyEvaluator());
         ScoredRouter scored = mock(ScoredRouter.class);
         when(scored.appliesTo(any(), any())).thenReturn(false);
-        return new ChatService(mock(RateLimitService.class), conversations, router, mock(OfflineRouter.class),
+        return new ChatService(rateLimit, conversations, router, mock(OfflineRouter.class),
                 rag, documents, prompts, resolver, mock(ActiveModelService.class), mock(ModelCatalogService.class),
                 new GeminiProperties("", null, null, null), new RequestClassifier(new IntentClassifier()),
                 new PrivacyPolicyEvaluator(), scored,
                 new ChatOutputProperties(2048, 4096, 6144, 8192, 6144, 6144, 4096, 4096, 512),
-                registry, continuation);
+                registry, continuation,
+                new com.privoraa.config.ChatCompletionRepairProperties(true, 1, 512));
     }
 
     private static Flux<StreamEvent> segment(String text, String finish, int prompt, int completion) {
@@ -247,12 +304,14 @@ class ChatServiceStreamingIntegrationTest {
     private static final class ScriptedProvider implements LlmProvider {
         final Map<String, Deque<Flux<StreamEvent>>> scripts = new HashMap<>();
         final List<List<Map<String, Object>>> requests = new CopyOnWriteArrayList<>();
+        final List<ChatOptions> options = new CopyOnWriteArrayList<>();
         void enqueue(String model, Flux<StreamEvent> flux) {
             scripts.computeIfAbsent(model, ignored -> new ArrayDeque<>()).add(flux);
         }
         @Override public String id() { return "openrouter"; }
         @Override public Flux<StreamEvent> streamChat(String model, List<Map<String, Object>> messages, ChatOptions options) {
             requests.add(List.copyOf(messages));
+            this.options.add(options);
             Deque<Flux<StreamEvent>> queue = scripts.get(model);
             return queue == null || queue.isEmpty() ? Flux.error(new AssertionError("No script for " + model)) : queue.removeFirst();
         }
