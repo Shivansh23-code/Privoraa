@@ -10,38 +10,38 @@ class ChatOptionsTest {
     void codeCategoryHasHighestBudget() {
         ChatOptions opts = ChatOptions.forCategory("code");
         assertEquals(0.2, opts.temperature());
-        assertEquals(8192, opts.maxTokens());
+        assertEquals(12288, opts.maxTokens());
     }
 
     @Test
     void mathCategory() {
         ChatOptions opts = ChatOptions.forCategory("math");
         assertEquals(0.2, opts.temperature());
-        assertEquals(4096, opts.maxTokens());
+        assertEquals(8192, opts.maxTokens());
     }
 
     @Test
     void reasoningCategory() {
         ChatOptions opts = ChatOptions.forCategory("reasoning");
         assertEquals(0.4, opts.temperature());
-        assertEquals(4096, opts.maxTokens());
+        assertEquals(8192, opts.maxTokens());
     }
 
     @Test
     void generalCategory() {
         ChatOptions opts = ChatOptions.forCategory("general");
         assertEquals(0.6, opts.temperature());
-        assertEquals(2048, opts.maxTokens());
+        assertEquals(6144, opts.maxTokens());
     }
 
     @Test
     void nullCategoryDefaultsToGeneral() {
         ChatOptions opts = ChatOptions.forCategory(null);
-        assertEquals(2048, opts.maxTokens());
+        assertEquals(6144, opts.maxTokens());
     }
 
     @Test
-    void fastCategoryDefaultsToGeneralBudget() {
+    void fastCategoryDefaultsToFastBudget() {
         ChatOptions opts = ChatOptions.forCategory("fast");
         assertEquals(2048, opts.maxTokens());
     }
@@ -49,15 +49,15 @@ class ChatOptionsTest {
     @Test
     void clampAgainstKnownContextWindow() {
         ChatOptions opts = ChatOptions.forCategory("code");
-        // 16384 context / 2 = 8192 → min(8192, 8192) = 8192
-        ChatOptions clamped = opts.withClampedMaxTokens(16384);
-        assertEquals(8192, clamped.maxTokens());
+        // 24576 context / 2 = 12288 → min(12288, 12288) = 12288
+        ChatOptions clamped = opts.withClampedMaxTokens(24576);
+        assertEquals(12288, clamped.maxTokens());
     }
 
     @Test
     void clampsBelowHalfContext() {
         ChatOptions opts = ChatOptions.forCategory("code");
-        // 4096 context / 2 = 2048 → min(8192, 2048) = 2048
+        // 4096 context / 2 = 2048 → min(12288, 2048) = 2048
         ChatOptions clamped = opts.withClampedMaxTokens(4096);
         assertEquals(2048, clamped.maxTokens());
     }
@@ -65,7 +65,7 @@ class ChatOptionsTest {
     @Test
     void clampsGeneralBelowSmallContext() {
         ChatOptions opts = ChatOptions.forCategory("general");
-        // 2048 context / 2 = 1024 → min(2048, 1024) = 1024
+        // 2048 context / 2 = 1024 → min(6144, 1024) = 1024
         ChatOptions clamped = opts.withClampedMaxTokens(2048);
         assertEquals(1024, clamped.maxTokens());
     }
@@ -73,7 +73,7 @@ class ChatOptionsTest {
     @Test
     void usesConservativeCeilingWhenContextUnknown() {
         ChatOptions opts = ChatOptions.forCategory("code");
-        // unknown context → ceiling 2048 → min(8192, 2048) = 2048
+        // unknown context → ceiling 2048 → min(12288, 2048) = 2048
         ChatOptions clamped = opts.withClampedMaxTokens(null);
         assertEquals(2048, clamped.maxTokens());
     }
@@ -110,34 +110,35 @@ class ChatOptionsTest {
     // ---- withOutputClamp tests ----
 
     private final ChatOutputProperties testProps = new ChatOutputProperties(
-            2048, 4096, 6144, 8192, 6144, 6144, 4096, 4096, 512);
+            2048, 6144, 8192, 12288, 8192, 10240, 4096, 4096, 512);
 
     @Test
     void outputClampUsesConfiguredBudget() {
         ChatOptions opts = ChatOptions.forCategory("code", testProps);
-        // 8192 budget, large context, no descriptor limit
-        ChatOptions clamped = opts.withOutputClamp(8192, 128_000, null, 500, 512, 4096);
-        assertEquals(8192, clamped.maxTokens());
+        // 12288 budget, large context, no descriptor limit
+        ChatOptions clamped = opts.withOutputClamp(12288, 128_000, null, 500, 512, 4096);
+        assertEquals(12288, clamped.maxTokens());
     }
 
     @Test
     void outputClampSubtractsPromptTokensFromContext() {
         ChatOptions opts = ChatOptions.forCategory("general", testProps);
-        // general=4096, context=8192, prompt=5000, safety=512
+        // general=6144, context=8192, prompt=5000, safety=512
         // available = 8192 - 5000 - 512 = 2680
-        // min(4096, 2680) = 2680
-        ChatOptions clamped = opts.withOutputClamp(4096, 8192, null, 5000, 512, 4096);
+        // min(6144, 2680) = 2680
+        ChatOptions clamped = opts.withOutputClamp(6144, 8192, null, 5000, 512, 4096);
         assertEquals(2680, clamped.maxTokens());
     }
 
     @Test
     void outputClampSafetyMarginIsApplied() {
         ChatOptions opts = ChatOptions.forCategory("general", testProps);
-        // available = 4096 - 2000 - 1024 = 1072 with safety=1024
-        // available = 4096 - 2000 - 512 = 1584 with safety=512
-        // general budget=4096, so clamping to available context applies
-        ChatOptions safe1024 = opts.withOutputClamp(4096, 4096, null, 2000, 1024, 4096);
-        ChatOptions safe512 = opts.withOutputClamp(4096, 4096, null, 2000, 512, 4096);
+        // available = 6144 - 2000 - 1024 = 3120 with safety=1024
+        // available = 6144 - 2000 - 512 = 3632 with safety=512
+        // clamp to context: min(6144, 4096-2000-1024) = min(6144, 1072) = 1072 for safe1024
+        // and min(6144, 4096-2000-512) = min(6144, 1584) = 1584 for safe512
+        ChatOptions safe1024 = opts.withOutputClamp(6144, 4096, null, 2000, 1024, 4096);
+        ChatOptions safe512 = opts.withOutputClamp(6144, 4096, null, 2000, 512, 4096);
         assertEquals(1072, safe1024.maxTokens());
         assertEquals(1584, safe512.maxTokens());
         assertTrue(safe1024.maxTokens() < safe512.maxTokens(),
@@ -147,16 +148,16 @@ class ChatOptionsTest {
     @Test
     void outputClampDescriptorLimitReducesBudget() {
         ChatOptions opts = ChatOptions.forCategory("code", testProps);
-        // code=8192, descriptor limits to 4096
-        ChatOptions clamped = opts.withOutputClamp(8192, 128_000, 4096, 500, 512, 4096);
+        // code=12288, descriptor limits to 4096
+        ChatOptions clamped = opts.withOutputClamp(12288, 128_000, 4096, 500, 512, 4096);
         assertEquals(4096, clamped.maxTokens());
     }
 
     @Test
     void outputClampUnknownModelUsesConfiguredFallback() {
         ChatOptions opts = ChatOptions.forCategory("code", testProps);
-        // null context, no descriptor = clamp to min(8192, 4096) = 4096
-        ChatOptions clamped = opts.withOutputClamp(8192, null, null, 500, 512, 4096);
+        // null context, no descriptor = clamp to min(12288, 4096) = 4096
+        ChatOptions clamped = opts.withOutputClamp(12288, null, null, 500, 512, 4096);
         assertEquals(4096, clamped.maxTokens(),
                 "should use configured unknown-model-max-tokens (4096), not hardcoded 2048");
     }
@@ -164,8 +165,8 @@ class ChatOptionsTest {
     @Test
     void outputClampCustomUnknownFallbackIsRespected() {
         ChatOptions opts = ChatOptions.forCategory("code", testProps);
-        // custom fallback 2048 wins over code budget 8192
-        ChatOptions clamped = opts.withOutputClamp(8192, null, null, 500, 512, 2048);
+        // custom fallback 2048 wins over code budget 12288
+        ChatOptions clamped = opts.withOutputClamp(12288, null, null, 500, 512, 2048);
         assertEquals(2048, clamped.maxTokens(),
                 "custom unknown fallback (2048) should be respected");
     }
@@ -192,15 +193,15 @@ class ChatOptionsTest {
     void outputClampMinimumSafeOutputIs256() {
         ChatOptions opts = ChatOptions.forCategory("general", testProps);
         // tiny context (512) with large prompt (400) and safety (512)
-        // available = 512 - 400 - 512 = -400 → use context/4 = 128 → max(256, min(4096, 128)) = 256
-        ChatOptions clamped = opts.withOutputClamp(4096, 512, null, 400, 512, 4096);
+        // available = 512 - 400 - 512 = -400 → use context/4 = 128 → max(256, min(6144, 128)) = 256
+        ChatOptions clamped = opts.withOutputClamp(6144, 512, null, 400, 512, 4096);
         assertEquals(256, clamped.maxTokens());
     }
 
     @Test
     void outputClampReturnsSameInstanceWhenUnchanged() {
         ChatOptions opts = ChatOptions.forCategory("code", testProps);
-        ChatOptions clamped = opts.withOutputClamp(8192, 128_000, null, 500, 512, 4096);
+        ChatOptions clamped = opts.withOutputClamp(12288, 128_000, null, 500, 512, 4096);
         assertSame(opts, clamped, "should return same instance when no clamp needed");
     }
 
@@ -228,17 +229,17 @@ class ChatOptionsTest {
     @Test
     void outputClampWithNullPropsFallsBackToHardcoded() {
         ChatOptions opts = ChatOptions.forCategory("code", null);
-        assertEquals(8192, opts.maxTokens());
+        assertEquals(12288, opts.maxTokens());
 
         opts = ChatOptions.forCategory("general", null);
-        assertEquals(4096, opts.maxTokens());
+        assertEquals(6144, opts.maxTokens());
     }
 
     @Test
     void outputClampWithExactFitReturnsSameInstance() {
         ChatOptions opts = ChatOptions.forCategory("code", testProps);
-        // 8192 budget, huge context, no descriptor — should stay at 8192
-        ChatOptions clamped = opts.withOutputClamp(8192, 256_000, null, 500, 512, 4096);
+        // 12288 budget, huge context, no descriptor — should stay at 12288
+        ChatOptions clamped = opts.withOutputClamp(12288, 256_000, null, 500, 512, 4096);
         assertSame(opts, clamped);
     }
 
@@ -247,7 +248,7 @@ class ChatOptionsTest {
         ChatOptions opts = ChatOptions.forCategory("general", testProps);
         // context (2048) < prompt (3000) + safety → negative available
         // fallback = context/4 = 512
-        ChatOptions clamped = opts.withOutputClamp(4096, 2048, null, 3000, 512, 4096);
+        ChatOptions clamped = opts.withOutputClamp(6144, 2048, null, 3000, 512, 4096);
         assertEquals(512, clamped.maxTokens());
     }
 

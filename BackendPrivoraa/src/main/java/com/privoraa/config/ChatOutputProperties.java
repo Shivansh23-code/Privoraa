@@ -16,11 +16,11 @@ public record ChatOutputProperties(
 ) {
     public ChatOutputProperties {
         if (fastMaxTokens <= 0) fastMaxTokens = 2048;
-        if (generalMaxTokens <= 0) generalMaxTokens = 4096;
-        if (learningMaxTokens <= 0) learningMaxTokens = 6144;
-        if (codeMaxTokens <= 0) codeMaxTokens = 8192;
-        if (reasoningMaxTokens <= 0) reasoningMaxTokens = 6144;
-        if (documentMaxTokens <= 0) documentMaxTokens = 6144;
+        if (generalMaxTokens <= 0) generalMaxTokens = 6144;
+        if (learningMaxTokens <= 0) learningMaxTokens = 8192;
+        if (codeMaxTokens <= 0) codeMaxTokens = 12288;
+        if (reasoningMaxTokens <= 0) reasoningMaxTokens = 8192;
+        if (documentMaxTokens <= 0) documentMaxTokens = 10240;
         if (visionMaxTokens <= 0) visionMaxTokens = 4096;
         if (unknownModelMaxTokens <= 0) unknownModelMaxTokens = 4096;
         if (safetyMargin <= 0) safetyMargin = 512;

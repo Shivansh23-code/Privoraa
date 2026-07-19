@@ -5,5 +5,8 @@ export function finalContentPatch(usage = {}) {
     repairAttempted: usage.repairAttempted === true,
     completionRepaired: usage.completionRepaired === true,
     repairSegments: Number.isInteger(usage.repairSegments) ? usage.repairSegments : 0,
+    rawFinishReason: usage.rawFinishReason,
+    completionStatus: usage.completionStatus,
+    finalizationReason: usage.finalizationReason,
   };
 }

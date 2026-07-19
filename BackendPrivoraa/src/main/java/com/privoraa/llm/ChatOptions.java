@@ -40,15 +40,15 @@ public record ChatOptions(Double temperature, Integer maxTokens, Double topP,
     public static ChatOptions forCategory(String category) {
         String c = category == null ? "general" : category;
         return switch (c) {
-            case "code" -> new ChatOptions(0.2, 8192, 0.9, 0.0, 0.0);
-            case "math" -> new ChatOptions(0.2, 4096, 0.9, 0.0, 0.0);
-            case "reasoning" -> new ChatOptions(0.4, 4096, 0.9, 0.0, 0.0);
-            case "learning" -> new ChatOptions(0.4, 6144, 0.9, 0.0, 0.0);
-            case "document" -> new ChatOptions(0.4, 6144, 0.9, 0.0, 0.0);
+            case "code" -> new ChatOptions(0.2, 12288, 0.9, 0.0, 0.0);
+            case "math" -> new ChatOptions(0.2, 8192, 0.9, 0.0, 0.0);
+            case "reasoning" -> new ChatOptions(0.4, 8192, 0.9, 0.0, 0.0);
+            case "learning" -> new ChatOptions(0.4, 8192, 0.9, 0.0, 0.0);
+            case "document" -> new ChatOptions(0.4, 10240, 0.9, 0.0, 0.0);
             case "vision" -> new ChatOptions(0.6, 4096, 0.9, 0.0, 0.0);
             case "fast" -> new ChatOptions(0.6, 2048, 0.9, 0.3, 0.2);
             // general, multilingual, …
-            default -> new ChatOptions(0.6, 2048, 0.9, 0.3, 0.2);
+            default -> new ChatOptions(0.6, 6144, 0.9, 0.3, 0.2);
         };
     }
 
@@ -61,14 +61,14 @@ public record ChatOptions(Double temperature, Integer maxTokens, Double topP,
     public static ChatOptions forCategory(String category, ChatOutputProperties props) {
         String c = category == null ? "general" : category;
         return switch (c) {
-            case "code" -> new ChatOptions(0.2, budgetOr(props, "code", 8192), 0.9, 0.0, 0.0);
-            case "math" -> new ChatOptions(0.2, budgetOr(props, "reasoning", 4096), 0.9, 0.0, 0.0);
-            case "reasoning" -> new ChatOptions(0.4, budgetOr(props, "reasoning", 6144), 0.9, 0.0, 0.0);
-            case "learning" -> new ChatOptions(0.4, budgetOr(props, "learning", 6144), 0.9, 0.0, 0.0);
-            case "document" -> new ChatOptions(0.4, budgetOr(props, "document", 6144), 0.9, 0.0, 0.0);
+            case "code" -> new ChatOptions(0.2, budgetOr(props, "code", 12288), 0.9, 0.0, 0.0);
+            case "math" -> new ChatOptions(0.2, budgetOr(props, "reasoning", 8192), 0.9, 0.0, 0.0);
+            case "reasoning" -> new ChatOptions(0.4, budgetOr(props, "reasoning", 8192), 0.9, 0.0, 0.0);
+            case "learning" -> new ChatOptions(0.4, budgetOr(props, "learning", 8192), 0.9, 0.0, 0.0);
+            case "document" -> new ChatOptions(0.4, budgetOr(props, "document", 10240), 0.9, 0.0, 0.0);
             case "vision" -> new ChatOptions(0.6, budgetOr(props, "vision", 4096), 0.9, 0.0, 0.0);
             case "fast" -> new ChatOptions(0.6, budgetOr(props, "fast", 2048), 0.9, 0.3, 0.2);
-            default -> new ChatOptions(0.6, budgetOr(props, "general", 4096), 0.9, 0.3, 0.2);
+            default -> new ChatOptions(0.6, budgetOr(props, "general", 6144), 0.9, 0.3, 0.2);
         };
     }
 

@@ -413,9 +413,13 @@ public class ChatService {
             ResponseTailTrimmer.Result finalResponse = ResponseTailTrimmer.trim(
                     accumulated.toString(), completionStatus);
             persistAssistant(prepared, nameOf(activeModel), finalResponse.content(), prompt, completion);
+            String rawContent = accumulated.toString();
+            ResponseCompletenessAnalyzer.Result analysis =
+                    ResponseCompletenessAnalyzer.analyze(rawContent);
             Map<String, Object> payload = donePayload(nameOf(activeModel), prepared, prompt, completion, reason);
             payload.put("completionStatus", completionStatus);
             payload.put("finalContent", finalResponse.content());
+            payload.put("rawFinishReason", reason);
             payload.put("tailTrimmed", finalResponse.trimmed());
             payload.put("repairAttempted", repairAttempted);
             payload.put("completionRepaired", completionRepaired);
@@ -423,6 +427,7 @@ public class ChatService {
             payload.put("segments", segments);
             payload.put("continued", segments > 1);
             payload.put("tokenCountEstimated", tokenCountEstimated);
+            payload.put("finalizationReason", analysis.reason());
             if (aborted) payload.put("aborted", true);
             send(emitter, "done", payload);
             emitter.complete();
