@@ -107,8 +107,9 @@ public class GeminiProvider implements LlmProvider {
         return new ProviderHealth(up, up, up ? props.baseUrl() : null);
     }
 
-    private Map<String, Object> buildBody(String model, List<Map<String, Object>> messages,
-                                          ChatOptions opts, boolean stream) {
+    /** Package-private for testability. */
+    Map<String, Object> buildBody(String model, List<Map<String, Object>> messages,
+                                  ChatOptions opts, boolean stream) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", model);
         body.put("messages", messages);

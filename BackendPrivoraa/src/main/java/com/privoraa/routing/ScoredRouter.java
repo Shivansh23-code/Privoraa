@@ -201,9 +201,11 @@ public class ScoredRouter {
     private static String mapCategory(RequestClassification classification) {
         return switch (classification.intent()) {
             case CODING, REPOSITORY_ANALYSIS, DEBUGGING, ARCHITECTURE -> "code";
-            case LEARNING, RESEARCH -> "reasoning";
+            case LEARNING -> "learning";
+            case RESEARCH -> "reasoning";
+            case DOCUMENT_QA -> "document";
             case VISION -> "vision";
-            case DATA_ANALYSIS, DOCUMENT_QA, WRITING -> "general";
+            case GENERAL_CHAT, WRITING, DATA_ANALYSIS -> "general";
             default -> "general";
         };
     }

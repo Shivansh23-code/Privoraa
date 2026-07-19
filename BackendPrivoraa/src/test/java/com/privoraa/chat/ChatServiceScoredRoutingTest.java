@@ -5,6 +5,7 @@ import com.privoraa.ai.registry.*;
 import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.chat.dto.ChatRequest;
 import com.privoraa.chat.dto.ChatResponse;
+import com.privoraa.config.ChatOutputProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.conversation.ConversationService;
 import com.privoraa.llm.LlmProvider;
@@ -53,6 +54,8 @@ class ChatServiceScoredRoutingTest {
         when(resolver.active()).thenReturn(mock(LlmProvider.class));
         scoredRouter = new ScoredRouter(registry, props, gemini, resolver);
 
+        ChatOutputProperties outputProps = new ChatOutputProperties(
+                2048, 4096, 6144, 8192, 6144, 6144, 4096, 4096, 512);
         service = new ChatService(
                 rateLimit,
                 conversations,
@@ -67,7 +70,9 @@ class ChatServiceScoredRoutingTest {
                 gemini,
                 new RequestClassifier(new IntentClassifier()),
                 new PrivacyPolicyEvaluator(),
-                scoredRouter);
+                scoredRouter,
+                outputProps,
+                registry);
     }
 
     @Test
@@ -86,11 +91,14 @@ class ChatServiceScoredRoutingTest {
         ModelRegistry emptyReg = new ModelRegistry(List.of(), disabledProps, new PrivacyPolicyEvaluator());
         LlmProviderResolver res = mock(LlmProviderResolver.class);
         ScoredRouter disabledRouter = new ScoredRouter(emptyReg, disabledProps, gemini, res);
+        ChatOutputProperties outProps = new ChatOutputProperties(
+                2048, 4096, 6144, 8192, 6144, 6144, 4096, 4096, 512);
         ChatService svc = new ChatService(
                 rateLimit, conversations, mock(ModelRouter.class), mock(OfflineRouter.class),
                 mock(RagService.class), mock(DocumentService.class), mock(PromptBuilder.class),
                 providers, mock(ActiveModelService.class), catalog, gemini,
-                new RequestClassifier(new IntentClassifier()), new PrivacyPolicyEvaluator(), disabledRouter);
+                new RequestClassifier(new IntentClassifier()), new PrivacyPolicyEvaluator(),
+                disabledRouter, outProps, registry);
         // If the flag is disabled, scoredRouter.appliesTo() returns false,
         // and the legacy path handles routing. No exception expected.
         assertDoesNotThrow(() -> {
