@@ -28,8 +28,8 @@ function ThinkingDots() {
 function Citations({ citations }) {
   if (!citations?.length) return null;
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-[11px] font-medium text-muted">Grounded in sources</span>
+    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <span className="mr-1 text-[11px] font-medium text-muted">Sources</span>
       {citations.map((c) => (
         <span
           key={c.chunk}
@@ -37,7 +37,7 @@ function Citations({ citations }) {
           className="inline-flex items-center gap-1 rounded-md border border-line bg-surface-2 px-2 py-0.5 text-[11px] text-muted"
         >
           <FileText size={11} />
-          {c.doc} · chunk {c.chunk}
+          {c.doc} · {c.chunk}
         </span>
       ))}
     </div>
@@ -61,115 +61,100 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
     }
   };
 
-  return (
-    <article className={`group flex animate-rise gap-2 sm:gap-4 ${isUser ? 'flex-row-reverse' : ''}`}>
-      {/* Avatar — slightly smaller on mobile to free width for prose */}
-      <div
-        className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl sm:h-8 sm:w-8 ${
-          isUser
-            ? 'bg-[var(--user-message-avatar)] text-white'
-            : 'bg-surface-2 text-[var(--assistant-identity)] ring-1 ring-line'
-        }`}
-      >
-        {isUser ? <UserIcon size={13} /> : <span className="font-display text-xs font-bold sm:text-sm">P</span>}
-      </div>
-
-      {/* Assistant answers fill the available column width (better for long
-          markdown / code on wide screens); user messages stay compact. */}
-      <div className={`flex min-w-0 flex-col ${isUser ? 'max-w-[86%] items-end sm:max-w-[75%]' : 'flex-1'}`}>
-        {/* Model badge */}
-        {!isUser && message.model && (
-          <div className="mb-1 flex items-center gap-1.5 text-xs text-muted">
-            <span className="font-medium text-fg/80">Answered with {message.model}</span>
-            {message.routeReason && (
-              <span className="hidden sm:inline">· {message.routeReason}</span>
-            )}
-          </div>
-        )}
-
-        {/* Bubble */}
-        <div
-          className={`${
-            isUser
-              ? 'rounded-2xl rounded-tr-md bg-[var(--user-message-bg)] px-4 py-2.5 text-white shadow-sm sm:px-5 sm:py-3'
-              : 'w-full px-0 py-0.5'
-          }`}
-        >
-          {message.error ? (
-            <div className="flex items-start gap-2 text-sm text-red-500">
-              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-              <span>{message.error}</span>
-            </div>
-          ) : isUser ? (
-            <>
-              {message.image && (
-                <img
-                  src={message.image}
-                  alt="attachment"
-                  className="mb-2 max-h-64 w-auto rounded-lg border border-white/20 object-contain"
-                />
-              )}
-              {message.content && (
-                <p className="whitespace-pre-wrap break-words text-[15px] leading-6 sm:text-base">
-                  {message.content}
-                </p>
-              )}
-            </>
-          ) : message.pending && !message.content ? (
-            <ThinkingDots />
-          ) : (
-            <div className={streaming ? 'streaming-caret' : ''}>
-              <Markdown>{message.content}</Markdown>
-            </div>
+  // ---- User message: compact right-aligned bubble ----
+  if (isUser) {
+    return (
+      <div className="flex animate-rise justify-end">
+        <div className="max-w-[86%] rounded-2xl rounded-tr-md bg-[var(--user-message-bg)] px-4 py-2.5 text-white shadow-sm sm:max-w-[75%] sm:px-5 sm:py-3">
+          {message.image && (
+            <img
+              src={message.image}
+              alt="attachment"
+              className="mb-2 max-h-64 w-auto rounded-lg border border-white/20 object-contain"
+            />
           )}
-
-          {!isUser && <Citations citations={message.citations} />}
-
-          {message.aborted && (
-            <p className="mt-2 text-xs italic text-muted">Generation stopped.</p>
-          )}
-          {notice && (
-            <p className="mt-2 text-xs italic text-[var(--accent-primary)]/70">
-              {notice}
+          {message.content && (
+            <p className="whitespace-pre-wrap break-words text-[15px] leading-6 sm:text-base">
+              {message.content}
             </p>
           )}
         </div>
+      </div>
+    );
+  }
 
-        {/* Actions */}
-        {!isUser && !message.error && (
-          <div className="mt-2 flex min-h-8 items-center gap-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-            {streaming ? (
+  // ---- Assistant message: full-width vertical stack (no avatar column) ----
+  return (
+    <div className="animate-rise w-full min-w-0">
+      {message.model && (
+        <div className="mb-1.5 flex items-center gap-1.5 text-xs text-muted">
+          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[var(--assistant-identity)] ring-1 ring-line">
+            <span className="font-display text-[9px] font-bold">P</span>
+          </div>
+          <span className="truncate font-medium text-fg/80">{message.model}</span>
+          {message.routeReason && (
+            <span className="hidden truncate sm:inline">· {message.routeReason}</span>
+          )}
+        </div>
+      )}
+
+      {message.error ? (
+        <div className="flex items-start gap-2 text-sm text-red-500">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+          <span>{message.error}</span>
+        </div>
+      ) : message.pending && !message.content ? (
+        <ThinkingDots />
+      ) : (
+        <div className={streaming ? 'streaming-caret' : ''}>
+          <Markdown>{message.content}</Markdown>
+        </div>
+      )}
+
+      <Citations citations={message.citations} />
+
+      {message.aborted && (
+        <p className="mt-2 text-xs italic text-muted">Generation stopped.</p>
+      )}
+      {notice && (
+        <p className="mt-2 text-xs italic text-[var(--accent-primary)]/70">
+          {notice}
+        </p>
+      )}
+
+      {!message.error && (
+        <div className="mt-2.5 flex min-h-8 items-center gap-1">
+          {streaming ? (
+            <button
+              onClick={onStop}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
+            >
+              <Square size={12} /> Stop
+            </button>
+          ) : (
+            <>
               <button
-                onClick={onStop}
+                onClick={copy}
                 className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
               >
-                <Square size={12} /> Stop
+                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? 'Copied' : 'Copy'}
               </button>
-            ) : (
-              <>
-                <button
-                  onClick={copy}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
-                >
-                  {copied ? <Check size={12} /> : <Copy size={12} />}
-                  {copied ? 'Copied' : 'Copy'}
-                </button>
-                <button
-                  onClick={onRegenerate}
-                  className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
-                >
-                  <RefreshCw size={12} /> Regenerate
-                </button>
-                {(message.completionTokens != null) && (
-                  <span className="ml-1 text-[11px] text-faint">
-                    {message.completionTokens} tokens
-                  </span>
-                )}
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </article>
+              <button
+                onClick={onRegenerate}
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
+              >
+                <RefreshCw size={12} /> Regenerate
+              </button>
+              {message.completionTokens != null && (
+                <span className="ml-1 text-[11px] text-faint">
+                  {message.completionTokens} tokens
+                </span>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
