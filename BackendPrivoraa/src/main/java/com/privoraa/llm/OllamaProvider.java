@@ -47,6 +47,7 @@ public class OllamaProvider implements LlmProvider {
     @Override
     public Flux<StreamEvent> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
         Map<String, Object> body = chatBody(model, messages, opts, true);
+        logRequest(model, opts, 1);
         return web.post()
                 .uri("/api/chat")
                 .bodyValue(body)
@@ -65,6 +66,7 @@ public class OllamaProvider implements LlmProvider {
     @Override
     public ChatResult chat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
         Map<String, Object> body = chatBody(model, messages, opts, false);
+        logRequest(model, opts, 1);
         JsonNode resp = web.post()
                 .uri("/api/chat")
                 .bodyValue(body)
@@ -134,7 +136,7 @@ public class OllamaProvider implements LlmProvider {
 
     // ----------------------------------------------------------------- helpers
 
-    private Map<String, Object> chatBody(String model, List<Map<String, Object>> messages,
+    Map<String, Object> chatBody(String model, List<Map<String, Object>> messages,
                                          ChatOptions opts, boolean stream) {
         Map<String, Object> options = new LinkedHashMap<>();
         options.put("num_ctx", props.numCtx());
@@ -163,6 +165,12 @@ public class OllamaProvider implements LlmProvider {
         body.put("keep_alive", props.keepAlive());
         body.put("options", options);
         return body;
+    }
+
+    private void logRequest(String model, ChatOptions opts, int attempt) {
+        log.debug("Provider request provider=ollama modelId={} finalRequestedOutputTokens={} "
+                        + "tokenFieldName=options.num_predict requestAttempt={} endpoint={}/api/chat",
+                model, opts == null ? null : opts.maxTokens(), attempt, props.baseUrl());
     }
 
     /**
@@ -230,7 +238,8 @@ public class OllamaProvider implements LlmProvider {
     StreamEvent toEvent(JsonNode node) {
         if (node.path("done").asBoolean(false)) {
             String reason = node.path("done_reason").asText(null);
-            return reason != null ? StreamEvent.done(reason) : StreamEvent.done(null);
+            return new StreamEvent(null, reason, true,
+                    node.path("prompt_eval_count").asInt(0), node.path("eval_count").asInt(0));
         }
         String content = node.path("message").path("content").asText("");
         return StreamEvent.delta(content);

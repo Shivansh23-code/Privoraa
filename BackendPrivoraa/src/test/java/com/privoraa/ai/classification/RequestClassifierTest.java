@@ -116,6 +116,32 @@ class RequestClassifierTest {
                 () -> fallback.requiredCapabilities().add(Capability.CODE));
     }
 
+    @Test
+    void teachingArraysWithJavaIsLearningWithCodeCapability() {
+        RequestClassification result = classify("Teach arrays with Java examples", false, false);
+        assertEquals(IntentType.LEARNING, result.intent());
+        assertTrue(result.requiredCapabilities().contains(Capability.CODE));
+    }
+
+    @Test
+    void fixingJavaArrayCodeIsCodingOrDebugging() {
+        assertTrue(Set.of(IntentType.CODING, IntentType.DEBUGGING).contains(
+                classify("Fix this Java array code", false, false).intent()));
+    }
+
+    @Test
+    void implementingBinarySearchInJavaIsCoding() {
+        assertEquals(IntentType.CODING,
+                classify("Implement binary search in Java", false, false).intent());
+    }
+
+    @Test
+    void explainingBinarySearchInJavaIsLearningWithCodeCapability() {
+        RequestClassification result = classify("Explain binary search using Java", false, false);
+        assertEquals(IntentType.LEARNING, result.intent());
+        assertTrue(result.requiredCapabilities().contains(Capability.CODE));
+    }
+
     private RequestClassification classify(String prompt, boolean image, boolean rag) {
         return classifier.classify(new RequestClassificationInput(
                 prompt, "general", "", "auto", image, rag, prompt.length()));

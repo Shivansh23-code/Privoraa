@@ -44,7 +44,7 @@ public class RequestClassifier {
     private static final Pattern POSSIBLY_STALE = Pattern.compile(
             "(?i)\\b(version|release|price|law|schedule|model availability)\\b");
     private static final Pattern LEARNING = Pattern.compile(
-            "(?i)\\b(teach me|explain|quiz me|interview questions?|learning plan|tutor|study)\\b");
+            "(?i)\\b(teach(?: me)?|explain|quiz me|interview questions?|learning plan|tutor|study)\\b");
     private static final Pattern DOCUMENT = Pattern.compile(
             "(?i)\\b(uploaded (?:file|document)|pdf|my notes|this document|source material)\\b");
     private static final Pattern WRITING = Pattern.compile(
@@ -58,6 +58,10 @@ public class RequestClassifier {
     private static final Pattern CODE = Pattern.compile(
             "(?i)```|\\b(java|spring boot|react|typescript|javascript|python|sql|service method|"
                     + "constructor injection|component|controller|repository|function|class|api endpoint)\\b");
+    private static final Pattern CODE_ACTION = Pattern.compile(
+            "(?i)\\b(implement|write|create|build|refactor|fix|debug|patch)\\b.{0,80}\\b(code|java|"
+                    + "spring|react|typescript|javascript|python|sql|function|class|algorithm)\\b|"
+                    + "\\b(fix|debug|refactor)\\b.{0,80}```");
     private static final Pattern STRUCTURED = Pattern.compile(
             "(?i)\\b(json|schema|structured output|csv format|yaml)\\b");
 
@@ -158,13 +162,23 @@ public class RequestClassifier {
             reasons.add(ClassificationReason.WRITING_LANGUAGE_MATCH);
             return IntentType.WRITING;
         }
-        if (CODE.matcher(text).find() || "code_mentor".equals(mode)) {
+        boolean learningLanguage = LEARNING.matcher(text).find()
+                || Set.of("exam_tutor", "math_solver", "interview_prep", "explain_simply").contains(mode);
+        boolean codeLanguage = CODE.matcher(text).find();
+        // Intent and capability are orthogonal: explanatory requests remain
+        // LEARNING even when examples require a code-capable model.
+        if (learningLanguage && !CODE_ACTION.matcher(text).find()) {
+            reasons.add(ClassificationReason.LEARNING_LANGUAGE_MATCH);
+            if (codeLanguage) capabilities.add(Capability.CODE);
+            if (!mode.isBlank() && !"general".equals(mode)) reasons.add(ClassificationReason.MODE_BIAS);
+            return IntentType.LEARNING;
+        }
+        if (codeLanguage || CODE_ACTION.matcher(text).find() || "code_mentor".equals(mode)) {
             reasons.add(ClassificationReason.CODE_KEYWORD_MATCH);
             capabilities.add(Capability.CODE);
             return IntentType.CODING;
         }
-        if (LEARNING.matcher(text).find() || Set.of("exam_tutor", "math_solver", "interview_prep",
-                "explain_simply").contains(mode)) {
+        if (learningLanguage) {
             reasons.add(ClassificationReason.LEARNING_LANGUAGE_MATCH);
             if (!mode.isBlank() && !"general".equals(mode)) reasons.add(ClassificationReason.MODE_BIAS);
             return IntentType.LEARNING;

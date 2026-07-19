@@ -126,9 +126,14 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
           {message.aborted && (
             <p className="mt-2 text-xs italic text-muted">Generation stopped.</p>
           )}
-          {(message.finishReason === 'length' || message.finishReason === 'incomplete' || message.finishReason === 'unknown') && (
+          {message.completionStatus === 'limit_reached' && (
             <p className="mt-2 text-xs italic text-amber-600 dark:text-amber-400">
-              Response was incomplete. Use Regenerate for a complete answer.
+              This answer reached the maximum response length.
+            </p>
+          )}
+          {message.completionStatus === 'incomplete' && (
+            <p className="mt-2 text-xs italic text-amber-600 dark:text-amber-400">
+              The connection ended before the response completed.
             </p>
           )}
         </div>

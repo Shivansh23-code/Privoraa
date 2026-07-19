@@ -27,6 +27,11 @@ public record ChatOptions(Double temperature, Integer maxTokens, Double topP,
         return forCategory("general");
     }
 
+    public ChatOptions withMaxTokens(int value) {
+        int safe = Math.max(1, value);
+        return new ChatOptions(temperature, safe, topP, frequencyPenalty, presencePenalty);
+    }
+
     /**
      * Task-aware sampling with hardcoded budgets (legacy path). New code should
      * prefer {@link #forCategory(String, ChatOutputProperties)} for config-driven
