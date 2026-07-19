@@ -60,15 +60,13 @@ test('no visible synthetic continuation user message is created', async () => {
 
 // ---- Mobile prose uses 16px ----
 
-test('mobile assistant prose uses 1rem (16px) with 1.65 line-height', () => {
+test('mobile assistant prose uses .95rem (~15px) with 1.55 line-height', () => {
   const css = readFileSync(resolve(ROOT, 'src/index.css'), 'utf-8');
-  // Find the mobile media query block and extract the prose-chat rule.
   const mobileBlock = css.match(/@media\s*\(max-width:\s*640px\)\s*\{([^}]*)\}/s);
   assert.ok(mobileBlock, 'mobile media query must exist');
   const rules = mobileBlock[1];
-  // prose-chat at mobile should have font-size: 1rem
-  assert.ok(rules.includes('font-size: 1rem'), 'mobile prose must use 1rem font-size');
-  assert.ok(rules.includes('line-height: 1.72'), 'mobile prose must use 1.72 line-height');
+  assert.ok(rules.includes('font-size: .95rem'), 'mobile prose must use .95rem font-size');
+  assert.ok(rules.includes('line-height: 1.55'), 'mobile prose must use 1.55 line-height');
 });
 
 test('desktop prose uses refined font-size', () => {
