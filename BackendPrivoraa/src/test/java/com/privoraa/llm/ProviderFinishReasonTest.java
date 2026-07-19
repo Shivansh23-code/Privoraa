@@ -66,6 +66,15 @@ class ProviderFinishReasonTest {
         assertFalse(e.terminal(), "malformed chunk must not be treated as terminal");
     }
 
+    @Test
+    void openRouterParsesFinalStreamUsageChunk() {
+        StreamEvent e = openRouter.toEvent(
+                "{\"choices\":[],\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":34}}");
+        assertEquals(12, e.promptTokens());
+        assertEquals(34, e.completionTokens());
+        assertFalse(e.terminal());
+    }
+
     // ---- Gemini ----
 
     @Test
@@ -90,6 +99,14 @@ class ProviderFinishReasonTest {
         assertNull(e.finishReason());
     }
 
+    @Test
+    void geminiParsesFinalStreamUsageChunk() {
+        StreamEvent e = gemini.toEvent(
+                "{\"choices\":[],\"usage\":{\"prompt_tokens\":21,\"completion_tokens\":43}}");
+        assertEquals(21, e.promptTokens());
+        assertEquals(43, e.completionTokens());
+    }
+
     // ---- Ollama ----
 
     @Test
@@ -100,6 +117,18 @@ class ProviderFinishReasonTest {
         StreamEvent e = ollama.toEvent(node);
         assertNull(e.delta());
         assertEquals("stop", e.finishReason());
+    }
+
+    @Test
+    void ollamaTerminalCarriesProviderUsage() {
+        ObjectNode node = mapper.createObjectNode();
+        node.put("done", true);
+        node.put("done_reason", "stop");
+        node.put("prompt_eval_count", 17);
+        node.put("eval_count", 29);
+        StreamEvent e = ollama.toEvent(node);
+        assertEquals(17, e.promptTokens());
+        assertEquals(29, e.completionTokens());
     }
 
     @Test

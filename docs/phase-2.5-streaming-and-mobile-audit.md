@@ -1,5 +1,9 @@
 # Phase 2.5 — Streaming & Mobile Audit
 
+> Historical pre-implementation audit. The active implementation now propagates provider terminal
+> reasons and usage through `StreamEvent`, applies configuration-bound output budgets, and uses the
+> `ChatService.StreamSession` lifecycle documented in `AI_RESPONSE_RELIABILITY.md`.
+
 ## Root-Cause Analysis: Truncated AI Responses
 
 ### The Gap

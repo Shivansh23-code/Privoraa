@@ -16,8 +16,8 @@ import com.privoraa.conversation.dto.MessageDto;
 import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.ai.registry.ModelDescriptor;
 import com.privoraa.ai.registry.ModelRegistry;
-import com.privoraa.config.ChatOutputProperties;
 import com.privoraa.config.ChatContinuationProperties;
+import com.privoraa.config.ChatOutputProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.llm.ChatOptions;
 import com.privoraa.llm.ChatResult;
@@ -39,20 +39,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.scheduler.Schedulers;
 import reactor.core.Disposable;
+import reactor.core.Disposables;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class ChatService {
@@ -104,22 +105,14 @@ public class ChatService {
         this.continuationProps = continuationProps;
     }
 
-    /** Test/backward-compatible constructor; production uses configuration binding above. */
-    ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
-                OfflineRouter offlineRouter, RagService ragService, DocumentService documentService,
-                PromptBuilder promptBuilder, LlmProviderResolver providers, ActiveModelService activeModel,
-                ModelCatalogService catalog, GeminiProperties gemini, RequestClassifier requestClassifier,
-                PrivacyPolicyEvaluator privacyPolicy, ScoredRouter scoredRouter,
-                ChatOutputProperties outputProps, ModelRegistry registry) {
-        this(rateLimit, conversations, router, offlineRouter, ragService, documentService, promptBuilder,
-                providers, activeModel, catalog, gemini, requestClassifier, privacyPolicy, scoredRouter,
-                outputProps, registry, new ChatContinuationProperties(true, 3, 16000, 600));
-    }
-
     // ----------------------------------------------------------------- streaming
 
     public SseEmitter stream(String userId, ChatRequest req) {
-        SseEmitter emitter = new SseEmitter(0L); // no timeout; completes on done/error
+        return stream(userId, req, new SseEmitter(0L));
+    }
+
+    /** Package-private emitter seam used by deterministic streaming integration tests. */
+    SseEmitter stream(String userId, ChatRequest req, SseEmitter emitter) {
 
         try {
             rateLimit.check(userId);
@@ -153,7 +146,7 @@ public class ChatService {
         private final SseEmitter emitter;
         private final Prepared prepared;
         private final StringBuilder accumulated = new StringBuilder();
-        private final AtomicReference<Disposable> active = new AtomicReference<>();
+        private final Disposable.Swap active = Disposables.swap();
         private final AtomicBoolean cancelled = new AtomicBoolean(false);
         private final AtomicBoolean finalized = new AtomicBoolean(false);
         private final AtomicInteger totalPromptTokens = new AtomicInteger();
@@ -219,6 +212,11 @@ public class ChatService {
                             accumulated.append(merged);
                             if (!unique.isEmpty()) send(emitter, "token", Map.of("delta", unique));
                         }
+                        if (segment.length() > 0) {
+                            // Error responses have no authoritative terminal usage;
+                            // retain an explicitly estimated count for emitted content.
+                            addUsage(0, 0, segment.length(), messages);
+                        }
                         onError(err, emitted.get(), continuation);
                     }, () -> {
                         if (cancelled.get() || finalized.get()) return;
@@ -234,7 +232,9 @@ public class ChatService {
                         String finish = terminal.get() ? reason.get() : (emitted.get() ? "incomplete" : "unknown");
                         onSegmentComplete(finish);
                     });
-            active.set(subscription);
+            // If cancellation won the race before subscribe() returned, update()
+            // immediately disposes this subscription instead of losing it.
+            active.update(subscription);
         }
 
         private void onError(Throwable err, boolean emitted, boolean continuation) {
@@ -250,7 +250,8 @@ public class ChatService {
                 runSegment(prepared.messages(), false);
                 return;
             }
-            log.warn("Provider stream failed after content={} segment={}", !accumulated.isEmpty(), segments, err);
+            log.warn("Provider stream failed after content={} segment={} errorType={}",
+                    !accumulated.isEmpty(), segments, err.getClass().getSimpleName());
             state = StreamState.FAILED;
             finish("error", "incomplete", false);
         }
@@ -304,8 +305,7 @@ public class ChatService {
         private void cancel() {
             if (!cancelled.compareAndSet(false, true) || finalized.get()) return;
             state = StreamState.ABORTED;
-            Disposable disposable = active.getAndSet(null);
-            if (disposable != null) disposable.dispose();
+            active.dispose();
             finish("aborted", "aborted", true);
         }
 

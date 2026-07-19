@@ -25,3 +25,17 @@ services:
         value: https://privoraaai.vercel.app,http://localhost:5173
       - key: APP_PUBLIC_URL
         value: https://privoraaai.vercel.app
+      - key: CHAT_CONTINUATION_ENABLED
+        value: true
+      - key: CHAT_CONTINUATION_MAX_SEGMENTS
+        value: 3
+      - key: CHAT_CONTINUATION_MAX_TOTAL_COMPLETION_TOKENS
+        value: 16000
+      - key: CHAT_CONTINUATION_OVERLAP_WINDOW_CHARS
+        value: 600
+      - key: CHAT_OUTPUT_LEARNING_MAX_TOKENS
+        value: 6144
+      - key: CHAT_OUTPUT_CODE_MAX_TOKENS
+        value: 8192
+      - key: CHAT_OUTPUT_UNKNOWN_MODEL_MAX_TOKENS
+        value: 4096
