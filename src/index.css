@@ -237,62 +237,71 @@ html.dark [data-plan='pro'] { --bg:#080a0d; --surface:#0f1217; --surface-2:#151a
 
 /* ------------------------------------------------------------------ *
  * Markdown answer typography (chat workspace)                         *
- * Consistent --font-sans (Manrope) for a refined, premium reading     *
- * experience across all device sizes.                                 *
+ * Source Serif 4 for refined editorial reading, with explicit weight  *
+ * control: 400 for body/list/paragraph, 600 for strong/headings only. *
  * ------------------------------------------------------------------ */
 .prose-chat {
   font-family: var(--font-reading);
   font-size: 1rem;
-  line-height: 1.65;
+  line-height: 1.6;
   font-weight: 400;
+  letter-spacing: -0.004em;
+  word-spacing: 0.006em;
+  font-optical-sizing: auto;
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
 .prose-chat > :first-child { margin-top: 0; }
 .prose-chat > :last-child { margin-bottom: 0; }
-.prose-chat p { margin: .55rem 0; }
+.prose-chat p { margin: .58rem 0; font-weight: 400; }
 .prose-chat h1,
 .prose-chat h2,
 .prose-chat h3,
 .prose-chat h4 {
   font-weight: 600;
-  line-height: 1.3;
-  margin: 1rem 0 .35rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  margin: .7rem 0 .25rem;
 }
-.prose-chat h1 { font-size: 1.25rem; }
+.prose-chat h1 { font-size: 1.18rem; }
 .prose-chat h2 { font-size: 1.08rem; }
 .prose-chat h3 { font-size: 1rem; }
-.prose-chat h4 { font-size: .9rem; }
+.prose-chat h4 { font-size: .92rem; }
 .prose-chat ul,
-.prose-chat ol { margin: .55rem 0; padding-inline-start: 1.6rem; }
-.prose-chat li { margin: .22rem 0; font-weight: 400; }
+.prose-chat ol { margin: .5rem 0; padding-inline-start: 1.35rem; }
+.prose-chat li { margin: .28rem 0; font-weight: 400; }
 .prose-chat li ul,
-.prose-chat li ol { margin: .18rem 0; padding-inline-start: 1.2rem; }
+.prose-chat li ol { margin: .15rem 0; padding-inline-start: 1rem; }
 .prose-chat li > p { margin: .15rem 0; }
 .prose-chat ul { list-style: disc; }
 .prose-chat ol { list-style: decimal; }
 .prose-chat hr { margin: 1.2rem 0; border: 0; border-top: 1px solid var(--line); }
+.prose-chat blockquote { margin: .7rem 0; border-left: 3px solid var(--accent-primary); padding-left: 1rem; }
 .prose-chat .katex-display { margin: .7rem 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
 .prose-chat strong { font-weight: 600; }
+.prose-chat em { font-style: italic; }
 
-/* Mobile assistant prose: comfortable reading on handheld screens.   */
+/* Mobile assistant prose: reduced scale, controlled rhythm.          */
 @media (max-width: 640px) {
-  .prose-chat { font-size: .95rem; line-height: 1.55; }
-  .prose-chat p { margin: .5rem 0; }
-  .prose-chat h1 { font-size: 1.12rem; margin: .9rem 0 .3rem; }
-  .prose-chat h2 { font-size: 1rem; margin: .75rem 0 .25rem; }
-  .prose-chat h3 { font-size: .9rem; margin: .6rem 0 .2rem; }
-  .prose-chat h4 { font-size: .84rem; }
+  .prose-chat { font-size: .9375rem; line-height: 1.6; }
+  .prose-chat p { margin: .55rem 0; }
+  .prose-chat h1 { font-size: 1.18rem; margin: .65rem 0 .22rem; }
+  .prose-chat h2 { font-size: 1.06rem; margin: .5rem 0 .18rem; }
+  .prose-chat h3 { font-size: .97rem; margin: .5rem 0 .18rem; }
+  .prose-chat h4 { font-size: .88rem; }
   .prose-chat table { font-size: .72rem; min-width: 28rem; }
   .prose-chat th,
   .prose-chat td { padding: .35rem .55rem; }
   .prose-chat pre { font-size: .82rem; }
   .prose-chat ul,
-  .prose-chat ol { margin: .5rem 0; padding-inline-start: 1.25rem; }
-  .prose-chat li { margin: .2rem 0; font-weight: 400; }
+  .prose-chat ol { margin: .45rem 0; padding-inline-start: 1.15rem; }
+  .prose-chat li { margin: .28rem 0; font-weight: 400; }
   .prose-chat li ul,
-  .prose-chat li ol { margin: .2rem 0; padding-inline-start: 1rem; }
-  .prose-chat blockquote { margin: .55rem 0; border-left-width: 3px; }
+  .prose-chat li ol { margin: .15rem 0; padding-inline-start: .9rem; }
+  .prose-chat blockquote { margin: .55rem 0; border-left-width: 3px; padding-left: .85rem; }
   .prose-chat hr { margin: .9rem 0; }
   .prose-chat .katex-display { margin: .55rem 0; }
   .prose-chat code:not(pre code) { font-size: .88em; }
