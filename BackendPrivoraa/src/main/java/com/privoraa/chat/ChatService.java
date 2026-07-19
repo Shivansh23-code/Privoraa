@@ -331,9 +331,13 @@ public class ChatService {
                 tokenCountEstimated = true;
             }
             int prompt = totalPromptTokens.get() == 0 ? prepared.promptTokens() : totalPromptTokens.get();
-            persistAssistant(prepared, nameOf(activeModel), accumulated.toString(), prompt, completion);
+            ResponseTailTrimmer.Result finalResponse = ResponseTailTrimmer.trim(
+                    accumulated.toString(), completionStatus);
+            persistAssistant(prepared, nameOf(activeModel), finalResponse.content(), prompt, completion);
             Map<String, Object> payload = donePayload(nameOf(activeModel), prepared, prompt, completion, reason);
             payload.put("completionStatus", completionStatus);
+            payload.put("finalContent", finalResponse.content());
+            payload.put("tailTrimmed", finalResponse.trimmed());
             payload.put("segments", segments);
             payload.put("continued", segments > 1);
             payload.put("tokenCountEstimated", tokenCountEstimated);
