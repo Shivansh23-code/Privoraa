@@ -6,7 +6,7 @@ import {
   Square,
   User as UserIcon,
   AlertTriangle,
-  FileText,
+  ExternalLink,
 } from 'lucide-react';
 import { Markdown } from './Markdown';
 import { completionNotice } from './completionState';
@@ -25,20 +25,29 @@ function ThinkingDots() {
   );
 }
 
+function domain(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+}
+
 function Citations({ citations }) {
   if (!citations?.length) return null;
   return (
     <div className="mt-3 flex flex-wrap items-center gap-1.5">
-      <span className="mr-1 text-[11px] font-medium text-muted">Sources</span>
+      <span className="mr-0.5 text-[11px] font-medium tracking-wide text-muted/70 uppercase">Sources</span>
       {citations.map((c) => (
-        <span
+        <a
           key={c.chunk}
-          title={c.snippet}
-          className="inline-flex items-center gap-1 rounded-md border border-line bg-surface-2 px-2 py-0.5 text-[11px] text-muted"
+          href={c.url || '#'}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={c.snippet || c.doc}
+          className="inline-flex items-center gap-1 rounded-full border border-line/70 bg-surface-2/60 px-2.5 py-0.5 text-[11px] text-muted no-underline transition-all duration-150 hover:border-line hover:bg-surface-2 hover:shadow-sm hover:-translate-y-px focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
         >
-          <FileText size={11} />
-          {c.doc} · {c.chunk}
-        </span>
+          <ExternalLink size={10} className="shrink-0 text-faint" />
+          <span className="max-w-[140px] truncate">{domain(c.doc || c.url || '')}</span>
+          <span className="text-faint">·</span>
+          <span className="shrink-0 font-medium text-fg/70">{c.chunk}</span>
+        </a>
       ))}
     </div>
   );
@@ -83,7 +92,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
     );
   }
 
-  // ---- Assistant message: full-width vertical stack (no avatar column) ----
+  // ---- Assistant message: full-width vertical stack ----
   return (
     <div className="animate-rise w-full min-w-0">
       {message.model && (
@@ -123,11 +132,11 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
       )}
 
       {!message.error && (
-        <div className="mt-2.5 flex min-h-8 items-center gap-1">
+        <div className="mt-2.5 flex min-h-7 items-center gap-0.5">
           {streaming ? (
             <button
               onClick={onStop}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-muted transition hover:bg-surface-2 hover:text-fg"
             >
               <Square size={12} /> Stop
             </button>
@@ -135,19 +144,19 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
             <>
               <button
                 onClick={copy}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-muted/70 transition hover:bg-surface-2 hover:text-fg"
               >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
+                {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
               <button
                 onClick={onRegenerate}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted transition hover:bg-surface-2 hover:text-fg"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-muted/70 transition hover:bg-surface-2 hover:text-fg"
               >
                 <RefreshCw size={12} /> Regenerate
               </button>
               {message.completionTokens != null && (
-                <span className="ml-1 text-[11px] text-faint">
+                <span className="ml-auto text-[11px] text-faint">
                   {message.completionTokens} tokens
                 </span>
               )}

@@ -235,6 +235,29 @@ html.dark [data-plan='pro'] { --bg:#080a0d; --surface:#0f1217; --surface-2:#151a
   animation: fade-rise 0.25s ease-out both;
 }
 
+@keyframes copy-pop {
+  0% { opacity: 0; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 0; transform: scale(1); }
+}
+.animate-copy-pop {
+  animation: copy-pop 0.9s ease-out forwards;
+}
+
+@keyframes press {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.animate-press {
+  animation: press 0.2s ease-out;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: inherit;
+}
+
 /* ------------------------------------------------------------------ *
  * Markdown answer typography (chat workspace)                         *
  * Source Serif 4 for refined editorial reading, with explicit weight  *
