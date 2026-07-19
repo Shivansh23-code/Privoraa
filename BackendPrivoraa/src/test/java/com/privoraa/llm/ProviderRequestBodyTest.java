@@ -19,13 +19,14 @@ class ProviderRequestBodyTest {
         assertTrue(mapper.readTree(json).path("stream_options").path("include_usage").asBoolean());
     }
 
-    @Test void geminiSerializesModernCompatibleLimitAndDisablesOptionalThinking() throws Exception {
+    @Test void geminiSerializesVerifiedCompatibleLimitWithoutOptionalFields() throws Exception {
         Map<String, Object> body = new GeminiProvider(null, null, mapper)
                 .buildBody("gemini-2.5-flash", messages, new ChatOptions(.4, 6144), true);
         String json = mapper.writeValueAsString(body);
-        assertEquals(6144, mapper.readTree(json).path("max_completion_tokens").asInt());
-        assertEquals("none", mapper.readTree(json).path("reasoning_effort").asText());
-        assertFalse(body.containsKey("max_tokens"));
+        assertEquals(6144, mapper.readTree(json).path("max_tokens").asInt());
+        assertFalse(body.containsKey("max_completion_tokens"));
+        assertFalse(body.containsKey("reasoning_effort"));
+        assertFalse(body.containsKey("stream_options"));
     }
 
     @Test void ollamaSerializesNumPredictInsideOptions() throws Exception {

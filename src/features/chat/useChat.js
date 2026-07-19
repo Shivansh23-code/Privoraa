@@ -7,20 +7,27 @@ import { streamChat } from '../../lib/chatService';
 import { retrieveContext } from '../../lib/ragService';
 import { retrieveVaultContext, retrieveMemory } from '../../lib/vectorStore';
 import { isUnlocked } from '../../lib/vaultBridge';
+import { createSingleFlightGuard } from './singleFlight';
 import {
   ensureLocalOllama, localHasModel, streamLocalOllamaChat, buildLocalMessages,
 } from '../../lib/localOllama';
 
 export function useChat(catalog) {
   const abortRef = useRef(null);
+  const inFlightRef = useRef(null);
+  if (!inFlightRef.current) inFlightRef.current = createSingleFlightGuard();
 
   const store = useChatStore;
 
   const run = useCallback(
     async (conversationId, content, { isRegenerate = false, image = null } = {}) => {
+      if (!inFlightRef.current.tryStart()) return;
       const s = store.getState();
       const convo = s.conversations.find((c) => c.id === conversationId);
-      if (!convo) return;
+      if (!convo) {
+        inFlightRef.current.finish();
+        return;
+      }
 
       if (!isRegenerate) {
         s.addMessage(conversationId, { role: 'user', content, image: image || undefined });
@@ -160,6 +167,7 @@ export function useChat(catalog) {
               conversationId,
               catalog,
               image,
+              requestId: globalThis.crypto?.randomUUID?.(),
             },
             callbacks
           );
@@ -178,6 +186,7 @@ export function useChat(catalog) {
           store.getState().setStreaming(false, null);
           abortRef.current = null;
         }
+        inFlightRef.current.finish();
       }
     },
     [catalog, store]
