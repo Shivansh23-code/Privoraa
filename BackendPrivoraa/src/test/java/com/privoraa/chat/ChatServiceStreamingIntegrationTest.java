@@ -6,6 +6,7 @@ import com.privoraa.ai.registry.ModelRegistry;
 import com.privoraa.ai.registry.ModelRegistryProperties;
 import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.chat.dto.ChatRequest;
+import com.privoraa.config.ChatCompletionRepairProperties;
 import com.privoraa.config.ChatContinuationProperties;
 import com.privoraa.config.ChatOutputProperties;
 import com.privoraa.config.GeminiProperties;
@@ -54,7 +55,7 @@ class ChatServiceStreamingIntegrationTest {
         prompts = mock(PromptBuilder.class);
         router = mock(ModelRouter.class);
         provider = new ScriptedProvider();
-        continuation = new ChatContinuationProperties(true, 3, 16000, 600);
+        continuation = new ChatContinuationProperties(true, 3, 24000, 600);
         rateLimit = mock(RateLimitService.class);
 
         when(conversations.getOrCreate(anyString(), any(), anyString())).thenReturn(
@@ -69,6 +70,7 @@ class ChatServiceStreamingIntegrationTest {
                 new Routed("m1", "m1", "general", "test route", List.of("m1")));
     }
 
+    // ---- LENGTH → continuation path ----
     @Test
     void lengthThenStopCombinesOnceAndRunsSingleTurnWorkOnce() throws Exception {
         when(documents.hasReadyDocuments("user-1")).thenReturn(true);
@@ -102,8 +104,9 @@ class ChatServiceStreamingIntegrationTest {
         assertFalse(emitter.containsData("Continue exactly"));
     }
 
+    // ---- Complete STOP → no repair ----
     @Test
-    void stopDoesNotContinue() throws Exception {
+    void completeStopDoesNotRepair() throws Exception {
         provider.enqueue("m1", segment("Complete.", "stop", 10, 2));
         Map<String, Object> done = run(false, List.of("m1")).awaitDone();
         assertEquals(1, done.get("segments"));
@@ -112,8 +115,10 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(false, done.get("repairAttempted"));
         assertEquals(false, done.get("completionRepaired"));
         assertEquals(0, done.get("repairSegments"));
+        assertEquals("structurally complete", done.get("finalizationReason"));
     }
 
+    // ---- STOP + arbitrary unfinished prose → one repair ----
     @Test
     void suspiciousStopIsRepairedOnceWithoutRepeatingTurnWork() throws Exception {
         provider.enqueue("m1", segment("First sentence. However, the cost", "stop", 10, 4));
@@ -122,7 +127,8 @@ class ChatServiceStreamingIntegrationTest {
         CapturingEmitter emitter = run(false, List.of("m1"));
         Map<String, Object> done = emitter.awaitDone();
 
-        assertEquals("First sentence. However, the cost increases with every insertion.", done.get("finalContent"));
+        assertEquals("First sentence. However, the cost increases with every insertion.",
+                done.get("finalContent"));
         assertEquals(true, done.get("repairAttempted"));
         assertEquals(true, done.get("completionRepaired"));
         assertEquals(1, done.get("repairSegments"));
@@ -142,6 +148,7 @@ class ChatServiceStreamingIntegrationTest {
         assertFalse(emitter.containsData("Complete only the unfinished final thought"));
     }
 
+    // ---- Repair error → safe structural trim ----
     @Test
     void repairErrorFallsBackToSafeTrim() throws Exception {
         provider.enqueue("m1", segment("First sentence. However, the cost", "stop", 10, 4));
@@ -153,6 +160,7 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(true, done.get("tailTrimmed"));
     }
 
+    // ---- Repair remains incomplete → safe structural trim ----
     @Test
     void stillSuspiciousRepairFallsBackToSafeTrim() throws Exception {
         provider.enqueue("m1", segment("First sentence. However, the cost", "stop", 10, 4));
@@ -163,6 +171,87 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(true, done.get("tailTrimmed"));
     }
 
+    // ---- Repair with "ArrayList or linked" style (structural) ----
+    @Test
+    void productionOrLinkedTailIsRepairedOnce() throws Exception {
+        provider.enqueue("m1", segment(
+                "Arrays are fundamental because they offer fast access. " +
+                "However, their fixed size makes them less suitable for dynamic collections. " +
+                "For such cases, other data structures like ArrayList or linked",
+                "stop", 10, 12));
+        provider.enqueue("m1", segment(" lists may be more appropriate.", "stop", 12, 6));
+
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        Map<String, Object> done = emitter.awaitDone();
+
+        assertEquals(
+                "Arrays are fundamental because they offer fast access. " +
+                "However, their fixed size makes them less suitable for dynamic collections. " +
+                "For such cases, other data structures like ArrayList or linked lists may be more appropriate.",
+                done.get("finalContent"));
+        assertEquals(true, done.get("repairAttempted"));
+        assertEquals(true, done.get("completionRepaired"));
+        assertEquals(1, done.get("repairSegments"));
+        assertEquals(false, done.get("tailTrimmed"));
+        assertEquals(1, emitter.count("done"));
+        assertEquals(2, provider.requests.size());
+        assertEquals(512, provider.options.get(1).maxTokens());
+        verify(conversations, times(1)).addUserMessage("conversation-1", "original prompt");
+        verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
+                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
+    }
+
+    // ---- Repair error with structural dangling → safe trim ----
+    @Test
+    void productionOrLinkedRepairErrorFallsBackToSafeTrim() throws Exception {
+        provider.enqueue("m1", segment(
+                "Arrays are fundamental because they offer fast access. " +
+                "However, their fixed size makes them less suitable for dynamic collections. " +
+                "For such cases, other data structures like ArrayList or linked",
+                "stop", 10, 12));
+        provider.enqueue("m1", Flux.error(new IllegalStateException("quota")));
+
+        CapturingEmitter em = run(false, List.of("m1"));
+        Map<String, Object> done = em.awaitDone();
+
+        assertEquals(
+                "Arrays are fundamental because they offer fast access. " +
+                "However, their fixed size makes them less suitable for dynamic collections.",
+                done.get("finalContent"));
+        assertEquals(true, done.get("repairAttempted"));
+        assertEquals(false, done.get("completionRepaired"));
+        assertEquals(true, done.get("tailTrimmed"));
+        assertEquals(1, em.count("done"));
+        verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
+                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
+    }
+
+    // ---- Repair still suspicious → safe structural trim ----
+    @Test
+    void productionOrLinkedStillSuspiciousRepairFallsBackToSafeTrim() throws Exception {
+        provider.enqueue("m1", segment(
+                "Arrays are fundamental because they offer fast access. " +
+                "However, their fixed size makes them less suitable for dynamic collections. " +
+                "For such cases, other data structures like ArrayList or linked",
+                "stop", 10, 12));
+        provider.enqueue("m1", segment(" and", "stop", 12, 1));
+
+        CapturingEmitter em = run(false, List.of("m1"));
+        Map<String, Object> done = em.awaitDone();
+
+        assertEquals(
+                "Arrays are fundamental because they offer fast access. " +
+                "However, their fixed size makes them less suitable for dynamic collections.",
+                done.get("finalContent"));
+        assertEquals(true, done.get("repairAttempted"));
+        assertEquals(false, done.get("completionRepaired"));
+        assertEquals(true, done.get("tailTrimmed"));
+        assertEquals(1, em.count("done"));
+        verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
+                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
+    }
+
+    // ---- Three LENGTHs → limit_reached ----
     @Test
     void threeLengthsReachConfiguredLimitWithOneDone() throws Exception {
         provider.enqueue("m1", segment("A", "length", 10, 1));
@@ -178,9 +267,10 @@ class ChatServiceStreamingIntegrationTest {
                 anyString(), anyString(), anyInt(), anyInt());
     }
 
+    // ---- LENGTH → safe trim (continuation disabled) ----
     @Test
     void incompleteTailIsTrimmedInDonePayloadAndPersistence() throws Exception {
-        continuation = new ChatContinuationProperties(false, 3, 16000, 600);
+        continuation = new ChatContinuationProperties(false, 3, 24000, 600);
         provider.enqueue("m1", segment("First sentence. Second sentence. This is why",
                 "length", 10, 8));
 
@@ -192,6 +282,7 @@ class ChatServiceStreamingIntegrationTest {
                 eq("First sentence. Second sentence."), anyString(), anyString(), anyString(), eq(10), eq(8));
     }
 
+    // ---- Continuation error retains content ----
     @Test
     void continuationErrorRetainsContentAndFinalizesOnce() throws Exception {
         provider.enqueue("m1", segment("Kept. ", "length", 10, 2));
@@ -205,6 +296,7 @@ class ChatServiceStreamingIntegrationTest {
                 anyString(), anyString(), anyInt(), anyInt());
     }
 
+    // ---- Cancellation ----
     @Test
     void cancellationDisposesActiveStreamAndFinalizesAbortedOnce() throws Exception {
         AtomicReference<FluxSink<StreamEvent>> sink = new AtomicReference<>();
@@ -226,6 +318,7 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(1, provider.requests.size());
     }
 
+    // ---- Model switch before tokens ----
     @Test
     void failureBeforeTokensSwitchesModelWithoutSecondMeta() throws Exception {
         provider.enqueue("m1", Flux.error(new IllegalStateException("unavailable")));
@@ -238,6 +331,7 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(1, emitter.count("done"));
     }
 
+    // ---- Failure after tokens never switches ----
     @Test
     void failureAfterTokensNeverRestartsWithFallback() throws Exception {
         provider.enqueue("m1", Flux.concat(Flux.just(StreamEvent.delta("Partial")),
@@ -248,6 +342,7 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(1, provider.requests.size());
     }
 
+    // ---- Safety filter never continues ----
     @Test
     void safetyNeverContinues() throws Exception {
         provider.enqueue("m1", segment("Safe partial", "content_filter", 10, 2));
@@ -258,6 +353,7 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(false, done.get("repairAttempted"));
     }
 
+    // ---- Learning category override ----
     @Test
     void teachingJavaUsesLearningBudgetCategoryWhileKeepingCodeModelRoute() throws Exception {
         when(router.resolve(any(), anyString(), anyString(), anyBoolean())).thenReturn(
@@ -269,6 +365,104 @@ class ChatServiceStreamingIntegrationTest {
         emitter.awaitDone();
         assertEquals("learning", emitter.data("meta").get("category"));
     }
+
+    // ---- NEW integration tests for the redesigned pipeline ----
+
+    @Test
+    void completeStopIncludesFinalizationReason() throws Exception {
+        provider.enqueue("m1", segment("Everything is fine here.", "stop", 10, 2));
+        Map<String, Object> done = run(false, List.of("m1")).awaitDone();
+        assertNotNull(done.get("finalizationReason"));
+        assertEquals("structurally complete", done.get("finalizationReason"));
+        assertNotNull(done.get("rawFinishReason"));
+        assertEquals("stop", done.get("rawFinishReason"));
+    }
+
+    @Test
+    void oneDoneEventPerStream() throws Exception {
+        provider.enqueue("m1", segment("Complete.", "stop", 10, 2));
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        emitter.awaitDone();
+        assertEquals(1, emitter.count("done"));
+    }
+
+    @Test
+    void oneAssistantPersistence() throws Exception {
+        provider.enqueue("m1", segment("Complete.", "stop", 10, 2));
+        run(false, List.of("m1")).awaitDone();
+        verify(conversations, times(1)).addAssistantMessage(anyString(), anyString(),
+                anyString(), anyString(), anyString(), anyInt(), anyInt());
+    }
+
+    @Test
+    void oneUserPersistence() throws Exception {
+        provider.enqueue("m1", segment("Complete.", "stop", 10, 2));
+        run(false, List.of("m1")).awaitDone();
+        verify(conversations, times(1)).addUserMessage(anyString(), anyString());
+    }
+
+    @Test
+    void structuralFinalizationProvidesGenericReason() throws Exception {
+        provider.enqueue("m1", segment("First. But the trailing", "stop", 10, 3));
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        Map<String, Object> done = emitter.awaitDone();
+        assertNotNull(done.get("finalizationReason"));
+    }
+
+    // ---- Arbitrary incomplete endings (not keyword-based) ----
+    @Test
+    void arbitraryRandomProseFragmentTriggersRepair() throws Exception {
+        provider.enqueue("m1", segment(
+                "Data structures are important for efficient algorithms. " +
+                "The quicksort algorithm and", "stop", 10, 8));
+        provider.enqueue("m1", segment(" its variants are widely used.", "stop", 12, 4));
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        Map<String, Object> done = emitter.awaitDone();
+        assertEquals(true, done.get("repairAttempted"));
+    }
+
+    @Test
+    void completeMultiParagraphWithoutConclusionIsNotRepaired() throws Exception {
+        provider.enqueue("m1", segment(
+                "First paragraph describing the concept.\n\n" +
+                "Second paragraph with more details.\n\n" +
+                "Third paragraph wrapping things up properly.", "stop", 10, 10));
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        Map<String, Object> done = emitter.awaitDone();
+        assertEquals(false, done.get("repairAttempted"));
+        assertEquals(false, done.get("tailTrimmed"));
+    }
+
+    @Test
+    void summarySectionIsNotRepaired() throws Exception {
+        provider.enqueue("m1", segment(
+                "## Summary\nThis is a complete summary with proper ending.", "stop", 10, 6));
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        Map<String, Object> done = emitter.awaitDone();
+        assertEquals(false, done.get("repairAttempted"));
+    }
+
+    @Test
+    void incompleteListAfterCompleteParagraphTrimsToList() throws Exception {
+        provider.enqueue("m1", segment(
+                "Complete paragraph here.\n\n- Item one\n- Item two\n- Item thr", "stop", 10, 8));
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        Map<String, Object> done = emitter.awaitDone();
+        assertEquals("Complete paragraph here.", done.get("finalContent"));
+        assertEquals(true, done.get("tailTrimmed"));
+    }
+
+    @Test
+    void openCodeFenceAfterProseTrimsToProse() throws Exception {
+        provider.enqueue("m1", segment(
+                "First paragraph.\n\n```python\nprint('hello')\nprint('unfinis", "stop", 10, 8));
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        Map<String, Object> done = emitter.awaitDone();
+        assertEquals("First paragraph.", done.get("finalContent"));
+        assertEquals(true, done.get("tailTrimmed"));
+    }
+
+    // --------------------------------------------------------------- helpers
 
     private CapturingEmitter run(boolean useRag, List<String> chain) {
         when(router.resolve(any(), anyString(), anyString(), anyBoolean())).thenReturn(
@@ -292,9 +486,9 @@ class ChatServiceStreamingIntegrationTest {
                 rag, documents, prompts, resolver, mock(ActiveModelService.class), mock(ModelCatalogService.class),
                 new GeminiProperties("", null, null, null), new RequestClassifier(new IntentClassifier()),
                 new PrivacyPolicyEvaluator(), scored,
-                new ChatOutputProperties(2048, 4096, 6144, 8192, 6144, 6144, 4096, 4096, 512),
+                new ChatOutputProperties(2048, 6144, 8192, 12288, 8192, 10240, 4096, 4096, 512),
                 registry, continuation,
-                new com.privoraa.config.ChatCompletionRepairProperties(true, 1, 512));
+                new ChatCompletionRepairProperties(true, 1, 512));
     }
 
     private static Flux<StreamEvent> segment(String text, String finish, int prompt, int completion) {

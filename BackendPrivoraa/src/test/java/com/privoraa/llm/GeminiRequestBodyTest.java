@@ -19,7 +19,7 @@ class GeminiRequestBodyTest {
     private final ObjectMapper mapper = new ObjectMapper();
     private GeminiProvider gemini;
     private final ChatOutputProperties props = new ChatOutputProperties(
-            2048, 4096, 6144, 8192, 6144, 6144, 4096, 4096, 512);
+            2048, 6144, 8192, 12288, 8192, 10240, 4096, 4096, 512);
 
     @BeforeEach
     void setUp() {
@@ -33,7 +33,7 @@ class GeminiRequestBodyTest {
         ChatOptions opts = ChatOptions.forCategory("code", props);
         opts = opts.withOutputClamp(props.codeMaxTokens(), 128_000, null, 50, 512, 4096);
         Map<String, Object> body = gemini.buildBody("gemini-2.0-flash", messages, opts, false);
-        assertEquals(Integer.valueOf(8192), body.get("max_tokens"));
+        assertEquals(Integer.valueOf(12288), body.get("max_tokens"));
         assertFalse(body.containsKey("max_completion_tokens"));
         assertFalse(body.containsKey("reasoning_effort"));
         assertFalse(body.containsKey("stream_options"));
@@ -57,10 +57,10 @@ class GeminiRequestBodyTest {
                 Map.of("role", "user", "content", "A".repeat(2000)));
         ChatOptions opts = ChatOptions.forCategory("general", props);
         // context=8192, prompt=500, safety=512 → available=7180
-        // min(4096, 7180) = 4096 → stays at general budget
+        // min(6144, 7180) = 6144 → stays at general budget
         opts = opts.withOutputClamp(props.generalMaxTokens(), 8192, null, 500, 512, 4096);
         Map<String, Object> body = gemini.buildBody("gemini-2.0-flash", messages, opts, false);
-        assertEquals(Integer.valueOf(4096), body.get("max_tokens"),
+        assertEquals(Integer.valueOf(6144), body.get("max_tokens"),
                 "Gemini body should respect available context after prompt deduction");
     }
 
@@ -69,7 +69,7 @@ class GeminiRequestBodyTest {
         List<Map<String, Object>> messages = List.of(
                 Map.of("role", "user", "content", "Hi"));
         ChatOptions opts = ChatOptions.forCategory("code", props);
-        // null context → clamp to min(8192, 4096) = 4096 (configured unknown-model-max-tokens)
+        // null context → clamp to min(12288, 4096) = 4096 (configured unknown-model-max-tokens)
         opts = opts.withOutputClamp(props.codeMaxTokens(), null, null, 50, 512, 4096);
         Map<String, Object> body = gemini.buildBody("gemini-2.0-flash", messages, opts, false);
         assertEquals(Integer.valueOf(4096), body.get("max_tokens"),

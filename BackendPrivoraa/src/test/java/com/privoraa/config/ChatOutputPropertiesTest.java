@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ChatOutputPropertiesTest {
 
     private final ChatOutputProperties props = new ChatOutputProperties(
-            2048, 4096, 6144, 8192, 6144, 6144, 4096, 4096, 512);
+            2048, 6144, 8192, 12288, 8192, 10240, 4096, 4096, 512);
 
     @Test
     void learningBudgetIsGreaterThanGeneral() {
@@ -16,15 +16,15 @@ class ChatOutputPropertiesTest {
     }
 
     @Test
-    void codeBudgetIsAtLeast8192() {
-        assertTrue(props.codeMaxTokens() >= 8192,
-                "code budget (%d) should be at least 8192".formatted(props.codeMaxTokens()));
+    void codeBudgetIsAtLeast12288() {
+        assertTrue(props.codeMaxTokens() >= 12288,
+                "code budget (%d) should be at least 12288".formatted(props.codeMaxTokens()));
     }
 
     @Test
-    void reasoningBudgetIsAtLeast6144() {
-        assertTrue(props.reasoningMaxTokens() >= 6144,
-                "reasoning budget (%d) should be at least 6144".formatted(props.reasoningMaxTokens()));
+    void reasoningBudgetIsAtLeast8192() {
+        assertTrue(props.reasoningMaxTokens() >= 8192,
+                "reasoning budget (%d) should be at least 8192".formatted(props.reasoningMaxTokens()));
     }
 
     @Test
@@ -71,11 +71,11 @@ class ChatOutputPropertiesTest {
     void defaultValuesAppliedWhenZero() {
         ChatOutputProperties zero = new ChatOutputProperties(0, 0, 0, 0, 0, 0, 0, 0, 0);
         assertEquals(2048, zero.fastMaxTokens());
-        assertEquals(4096, zero.generalMaxTokens());
-        assertEquals(6144, zero.learningMaxTokens());
-        assertEquals(8192, zero.codeMaxTokens());
-        assertEquals(6144, zero.reasoningMaxTokens());
-        assertEquals(6144, zero.documentMaxTokens());
+        assertEquals(6144, zero.generalMaxTokens());
+        assertEquals(8192, zero.learningMaxTokens());
+        assertEquals(12288, zero.codeMaxTokens());
+        assertEquals(8192, zero.reasoningMaxTokens());
+        assertEquals(10240, zero.documentMaxTokens());
         assertEquals(4096, zero.visionMaxTokens());
         assertEquals(4096, zero.unknownModelMaxTokens());
         assertEquals(512, zero.safetyMargin());
@@ -85,11 +85,11 @@ class ChatOutputPropertiesTest {
     void defaultValuesAppliedWhenNegative() {
         ChatOutputProperties neg = new ChatOutputProperties(-1, -1, -1, -1, -1, -1, -1, -1, -1);
         assertEquals(2048, neg.fastMaxTokens());
-        assertEquals(4096, neg.generalMaxTokens());
-        assertEquals(6144, neg.learningMaxTokens());
-        assertEquals(8192, neg.codeMaxTokens());
-        assertEquals(6144, neg.reasoningMaxTokens());
-        assertEquals(6144, neg.documentMaxTokens());
+        assertEquals(6144, neg.generalMaxTokens());
+        assertEquals(8192, neg.learningMaxTokens());
+        assertEquals(12288, neg.codeMaxTokens());
+        assertEquals(8192, neg.reasoningMaxTokens());
+        assertEquals(10240, neg.documentMaxTokens());
         assertEquals(4096, neg.visionMaxTokens());
         assertEquals(4096, neg.unknownModelMaxTokens());
         assertEquals(512, neg.safetyMargin());

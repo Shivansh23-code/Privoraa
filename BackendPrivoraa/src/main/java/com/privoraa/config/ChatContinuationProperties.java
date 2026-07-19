@@ -11,7 +11,7 @@ public record ChatContinuationProperties(
 ) {
     public ChatContinuationProperties {
         if (maxSegments <= 0) maxSegments = 3;
-        if (maxTotalCompletionTokens <= 0) maxTotalCompletionTokens = 16000;
+        if (maxTotalCompletionTokens <= 0) maxTotalCompletionTokens = 24000;
         if (overlapWindowChars <= 0) overlapWindowChars = 600;
     }
 }
