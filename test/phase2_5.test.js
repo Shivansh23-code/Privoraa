@@ -118,9 +118,11 @@ test('useChat onDone reads finishReason from payload', () => {
   assert.ok(src.includes('finishReason: usage.finishReason'), 'onDone must read usage.finishReason');
 });
 
-test('MessageBubble conditionally renders truncation warning for length, incomplete, unknown', () => {
+test('MessageBubble renders distinct limit and transport failure messages', () => {
   const src = readFileSync(resolve(ROOT, 'src/features/chat/MessageBubble.jsx'), 'utf-8');
-  assert.ok(src.includes("finishReason === 'length'"), 'MessageBubble must check for length');
-  assert.ok(src.includes("finishReason === 'incomplete'"), 'MessageBubble must check for incomplete');
-  assert.ok(src.includes("finishReason === 'unknown'"), 'MessageBubble must check for unknown');
+  assert.ok(src.includes("completionStatus === 'limit_reached'"));
+  assert.ok(src.includes('This answer reached the maximum response length.'));
+  assert.ok(src.includes("completionStatus === 'incomplete'"));
+  assert.ok(src.includes('The connection ended before the response completed.'));
+  assert.equal(src.includes('Use Regenerate for a complete answer'), false);
 });

@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 
@@ -26,6 +28,7 @@ import java.util.Map;
  */
 @Component
 public class GeminiProvider implements LlmProvider {
+    private static final Logger log = LoggerFactory.getLogger(GeminiProvider.class);
 
     private final WebClient web;
     private final GeminiProperties props;
@@ -52,6 +55,7 @@ public class GeminiProvider implements LlmProvider {
             return Flux.error(notConfigured());
         }
         Map<String, Object> body = buildBody(model, messages, opts, true);
+        logRequest(model, opts, 1);
         return web.post()
                 .uri("/chat/completions")
                 .accept(MediaType.TEXT_EVENT_STREAM)
@@ -76,6 +80,7 @@ public class GeminiProvider implements LlmProvider {
             throw notConfigured();
         }
         Map<String, Object> body = buildBody(model, messages, opts, false);
+        logRequest(model, opts, 1);
         JsonNode resp = web.post()
                 .uri("/chat/completions")
                 .bodyValue(body)
@@ -114,12 +119,16 @@ public class GeminiProvider implements LlmProvider {
         body.put("model", model);
         body.put("messages", messages);
         body.put("stream", stream);
+        if (stream) body.put("stream_options", Map.of("include_usage", true));
         if (opts != null) {
             if (opts.temperature() != null) {
                 body.put("temperature", opts.temperature());
             }
             if (opts.maxTokens() != null) {
-                body.put("max_tokens", opts.maxTokens());
+                // Google's OpenAI-compatible Chat Completions contract follows
+                // the current OpenAI field. Do not mix this with native
+                // generationConfig.maxOutputTokens.
+                body.put("max_completion_tokens", opts.maxTokens());
             }
             if (opts.topP() != null) {
                 body.put("top_p", opts.topP());
@@ -128,7 +137,19 @@ public class GeminiProvider implements LlmProvider {
             // does not reliably accept frequency/presence penalties — omit them
             // (they're 0 for coding anyway) to avoid a 400.
         }
+        // Gemini 2.5 Flash's default thinking budget is charged against the output
+        // budget and can leave only ~1.2k visible tokens. Explanatory/code answers
+        // here need visible output, so explicitly disable optional thinking.
+        if (model != null && model.startsWith("gemini-2.5-flash")) {
+            body.put("reasoning_effort", "none");
+        }
         return body;
+    }
+
+    private void logRequest(String model, ChatOptions opts, int attempt) {
+        log.debug("Provider request provider=gemini modelId={} finalRequestedOutputTokens={} "
+                        + "tokenFieldName=max_completion_tokens requestAttempt={} endpoint={}/chat/completions",
+                model, opts == null ? null : opts.maxTokens(), attempt, props.baseUrl());
     }
 
     private ApiException upstreamError(int code, String body) {
@@ -153,11 +174,17 @@ public class GeminiProvider implements LlmProvider {
         try {
             JsonNode node = mapper.readTree(data);
             JsonNode choices = node.path("choices");
+            JsonNode usage = node.path("usage");
+            if ((!choices.isArray() || choices.isEmpty()) && usage.isObject()) {
+                return StreamEvent.usage(usage.path("prompt_tokens").asInt(0),
+                        usage.path("completion_tokens").asInt(0));
+            }
             if (choices.isArray() && choices.size() > 0) {
                 JsonNode choice = choices.get(0);
                 String finishReason = choice.path("finish_reason").asText(null);
                 if (finishReason != null && !finishReason.isEmpty() && !"null".equals(finishReason)) {
-                    return StreamEvent.done(finishReason);
+                    return new StreamEvent(null, finishReason, true,
+                            usage.path("prompt_tokens").asInt(0), usage.path("completion_tokens").asInt(0));
                 }
                 JsonNode content = choice.path("delta").path("content");
                 if (content.isTextual()) {

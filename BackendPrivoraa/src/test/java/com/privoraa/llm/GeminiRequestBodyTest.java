@@ -27,14 +27,14 @@ class GeminiRequestBodyTest {
     }
 
     @Test
-    void geminiBodyContainsMaxTokens() {
+    void geminiBodyContainsMaxCompletionTokens() {
         List<Map<String, Object>> messages = List.of(
                 Map.of("role", "user", "content", "Hello"));
         ChatOptions opts = ChatOptions.forCategory("code", props);
         opts = opts.withOutputClamp(props.codeMaxTokens(), 128_000, null, 50, 512, 4096);
         Map<String, Object> body = gemini.buildBody("gemini-2.0-flash", messages, opts, false);
-        assertEquals(Integer.valueOf(8192), body.get("max_tokens"),
-                "Gemini body should contain max_tokens matching the code budget");
+        assertEquals(Integer.valueOf(8192), body.get("max_completion_tokens"));
+        assertFalse(body.containsKey("max_tokens"));
     }
 
     @Test
@@ -45,7 +45,7 @@ class GeminiRequestBodyTest {
         // descriptor limits to 4096, learning budget is 6144
         opts = opts.withOutputClamp(props.learningMaxTokens(), 128_000, 4096, 100, 512, 4096);
         Map<String, Object> body = gemini.buildBody("gemini-2.5-flash", messages, opts, false);
-        assertEquals(Integer.valueOf(4096), body.get("max_tokens"),
+        assertEquals(Integer.valueOf(4096), body.get("max_completion_tokens"),
                 "Gemini body should respect descriptor maxOutputTokens");
     }
 
@@ -58,7 +58,7 @@ class GeminiRequestBodyTest {
         // min(4096, 7180) = 4096 → stays at general budget
         opts = opts.withOutputClamp(props.generalMaxTokens(), 8192, null, 500, 512, 4096);
         Map<String, Object> body = gemini.buildBody("gemini-2.0-flash", messages, opts, false);
-        assertEquals(Integer.valueOf(4096), body.get("max_tokens"),
+        assertEquals(Integer.valueOf(4096), body.get("max_completion_tokens"),
                 "Gemini body should respect available context after prompt deduction");
     }
 
@@ -70,7 +70,7 @@ class GeminiRequestBodyTest {
         // null context → clamp to min(8192, 4096) = 4096 (configured unknown-model-max-tokens)
         opts = opts.withOutputClamp(props.codeMaxTokens(), null, null, 50, 512, 4096);
         Map<String, Object> body = gemini.buildBody("gemini-2.0-flash", messages, opts, false);
-        assertEquals(Integer.valueOf(4096), body.get("max_tokens"),
+        assertEquals(Integer.valueOf(4096), body.get("max_completion_tokens"),
                 "Gemini body should use configured unknown-model-max-tokens (4096) when context unknown");
     }
 
@@ -79,7 +79,7 @@ class GeminiRequestBodyTest {
         List<Map<String, Object>> messages = List.of(
                 Map.of("role", "user", "content", "Hi"));
         Map<String, Object> body = gemini.buildBody("gemini-2.0-flash", messages, null, false);
-        assertNull(body.get("max_tokens"), "max_tokens should be absent when opts is null");
+        assertNull(body.get("max_completion_tokens"));
     }
 
     @Test
@@ -88,6 +88,6 @@ class GeminiRequestBodyTest {
                 Map.of("role", "user", "content", "Hi"));
         ChatOptions opts = new ChatOptions(0.6, null, 0.9, null, null);
         Map<String, Object> body = gemini.buildBody("gemini-2.0-flash", messages, opts, false);
-        assertNull(body.get("max_tokens"), "max_tokens should be absent when maxTokens is null");
+        assertNull(body.get("max_completion_tokens"));
     }
 }

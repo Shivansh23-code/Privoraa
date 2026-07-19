@@ -39,8 +39,12 @@ public class GeminiModelAdapter implements ProviderModelAdapter {
         return ids.stream().map(id -> {
             Set<Capability> caps = capabilities.normalize(id, id, "code", null, ExecutionTopology.CLOUD);
             var expanded = new java.util.HashSet<>(caps); expanded.add(Capability.CODE);
+            Integer context = id.startsWith("gemini-2.") ? 1_048_576 : null;
+            Integer output = null;
+            if (id.startsWith("gemini-2.5")) output = 65_536;
+            else if (id.startsWith("gemini-2.0")) output = 8_192;
             return new ModelDescriptor("gemini:" + id, provider(), id, id, ExecutionTopology.CLOUD,
-                    ModelAvailability.UNKNOWN, PricingTier.UNKNOWN, Set.copyOf(expanded), null, null,
+                    ModelAvailability.UNKNOWN, PricingTier.UNKNOWN, Set.copyOf(expanded), context, output,
                     true, false, RegistrySource.CONFIGURATION.name(), now,
                     Map.of("configured", Boolean.toString(properties.configured())));
         }).toList();

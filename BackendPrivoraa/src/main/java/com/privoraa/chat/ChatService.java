@@ -17,6 +17,7 @@ import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.ai.registry.ModelDescriptor;
 import com.privoraa.ai.registry.ModelRegistry;
 import com.privoraa.config.ChatOutputProperties;
+import com.privoraa.config.ChatContinuationProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.llm.ChatOptions;
 import com.privoraa.llm.ChatResult;
@@ -39,8 +40,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.scheduler.Schedulers;
+import reactor.core.Disposable;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -48,6 +51,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.ArrayList;
 
 @Service
 public class ChatService {
@@ -70,13 +75,16 @@ public class ChatService {
     private final ScoredRouter scoredRouter;
     private final ChatOutputProperties outputProps;
     private final ModelRegistry registry;
+    private final ChatContinuationProperties continuationProps;
 
+    @Autowired
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
                        OfflineRouter offlineRouter, RagService ragService, DocumentService documentService,
                        PromptBuilder promptBuilder, LlmProviderResolver providers, ActiveModelService activeModel,
                        ModelCatalogService catalog, GeminiProperties gemini, RequestClassifier requestClassifier,
                        PrivacyPolicyEvaluator privacyPolicy, ScoredRouter scoredRouter,
-                       ChatOutputProperties outputProps, ModelRegistry registry) {
+                       ChatOutputProperties outputProps, ModelRegistry registry,
+                       ChatContinuationProperties continuationProps) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
@@ -93,6 +101,19 @@ public class ChatService {
         this.scoredRouter = scoredRouter;
         this.outputProps = outputProps;
         this.registry = registry;
+        this.continuationProps = continuationProps;
+    }
+
+    /** Test/backward-compatible constructor; production uses configuration binding above. */
+    ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
+                OfflineRouter offlineRouter, RagService ragService, DocumentService documentService,
+                PromptBuilder promptBuilder, LlmProviderResolver providers, ActiveModelService activeModel,
+                ModelCatalogService catalog, GeminiProperties gemini, RequestClassifier requestClassifier,
+                PrivacyPolicyEvaluator privacyPolicy, ScoredRouter scoredRouter,
+                ChatOutputProperties outputProps, ModelRegistry registry) {
+        this(rateLimit, conversations, router, offlineRouter, ragService, documentService, promptBuilder,
+                providers, activeModel, catalog, gemini, requestClassifier, privacyPolicy, scoredRouter,
+                outputProps, registry, new ChatContinuationProperties(true, 3, 16000, 600));
     }
 
     // ----------------------------------------------------------------- streaming
@@ -118,59 +139,199 @@ public class ChatService {
             return emitter;
         }
 
-        attempt(emitter, p, 0, new StringBuilder());
+        new StreamSession(emitter, p).start();
         return emitter;
     }
 
-    private void attempt(SseEmitter emitter, Prepared p, int idx, StringBuilder sb) {
-        String modelId = p.chain().get(idx);
-        String modelName = nameOf(modelId);
+    private enum StreamState { ACTIVE_SEGMENT, CONTINUING, COMPLETED, FAILED, LIMIT_REACHED, ABORTED }
 
-        send(emitter, "meta", metaPayload(modelName, p));
+    private final class StreamSession {
+        private static final String CONTINUE_INSTRUCTION = "Continue exactly from the prior assistant response. "
+                + "Do not restart or repeat earlier headings or paragraphs. Preserve markdown structure, "
+                + "complete every remaining requested section, and begin immediately with continuation content. "
+                + "Do not mention token limits or continuation mechanics.";
+        private final SseEmitter emitter;
+        private final Prepared prepared;
+        private final StringBuilder accumulated = new StringBuilder();
+        private final AtomicReference<Disposable> active = new AtomicReference<>();
+        private final AtomicBoolean cancelled = new AtomicBoolean(false);
+        private final AtomicBoolean finalized = new AtomicBoolean(false);
+        private final AtomicInteger totalPromptTokens = new AtomicInteger();
+        private final AtomicInteger totalCompletionTokens = new AtomicInteger();
+        private volatile boolean tokenCountEstimated;
+        private volatile StreamState state = StreamState.ACTIVE_SEGMENT;
+        private int segments;
+        private int modelIndex;
+        private String activeModel;
 
-        AtomicBoolean emitted = new AtomicBoolean(false);
-        AtomicBoolean terminalReceived = new AtomicBoolean(false);
-        AtomicReference<String> finishReason = new AtomicReference<>(null);
-        p.provider().streamChat(modelId, p.messages(), p.options())
-                .subscribeOn(Schedulers.boundedElastic())
-                .subscribe(
-                        event -> {
-                            if (event.terminal()) {
-                                terminalReceived.set(true);
-                                if (event.finishReason() != null) {
-                                    finishReason.set(event.finishReason());
-                                }
-                            } else if (event.delta() != null) {
-                                emitted.set(true);
-                                sb.append(event.delta());
+        StreamSession(SseEmitter emitter, Prepared prepared) {
+            this.emitter = emitter;
+            this.prepared = prepared;
+            emitter.onTimeout(this::cancel);
+            emitter.onError(ignored -> cancel());
+            emitter.onCompletion(this::cancel);
+        }
+
+        void start() {
+            activeModel = prepared.chain().getFirst();
+            send(emitter, "meta", metaPayload(nameOf(activeModel), prepared));
+            runSegment(prepared.messages(), false);
+        }
+
+        private void runSegment(List<Map<String, Object>> messages, boolean continuation) {
+            if (cancelled.get()) return;
+            state = continuation ? StreamState.CONTINUING : StreamState.ACTIVE_SEGMENT;
+            segments++;
+            StringBuilder segment = new StringBuilder();
+            AtomicBoolean emitted = new AtomicBoolean(false);
+            AtomicBoolean terminal = new AtomicBoolean(false);
+            AtomicReference<String> reason = new AtomicReference<>();
+            AtomicInteger providerPrompt = new AtomicInteger();
+            AtomicInteger providerCompletion = new AtomicInteger();
+            int remaining = Math.max(1, continuationProps.maxTotalCompletionTokens()
+                    - totalCompletionTokens.get());
+            ChatOptions segmentOptions = prepared.options().maxTokens() != null
+                    && prepared.options().maxTokens() > remaining
+                    ? prepared.options().withMaxTokens(remaining) : prepared.options();
+            Disposable subscription = prepared.provider().streamChat(activeModel, messages, segmentOptions)
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .subscribe(event -> {
+                        if (cancelled.get()) return;
+                        if (event.promptTokens() > 0) providerPrompt.set(event.promptTokens());
+                        if (event.completionTokens() > 0) providerCompletion.set(event.completionTokens());
+                        if (event.terminal()) {
+                            terminal.set(true);
+                            reason.set(normalizeReason(event.finishReason()));
+                        } else if (event.delta() != null && !event.delta().isEmpty()) {
+                            emitted.set(true);
+                            segment.append(event.delta());
+                            if (!continuation) {
+                                accumulated.append(event.delta());
                                 send(emitter, "token", Map.of("delta", event.delta()));
                             }
-                        },
-                        err -> {
-                            if (!emitted.get() && idx + 1 < p.chain().size()) {
-                                log.warn("Model {} failed before output; falling back", modelId, err);
-                                attempt(emitter, p, idx + 1, sb);
-                            } else {
-                                log.warn("Model {} failed; no more fallbacks", modelId, err);
-                                send(emitter, "error", Map.of("message", friendly(err)));
-                                emitter.complete();
-                            }
-                        },
-                        () -> {
-                            String content = sb.toString();
-                            int completionTokens = Math.max(1, content.length() / 4);
-                            String reason;
-                            if (terminalReceived.get()) {
-                                // Terminal event seen — use its reason if present, else "unknown".
-                                reason = finishReason.get() != null ? finishReason.get() : "unknown";
-                            } else {
-                                // Flux completed without any terminal event from the provider.
-                                reason = emitted.get() ? "incomplete" : "unknown";
-                            }
-                            persistAssistant(p, modelName, content, p.promptTokens(), completionTokens);
-                            send(emitter, "done", donePayload(modelName, p, p.promptTokens(), completionTokens, reason));
-                            emitter.complete();
-                        });
+                        }
+                    }, err -> {
+                        if (continuation && segment.length() > 0) {
+                            String merged = ContinuationMerger.merge(accumulated.toString(), segment.toString(),
+                                    continuationProps.overlapWindowChars());
+                            String unique = merged.substring(accumulated.length());
+                            accumulated.setLength(0);
+                            accumulated.append(merged);
+                            if (!unique.isEmpty()) send(emitter, "token", Map.of("delta", unique));
+                        }
+                        onError(err, emitted.get(), continuation);
+                    }, () -> {
+                        if (cancelled.get() || finalized.get()) return;
+                        if (continuation) {
+                            String merged = ContinuationMerger.merge(accumulated.toString(), segment.toString(),
+                                    continuationProps.overlapWindowChars());
+                            String unique = merged.substring(accumulated.length());
+                            accumulated.setLength(0);
+                            accumulated.append(merged);
+                            if (!unique.isEmpty()) send(emitter, "token", Map.of("delta", unique));
+                        }
+                        addUsage(providerPrompt.get(), providerCompletion.get(), segment.length(), messages);
+                        String finish = terminal.get() ? reason.get() : (emitted.get() ? "incomplete" : "unknown");
+                        onSegmentComplete(finish);
+                    });
+            active.set(subscription);
+        }
+
+        private void onError(Throwable err, boolean emitted, boolean continuation) {
+            if (cancelled.get() || finalized.get()) return;
+            if (!continuation && !emitted && accumulated.isEmpty() && modelIndex + 1 < prepared.chain().size()) {
+                String previous = activeModel;
+                activeModel = prepared.chain().get(++modelIndex);
+                segments--;
+                send(emitter, "model_switch", Map.of("from", nameOf(previous), "to", nameOf(activeModel),
+                        "reason", "Previous model failed before emitting content"));
+                log.warn("Model {} failed before output; switching within provider {} to {}",
+                        previous, prepared.provider().id(), activeModel);
+                runSegment(prepared.messages(), false);
+                return;
+            }
+            log.warn("Provider stream failed after content={} segment={}", !accumulated.isEmpty(), segments, err);
+            state = StreamState.FAILED;
+            finish("error", "incomplete", false);
+        }
+
+        private void onSegmentComplete(String reason) {
+            if ("length".equals(reason) && canContinue()) {
+                runSegment(continuationMessages(), true);
+            } else if ("length".equals(reason)) {
+                state = StreamState.LIMIT_REACHED;
+                finish("length", "limit_reached", false);
+            } else if ("stop".equals(reason)) {
+                state = StreamState.COMPLETED;
+                finish("stop", "complete", false);
+            } else if ("content_filter".equals(reason) || "safety".equals(reason)) {
+                state = StreamState.COMPLETED;
+                finish(reason, "incomplete", false);
+            } else {
+                state = StreamState.FAILED;
+                finish(reason, "incomplete", false);
+            }
+        }
+
+        private boolean canContinue() {
+            return continuationProps.enabled() && !cancelled.get()
+                    && segments < continuationProps.maxSegments()
+                    && totalCompletionTokens.get() < continuationProps.maxTotalCompletionTokens();
+        }
+
+        private List<Map<String, Object>> continuationMessages() {
+            List<Map<String, Object>> messages = new ArrayList<>(prepared.messages());
+            messages.add(Map.of("role", "assistant", "content", accumulated.toString()));
+            messages.add(Map.of("role", "user", "content", CONTINUE_INSTRUCTION));
+            return messages;
+        }
+
+        private void addUsage(int providerPrompt, int providerCompletion, int chars,
+                              List<Map<String, Object>> messages) {
+            if (providerPrompt > 0) totalPromptTokens.addAndGet(providerPrompt);
+            else {
+                totalPromptTokens.addAndGet(messages == prepared.messages() ? prepared.promptTokens()
+                        : promptBuilder.estimatePromptTokens(messages));
+                tokenCountEstimated = true;
+            }
+            if (providerCompletion > 0) totalCompletionTokens.addAndGet(providerCompletion);
+            else {
+                totalCompletionTokens.addAndGet(Math.max(1, chars / 4));
+                tokenCountEstimated = true;
+            }
+        }
+
+        private void cancel() {
+            if (!cancelled.compareAndSet(false, true) || finalized.get()) return;
+            state = StreamState.ABORTED;
+            Disposable disposable = active.getAndSet(null);
+            if (disposable != null) disposable.dispose();
+            finish("aborted", "aborted", true);
+        }
+
+        private void finish(String reason, String completionStatus, boolean aborted) {
+            if (!finalized.compareAndSet(false, true)) return;
+            int completion = totalCompletionTokens.get();
+            if (completion == 0 && !accumulated.isEmpty()) {
+                completion = Math.max(1, accumulated.length() / 4);
+                tokenCountEstimated = true;
+            }
+            int prompt = totalPromptTokens.get() == 0 ? prepared.promptTokens() : totalPromptTokens.get();
+            persistAssistant(prepared, nameOf(activeModel), accumulated.toString(), prompt, completion);
+            Map<String, Object> payload = donePayload(nameOf(activeModel), prepared, prompt, completion, reason);
+            payload.put("completionStatus", completionStatus);
+            payload.put("segments", segments);
+            payload.put("continued", segments > 1);
+            payload.put("tokenCountEstimated", tokenCountEstimated);
+            if (aborted) payload.put("aborted", true);
+            send(emitter, "done", payload);
+            emitter.complete();
+        }
+
+        private String normalizeReason(String reason) {
+            if (reason == null || reason.isBlank()) return "unknown";
+            return reason.toLowerCase(java.util.Locale.ROOT);
+        }
     }
 
     // ------------------------------------------------------------- non-streaming
@@ -270,6 +431,16 @@ public class ChatService {
             routed = resolveLegacy(req, mode, useRag);
         }
 
+        // The legacy router conflates Java vocabulary with CODING. Preserve its
+        // model chain while taking the budget category from the richer intent.
+        if (classification.intent() == com.privoraa.ai.classification.IntentType.LEARNING
+                && !"learning".equals(routed.category())) {
+            routed = new Routed(routed.modelId(), routed.modelName(), "learning",
+                    "Learning request" + (classification.requiredCapabilities().contains(
+                            com.privoraa.ai.classification.Capability.CODE) ? " with code examples" : ""),
+                    routed.chain());
+        }
+
         // Legacy Gemini special case — active only when scored routing is NOT in use.
         if (scoredResult == null && !offline && "code".equals(routed.category())
                 && gemini.configured() && isAuto(req.model())) {
@@ -293,6 +464,7 @@ public class ChatService {
         ChatOptions options = ChatOptions.forCategory(routed.category(), outputProps);
         String firstModel = routed.chain().getFirst();
         Integer ctx = catalog.find(firstModel).map(ModelDto::contextLength).orElse(null);
+        if (ctx == null) ctx = findDescriptorContext(firstModel, scoredResult);
         Integer descriptorLimit = findDescriptorMaxOutput(firstModel, scoredResult);
         int configuredBudget = outputProps.budgetForCategory(routed.category());
         int safetyMargin = outputProps.safetyMargin();
@@ -300,12 +472,12 @@ public class ChatService {
         options = options.withOutputClamp(configuredBudget, ctx, descriptorLimit, promptTokens, safetyMargin, unknownFallback);
 
         if (log.isDebugEnabled()) {
-            log.debug("Output budget: category={} configuredBudget={} modelContext={} "
+            log.debug("Output budget: category={} configuredBudget={} contextWindow={} "
                             + "descriptorLimit={} promptTokens={} safetyMargin={} unknownFallback={} finalMaxTokens={} "
-                            + "provider={} modelId={}",
+                            + "provider={} modelId={} tokenFieldName={} requestAttempt=1",
                     routed.category(), configuredBudget, ctx, descriptorLimit,
                     promptTokens, safetyMargin, unknownFallback, options.maxTokens(),
-                    provider.id(), firstModel);
+                    provider.id(), firstModel, tokenFieldName(provider.id()));
         }
 
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
@@ -356,6 +528,14 @@ public class ChatService {
 
     private String nameOf(String modelId) {
         return catalog.find(modelId).map(com.privoraa.model.ModelDto::name).orElse(modelId);
+    }
+
+    private static String tokenFieldName(String provider) {
+        return switch (provider) {
+            case "gemini" -> "max_completion_tokens";
+            case "ollama" -> "options.num_predict";
+            default -> "max_tokens";
+        };
     }
 
     /** True when the user left the model picker on "auto" (no explicit model). */
@@ -411,6 +591,16 @@ public class ChatService {
                 .findFirst()
                 .map(ModelDescriptor::maxOutputTokens)
                 .orElse(null);
+    }
+
+    private Integer findDescriptorContext(String modelId, ScoredRoutingResult scoredResult) {
+        if (scoredResult != null) {
+            return registry.find(scoredResult.registryId())
+                    .map(ModelDescriptor::contextWindow).orElse(null);
+        }
+        return registry.currentSnapshot().models().stream()
+                .filter(m -> m.providerModelId().equals(modelId))
+                .findFirst().map(ModelDescriptor::contextWindow).orElse(null);
     }
 
     /** Immutable bundle threaded through streaming/non-streaming paths. */

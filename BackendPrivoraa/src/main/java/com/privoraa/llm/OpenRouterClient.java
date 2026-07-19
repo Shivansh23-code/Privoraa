@@ -9,6 +9,8 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
@@ -27,6 +29,7 @@ import java.util.Map;
  */
 @Component
 public class OpenRouterClient {
+    private static final Logger log = LoggerFactory.getLogger(OpenRouterClient.class);
 
     private final WebClient webClient;
     private final ObjectMapper mapper;
@@ -50,6 +53,7 @@ public class OpenRouterClient {
             return Flux.error(notConfigured());
         }
         Map<String, Object> body = buildBody(model, messages, opts, true);
+        logRequest(model, opts, 1);
         return webClient.post()
                 .uri("/chat/completions")
                 .accept(MediaType.TEXT_EVENT_STREAM)
@@ -100,6 +104,7 @@ public class OpenRouterClient {
             throw notConfigured();
         }
         Map<String, Object> body = buildBody(model, messages, opts, false);
+        logRequest(model, opts, 1);
         JsonNode resp = webClient.post()
                 .uri("/chat/completions")
                 .bodyValue(body)
@@ -158,12 +163,13 @@ public class OpenRouterClient {
         return vec;
     }
 
-    private Map<String, Object> buildBody(String model, List<Map<String, Object>> messages,
+    Map<String, Object> buildBody(String model, List<Map<String, Object>> messages,
                                           ChatOptions opts, boolean stream) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", model);
         body.put("messages", messages);
         body.put("stream", stream);
+        if (stream) body.put("stream_options", Map.of("include_usage", true));
         if (opts != null) {
             if (opts.temperature() != null) {
                 body.put("temperature", opts.temperature());
@@ -184,17 +190,29 @@ public class OpenRouterClient {
         return body;
     }
 
+    private void logRequest(String model, ChatOptions opts, int attempt) {
+        log.debug("Provider request provider=openrouter modelId={} finalRequestedOutputTokens={} "
+                        + "tokenFieldName=max_tokens requestAttempt={} endpoint={}/chat/completions",
+                model, opts == null ? null : opts.maxTokens(), attempt, props.baseUrl());
+    }
+
     /** Package-private for testability. */
     StreamEvent toEvent(String data) {
         try {
             JsonNode node = mapper.readTree(data);
             JsonNode choices = node.path("choices");
+            JsonNode usage = node.path("usage");
+            if ((!choices.isArray() || choices.isEmpty()) && usage.isObject()) {
+                return StreamEvent.usage(usage.path("prompt_tokens").asInt(0),
+                        usage.path("completion_tokens").asInt(0));
+            }
             if (choices.isArray() && choices.size() > 0) {
                 JsonNode choice = choices.get(0);
                 // The final chunk before [DONE] carries finish_reason.
                 String finishReason = choice.path("finish_reason").asText(null);
                 if (finishReason != null && !finishReason.isEmpty() && !"null".equals(finishReason)) {
-                    return StreamEvent.done(finishReason);
+                    return new StreamEvent(null, finishReason, true,
+                            usage.path("prompt_tokens").asInt(0), usage.path("completion_tokens").asInt(0));
                 }
                 JsonNode content = choice.path("delta").path("content");
                 if (content.isTextual()) {

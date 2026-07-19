@@ -77,6 +77,10 @@ export function useChat(catalog) {
             ...(usage.citations != null ? { citations: usage.citations } : {}),
             aborted: usage.aborted || undefined,
             finishReason: usage.finishReason,
+            completionStatus: usage.completionStatus,
+            segments: usage.segments,
+            continued: usage.continued,
+            tokenCountEstimated: usage.tokenCountEstimated,
           }),
         onError: (err) => finalize({ error: err.message || 'Something went wrong.' }),
       };
