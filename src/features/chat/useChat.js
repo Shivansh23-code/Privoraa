@@ -8,6 +8,7 @@ import { retrieveContext } from '../../lib/ragService';
 import { retrieveVaultContext, retrieveMemory } from '../../lib/vectorStore';
 import { isUnlocked } from '../../lib/vaultBridge';
 import { createSingleFlightGuard } from './singleFlight';
+import { finalContentPatch } from './finalContent';
 import {
   ensureLocalOllama, localHasModel, streamLocalOllamaChat, buildLocalMessages,
 } from '../../lib/localOllama';
@@ -77,6 +78,7 @@ export function useChat(catalog) {
         },
         onDone: (usage) =>
           finalize({
+            ...finalContentPatch(usage),
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
             // Only overwrite citations when this path actually carries them (the

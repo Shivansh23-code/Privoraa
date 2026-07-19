@@ -125,6 +125,20 @@ class ChatServiceStreamingIntegrationTest {
     }
 
     @Test
+    void incompleteTailIsTrimmedInDonePayloadAndPersistence() throws Exception {
+        continuation = new ChatContinuationProperties(false, 3, 16000, 600);
+        provider.enqueue("m1", segment("First sentence. Second sentence. This is why",
+                "length", 10, 8));
+
+        Map<String, Object> done = run(false, List.of("m1")).awaitDone();
+
+        assertEquals("First sentence. Second sentence.", done.get("finalContent"));
+        assertEquals(true, done.get("tailTrimmed"));
+        verify(conversations).addAssistantMessage(eq("conversation-1"),
+                eq("First sentence. Second sentence."), anyString(), anyString(), anyString(), eq(10), eq(8));
+    }
+
+    @Test
     void continuationErrorRetainsContentAndFinalizesOnce() throws Exception {
         provider.enqueue("m1", segment("Kept. ", "length", 10, 2));
         provider.enqueue("m1", Flux.concat(Flux.just(StreamEvent.delta("More.")),
