@@ -151,8 +151,8 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, m
   };
 
   return (
-    <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-8 sm:px-6">
-      <div className="mx-auto w-full max-w-[920px]">
+    <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pb-[max(.5rem,env(safe-area-inset-bottom,0px))] pt-6 sm:px-6">
+      <div className="mx-auto w-full max-w-[860px]">
         <p className="sr-only" aria-live="polite">{attachmentStatus}</p>
         {/* Compact Sources and image previews. */}
         {(image || documents.length > 0) && (

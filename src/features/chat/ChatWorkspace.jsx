@@ -153,7 +153,7 @@ export default function ChatWorkspace() {
 
   return (
     <div data-plan={plan} className="relative flex h-[100dvh] w-full min-w-0 max-w-none overflow-hidden bg-bg text-fg">
-      {/* Per-plan ambient glow (violet for Plus, gold for Pro; none for Free). */}
+      {/* Per-plan ambient glow (violet for Plus, steel for Pro; none for Free). */}
       <div className="plan-glow-bg pointer-events-none absolute inset-x-0 top-0 z-0 h-72" />
       {/* ---------- Left sidebar (desktop) ---------- */}
       {/* Collapsed rail: brand logo; hover to peek the sidebar open. */}
@@ -205,11 +205,11 @@ export default function ChatWorkspace() {
             className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
-          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Navigation" tabIndex={-1} className="absolute left-0 top-0 h-full w-[min(320px,88vw)] border-r border-line bg-surface pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] shadow-2xl">
+          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Navigation" tabIndex={-1} className="absolute left-0 top-0 h-[100dvh] w-[min(320px,88vw)] overflow-y-auto border-r border-line bg-surface pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)] shadow-2xl">
             <button
               onClick={() => setSidebarOpen(false)}
               aria-label="Close navigation"
-              className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-surface-2"
+              className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-lg text-muted hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-[var(--focus-ring)]"
             >
               <X size={18} />
             </button>

@@ -76,7 +76,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
 
       {/* Assistant answers fill the available column width (better for long
           markdown / code on wide screens); user messages stay compact. */}
-      <div className={`flex min-w-0 flex-col ${isUser ? 'max-w-[min(640px,85%)] items-end' : 'flex-1'}`}>
+      <div className={`flex min-w-0 flex-col ${isUser ? 'max-w-[86%] items-end sm:max-w-[75%]' : 'flex-1'}`}>
         {/* Model badge */}
         {!isUser && message.model && (
           <div className="mb-1 flex items-center gap-1.5 text-xs text-muted">
@@ -89,10 +89,10 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
 
         {/* Bubble */}
         <div
-          className={`px-4 py-3 ${
+          className={`${
             isUser
-              ? 'rounded-2xl rounded-tr-md bg-[var(--user-message-bg)] text-white shadow-sm'
-              : 'w-full px-0 py-1'
+              ? 'rounded-2xl rounded-tr-md bg-[var(--user-message-bg)] px-4 py-2.5 text-white shadow-sm sm:px-5 sm:py-3'
+              : 'w-full px-0 py-0.5'
           }`}
         >
           {message.error ? (
@@ -110,7 +110,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
                 />
               )}
               {message.content && (
-                <p className="whitespace-pre-wrap break-words text-sm leading-6 sm:text-[15px]">
+                <p className="whitespace-pre-wrap break-words text-[15px] leading-6 sm:text-base">
                   {message.content}
                 </p>
               )}
@@ -129,7 +129,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
             <p className="mt-2 text-xs italic text-muted">Generation stopped.</p>
           )}
           {notice && (
-            <p className="mt-2 text-xs italic text-amber-600 dark:text-amber-400">
+            <p className="mt-2 text-xs italic text-[var(--accent-primary)]/70">
               {notice}
             </p>
           )}

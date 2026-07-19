@@ -29,7 +29,7 @@ const CATEGORY_ICONS = {
 const PLAN_META = {
   free: { label: 'Free', rank: 0, icon: Sparkles, tone: 'text-muted bg-surface-2' },
   plus: { label: 'Plus', rank: 1, icon: Zap, tone: 'text-brand-500 bg-brand-500/10' },
-  pro: { label: 'Pro', rank: 2, icon: Crown, tone: 'text-amber-500 bg-amber-500/10' },
+  pro: { label: 'Pro', rank: 2, icon: Crown, tone: 'text-slate-400 bg-slate-400/10 dark:text-slate-300' },
 };
 const planMeta = (p) => PLAN_META[(p || 'free').toLowerCase()] || PLAN_META.free;
 

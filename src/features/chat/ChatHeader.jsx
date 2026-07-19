@@ -89,7 +89,7 @@ export default function ChatHeader({
 
   return (
     <>
-      <header className="relative z-30 flex h-16 shrink-0 items-center gap-2 border-b border-line bg-bg/75 px-3 backdrop-blur-xl sm:px-4">
+      <header className="relative z-30 flex h-14 shrink-0 items-center gap-1 border-b border-line bg-bg/75 px-2 backdrop-blur-xl sm:h-16 sm:gap-2 sm:px-4">
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r ${theme.accent}`} />
       <button
         ref={mobileMenuTriggerRef}

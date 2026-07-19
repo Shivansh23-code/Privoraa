@@ -37,9 +37,9 @@ export const PLAN_THEME = {
   PRO: {
     label: 'Pro',
     iconKey: 'crown',
-    chip: 'border-amber-400/50 bg-gradient-to-r from-amber-500/20 to-orange-500/10 text-amber-500',
-    ring: 'from-amber-400 to-orange-500',
-    accent: 'from-amber-400/60 via-orange-500/40 to-transparent',
+    chip: 'border-[var(--accent-primary)]/30 bg-[var(--accent-soft)] text-[var(--accent-primary)]',
+    ring: 'from-slate-400 to-slate-500',
+    accent: 'from-slate-400/30 via-slate-500/20 to-transparent',
   },
 };
 
@@ -89,7 +89,7 @@ export const PLANS = [
     price: 'Free in beta',
     period: '',
     tagline: 'The biggest models and the best quality.',
-    accent: 'from-amber-500/25 to-orange-500/10',
+    accent: 'from-slate-400/20 to-slate-500/10',
     cta: 'Get Pro',
     available: true,
     features: [
