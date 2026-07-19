@@ -10,10 +10,13 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Component;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -49,13 +52,49 @@ public class GeminiProvider implements LlmProvider {
         return props.configured();
     }
 
+    /** Metadata-only startup check; lists models and does not generate tokens. */
+    @EventListener(ApplicationReadyEvent.class)
+    public void verifyConfiguredModels() {
+        if (!props.configured()) return;
+        web.get().uri("/models")
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .map(root -> root.path("data"))
+                .subscribe(models -> {
+                    boolean codeAvailable = containsModel(models, props.codeModel());
+                    boolean fallbackAvailable = containsModel(models, props.fallbackModel());
+                    log.info("Gemini model health provider=gemini codeModel={} codeAvailable={} "
+                                    + "fallbackModel={} fallbackAvailable={} quotaImpact=metadata-only",
+                            props.codeModel(), codeAvailable, props.fallbackModel(), fallbackAvailable);
+                }, error -> log.warn("Gemini model health provider=gemini status=unavailable errorType={}",
+                        error.getClass().getSimpleName()));
+    }
+
+    private static boolean containsModel(JsonNode models, String expected) {
+        if (!models.isArray() || expected == null) return false;
+        for (JsonNode model : models) {
+            String id = model.path("id").asText("");
+            if (expected.equals(id) || ("models/" + expected).equals(id)) return true;
+        }
+        return false;
+    }
+
     @Override
     public Flux<StreamEvent> streamChat(String model, List<Map<String, Object>> messages, ChatOptions opts) {
         if (!props.configured()) {
             return Flux.error(notConfigured());
         }
-        Map<String, Object> body = buildBody(model, messages, opts, true);
-        logRequest(model, opts, 1);
+        return streamAttempt(model, messages, opts, false, 1)
+                .onErrorResume(GeminiUpstreamException.class,
+                        error -> error.compatibilityError()
+                                ? streamAttempt(model, messages, opts, true, 2)
+                                : Flux.error(error));
+    }
+
+    private Flux<StreamEvent> streamAttempt(String model, List<Map<String, Object>> messages,
+                                             ChatOptions opts, boolean minimal, int attempt) {
+        Map<String, Object> body = buildBody(model, messages, opts, true, minimal);
+        logRequest(model, opts, body, attempt);
         return web.post()
                 .uri("/chat/completions")
                 .accept(MediaType.TEXT_EVENT_STREAM)
@@ -66,7 +105,8 @@ public class GeminiProvider implements LlmProvider {
                 // look the same otherwise.
                 .onStatus(HttpStatusCode::isError, resp -> resp.bodyToMono(String.class)
                         .defaultIfEmpty("")
-                        .map(b -> upstreamError(resp.statusCode().value(), b)))
+                        .flatMap(b -> upstreamError(model, opts, body, attempt,
+                                resp.statusCode().value(), b)))
                 .bodyToFlux(new ParameterizedTypeReference<ServerSentEvent<String>>() {})
                 .mapNotNull(ServerSentEvent::data)
                 .takeWhile(data -> !"[DONE]".equals(data.trim()))
@@ -79,15 +119,22 @@ public class GeminiProvider implements LlmProvider {
         if (!props.configured()) {
             throw notConfigured();
         }
-        Map<String, Object> body = buildBody(model, messages, opts, false);
-        logRequest(model, opts, 1);
+        return chatAttempt(model, messages, opts, false, 1);
+    }
+
+    private ChatResult chatAttempt(String model, List<Map<String, Object>> messages,
+                                   ChatOptions opts, boolean minimal, int attempt) {
+        Map<String, Object> body = buildBody(model, messages, opts, false, minimal);
+        logRequest(model, opts, body, attempt);
+        try {
         JsonNode resp = web.post()
                 .uri("/chat/completions")
                 .bodyValue(body)
                 .retrieve()
                 .onStatus(HttpStatusCode::isError, r -> r.bodyToMono(String.class)
                         .defaultIfEmpty("")
-                        .map(b -> upstreamError(r.statusCode().value(), b)))
+                        .flatMap(b -> upstreamError(model, opts, body, attempt,
+                                r.statusCode().value(), b)))
                 .bodyToMono(JsonNode.class)
                 .block();
         if (resp == null) {
@@ -98,6 +145,12 @@ public class GeminiProvider implements LlmProvider {
         int completion = resp.path("usage").path("completion_tokens").asInt(0);
         String finishReason = resp.path("choices").path(0).path("finish_reason").asText(null);
         return new ChatResult(content, prompt, completion, finishReason);
+        } catch (GeminiUpstreamException error) {
+            if (error.compatibilityError()) {
+                return chatAttempt(model, messages, opts, true, 2);
+            }
+            throw error;
+        }
     }
 
     @Override
@@ -115,58 +168,108 @@ public class GeminiProvider implements LlmProvider {
     /** Package-private for testability. */
     Map<String, Object> buildBody(String model, List<Map<String, Object>> messages,
                                   ChatOptions opts, boolean stream) {
+        return buildBody(model, messages, opts, stream, false);
+    }
+
+    private Map<String, Object> buildBody(String model, List<Map<String, Object>> messages,
+                                          ChatOptions opts, boolean stream, boolean minimal) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", model);
         body.put("messages", messages);
         body.put("stream", stream);
-        if (stream) body.put("stream_options", Map.of("include_usage", true));
         if (opts != null) {
-            if (opts.temperature() != null) {
+            if (!minimal && opts.temperature() != null) {
                 body.put("temperature", opts.temperature());
             }
             if (opts.maxTokens() != null) {
-                // Google's OpenAI-compatible Chat Completions contract follows
-                // the current OpenAI field. Do not mix this with native
-                // generationConfig.maxOutputTokens.
-                body.put("max_completion_tokens", opts.maxTokens());
+                // Google's compatibility endpoint has historically accepted the
+                // legacy OpenAI output-limit field. Never send both max fields.
+                body.put("max_tokens", opts.maxTokens());
             }
-            if (opts.topP() != null) {
+            if (!minimal && opts.topP() != null) {
                 body.put("top_p", opts.topP());
             }
             // Gemini's OpenAI-compatible endpoint is strict about unknown fields and
             // does not reliably accept frequency/presence penalties — omit them
             // (they're 0 for coding anyway) to avoid a 400.
         }
-        // Gemini 2.5 Flash's default thinking budget is charged against the output
-        // budget and can leave only ~1.2k visible tokens. Explanatory/code answers
-        // here need visible output, so explicitly disable optional thinking.
-        if (model != null && model.startsWith("gemini-2.5-flash")) {
-            body.put("reasoning_effort", "none");
-        }
         return body;
     }
 
-    private void logRequest(String model, ChatOptions opts, int attempt) {
+    private void logRequest(String model, ChatOptions opts, Map<String, Object> body, int attempt) {
         log.debug("Provider request provider=gemini modelId={} finalRequestedOutputTokens={} "
-                        + "tokenFieldName=max_completion_tokens requestAttempt={} endpoint={}/chat/completions",
-                model, opts == null ? null : opts.maxTokens(), attempt, props.baseUrl());
+                        + "tokenFieldName=max_tokens fields={} requestAttempt={} endpoint={}/chat/completions",
+                model, opts == null ? null : opts.maxTokens(), body.keySet(), attempt, props.baseUrl());
     }
 
-    private ApiException upstreamError(int code, String body) {
-        String detail = (body == null || body.isBlank()) ? "" : " — " + truncate(body);
-        String msg = switch (code) {
-            case 400 -> "Gemini rejected the request (HTTP 400)" + detail;
-            case 401, 403 -> "Gemini rejected the API key (HTTP " + code
-                    + "). Check the GEMINI_API_KEY value." + detail;
-            case 429 -> "Gemini free-tier limit reached (HTTP 429) — wait a moment and try again.";
-            default -> "Gemini upstream error (HTTP " + code + ")" + detail;
-        };
-        return new ApiException(HttpStatus.BAD_GATEWAY, msg);
+    private Mono<? extends Throwable> upstreamError(String model, ChatOptions opts,
+                                                     Map<String, Object> request, int attempt,
+                                                     int status, String rawBody) {
+        UpstreamDetail detail = parseError(rawBody);
+        log.warn("Gemini request failed provider=gemini model={} status={} upstreamCode={} upstreamType={} "
+                        + "message=\"{}\" fields={} finalRequestedOutputTokens={} endpoint={}/chat/completions requestAttempt={}",
+                model, status, detail.code(), detail.type(), detail.message(), request.keySet(),
+                opts == null ? null : opts.maxTokens(), props.baseUrl(), attempt);
+        boolean compatibility = status == 400 && attempt == 1 && isCompatibilityError(detail);
+        if (compatibility) {
+            log.warn("Retrying Gemini compatibility request provider=gemini model={} removedFields={} requestAttempt=2",
+                    model, request.keySet().stream()
+                            .filter(field -> !List.of("model", "messages", "stream", "max_tokens").contains(field))
+                            .toList());
+        }
+        return Mono.error(new GeminiUpstreamException(status, detail.code(), compatibility));
     }
 
-    private static String truncate(String s) {
-        String t = s.replaceAll("\\s+", " ").trim();
+    private UpstreamDetail parseError(String raw) {
+        String code = "UNKNOWN";
+        String type = "UNKNOWN";
+        String message = "No upstream detail supplied";
+        try {
+            JsonNode error = mapper.readTree(raw).path("error");
+            code = error.path("status").asText(error.path("type").asText(
+                    error.path("code").asText("UNKNOWN")));
+            type = error.path("type").asText(error.path("status").asText("UNKNOWN"));
+            message = error.path("message").asText(message);
+        } catch (Exception ignored) {
+            message = "Malformed upstream error response";
+        }
+        return new UpstreamDetail(sanitize(code), sanitize(type), sanitize(message));
+    }
+
+    private static boolean isCompatibilityError(UpstreamDetail detail) {
+        String text = (detail.code() + " " + detail.type() + " " + detail.message()).toLowerCase();
+        return text.contains("unknown field") || text.contains("unrecognized field")
+                || text.contains("unsupported field") || text.contains("optional field")
+                || text.contains("unknown parameter") || text.contains("unsupported parameter");
+    }
+
+    private static String sanitize(String value) {
+        String t = value.replaceAll("(?i)(bearer\\s+|key[=:]\\s*)[^\\s,;]+", "$1[REDACTED]")
+                .replaceAll("(?i)data:image/[^;]+;base64,[A-Za-z0-9+/=]+", "[REDACTED_IMAGE]")
+                .replaceAll("\"[^\"]{80,}\"", "\"[REDACTED_LONG_VALUE]\"")
+                .replaceAll("\\s+", " ").trim();
         return t.length() > 300 ? t.substring(0, 300) + "…" : t;
+    }
+
+    private record UpstreamDetail(String code, String type, String message) {}
+
+    private static final class GeminiUpstreamException extends ApiException {
+        private final boolean compatibilityError;
+
+        private GeminiUpstreamException(int status, String upstreamCode, boolean compatibilityError) {
+            super(HttpStatus.BAD_GATEWAY, friendlyMessage(status, upstreamCode));
+            this.compatibilityError = compatibilityError;
+        }
+
+        boolean compatibilityError() { return compatibilityError; }
+
+        private static String friendlyMessage(int status, String upstreamCode) {
+            return switch (status) {
+                case 401, 403 -> "The Gemini service credentials were rejected. Please contact support.";
+                case 429 -> "The Gemini service is temporarily rate limited. Please try again shortly.";
+                default -> "Gemini could not process this request. Please try again.";
+            };
+        }
     }
 
     /** Package-private for testability. */

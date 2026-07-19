@@ -146,12 +146,13 @@ export async function apiFetch(path, opts = {}) {
 }
 
 /** Open a raw streaming POST (used by the SSE chat endpoint). */
-export function streamFetch(path, { body, signal } = {}) {
+export function streamFetch(path, { body, signal, requestId } = {}) {
   return fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: authHeaders({
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
+      ...(requestId ? { 'X-Request-ID': requestId } : {}),
     }),
     body: body != null ? JSON.stringify(body) : undefined,
     signal,

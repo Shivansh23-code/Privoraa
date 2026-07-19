@@ -19,10 +19,15 @@ public record GeminiProperties(
             baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai";
         }
         if (codeModel == null || codeModel.isBlank()) {
-            codeModel = "gemini-2.0-flash";
+            codeModel = "gemini-2.5-flash";
         }
         if (fallbackModel == null || fallbackModel.isBlank()) {
             fallbackModel = "gemini-2.5-flash";
+        }
+        // This model is confirmed unavailable in the production account. Keep a
+        // stale environment override from forcing one guaranteed failed attempt.
+        if ("gemini-2.0-flash".equals(codeModel)) {
+            codeModel = fallbackModel;
         }
     }
 

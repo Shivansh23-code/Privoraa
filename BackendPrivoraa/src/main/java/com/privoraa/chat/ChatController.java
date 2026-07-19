@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -28,8 +29,9 @@ public class ChatController {
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "Stream a chat completion as SSE (events: meta, token, done, error)")
     public SseEmitter stream(@AuthenticationPrincipal PrivoraaUserDetails user,
+                             @RequestHeader(value = "X-Request-ID", required = false) String requestId,
                              @Valid @RequestBody ChatRequest request) {
-        return chatService.stream(user.getId(), request);
+        return chatService.stream(user.getId(), request, requestId);
     }
 
     @PostMapping

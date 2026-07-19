@@ -51,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -108,11 +109,19 @@ public class ChatService {
     // ----------------------------------------------------------------- streaming
 
     public SseEmitter stream(String userId, ChatRequest req) {
-        return stream(userId, req, new SseEmitter(0L));
+        return stream(userId, req, (String) null);
+    }
+
+    public SseEmitter stream(String userId, ChatRequest req, String suppliedRequestId) {
+        return stream(userId, req, new SseEmitter(0L), normalizeRequestId(suppliedRequestId));
     }
 
     /** Package-private emitter seam used by deterministic streaming integration tests. */
     SseEmitter stream(String userId, ChatRequest req, SseEmitter emitter) {
+        return stream(userId, req, emitter, normalizeRequestId(null));
+    }
+
+    private SseEmitter stream(String userId, ChatRequest req, SseEmitter emitter, String requestId) {
 
         try {
             rateLimit.check(userId);
@@ -132,7 +141,7 @@ public class ChatService {
             return emitter;
         }
 
-        new StreamSession(emitter, p).start();
+        new StreamSession(emitter, p, requestId).start();
         return emitter;
     }
 
@@ -145,6 +154,7 @@ public class ChatService {
                 + "Do not mention token limits or continuation mechanics.";
         private final SseEmitter emitter;
         private final Prepared prepared;
+        private final String requestId;
         private final StringBuilder accumulated = new StringBuilder();
         private final Disposable.Swap active = Disposables.swap();
         private final AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -157,9 +167,10 @@ public class ChatService {
         private int modelIndex;
         private String activeModel;
 
-        StreamSession(SseEmitter emitter, Prepared prepared) {
+        StreamSession(SseEmitter emitter, Prepared prepared, String requestId) {
             this.emitter = emitter;
             this.prepared = prepared;
+            this.requestId = requestId;
             emitter.onTimeout(this::cancel);
             emitter.onError(ignored -> cancel());
             emitter.onCompletion(this::cancel);
@@ -167,6 +178,8 @@ public class ChatService {
 
         void start() {
             activeModel = prepared.chain().getFirst();
+            log.info("Chat stream started requestId={} provider={} model={}",
+                    requestId, prepared.provider().id(), activeModel);
             send(emitter, "meta", metaPayload(nameOf(activeModel), prepared));
             runSegment(prepared.messages(), false);
         }
@@ -245,12 +258,13 @@ public class ChatService {
                 segments--;
                 send(emitter, "model_switch", Map.of("from", nameOf(previous), "to", nameOf(activeModel),
                         "reason", "Previous model failed before emitting content"));
-                log.warn("Model {} failed before output; switching within provider {} to {}",
-                        previous, prepared.provider().id(), activeModel);
+                log.warn("Model failed before output requestId={} provider={} fromModel={} toModel={}",
+                        requestId, prepared.provider().id(), previous, activeModel);
                 runSegment(prepared.messages(), false);
                 return;
             }
-            log.warn("Provider stream failed after content={} segment={} errorType={}",
+            log.warn("Provider stream failed requestId={} provider={} model={} content={} segment={} errorType={}",
+                    requestId, prepared.provider().id(), activeModel,
                     !accumulated.isEmpty(), segments, err.getClass().getSimpleName());
             state = StreamState.FAILED;
             finish("error", "incomplete", false);
@@ -447,7 +461,10 @@ public class ChatService {
             provider = providers.byId("gemini");
             routed = new Routed(gemini.codeModel(), gemini.codeModel(), "code",
                     "Routed to Gemini for stronger coding",
-                    List.of(gemini.codeModel(), gemini.fallbackModel()));
+                    java.util.stream.Stream.of(gemini.codeModel(), gemini.fallbackModel())
+                            .filter(model -> model != null && !model.isBlank())
+                            .filter(model -> !"gemini-2.0-flash".equals(model))
+                            .distinct().toList());
         }
 
         // Dry-run: log what scored routing would have chosen (no execution impact).
@@ -532,10 +549,15 @@ public class ChatService {
 
     private static String tokenFieldName(String provider) {
         return switch (provider) {
-            case "gemini" -> "max_completion_tokens";
+            case "gemini" -> "max_tokens";
             case "ollama" -> "options.num_predict";
             default -> "max_tokens";
         };
+    }
+
+    private static String normalizeRequestId(String supplied) {
+        if (supplied != null && supplied.matches("[A-Za-z0-9._:-]{1,100}")) return supplied;
+        return UUID.randomUUID().toString();
     }
 
     /** True when the user left the model picker on "auto" (no explicit model). */

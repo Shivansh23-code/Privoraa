@@ -98,6 +98,8 @@ export async function streamChat(payload, callbacks) {
 }
 
 async function streamLive(payload, { onMeta, onToken, onDone, onError, signal }) {
+  const requestId = payload.requestId || globalThis.crypto?.randomUUID?.()
+    || `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const requestBody = {
     conversationId: payload.conversationId,
     model: payload.model,
@@ -108,13 +110,13 @@ async function streamLive(payload, { onMeta, onToken, onDone, onError, signal })
     image: payload.image, // data URL for vision; omitted server-side when null
   };
 
-  let res = await streamFetch('/chat/stream', { body: requestBody, signal });
+  let res = await streamFetch('/chat/stream', { body: requestBody, signal, requestId });
 
   // Access token expired — refresh once and retry.
   if (res.status === 401) {
     const refreshed = await refreshAccessToken();
     if (refreshed) {
-      res = await streamFetch('/chat/stream', { body: requestBody, signal });
+      res = await streamFetch('/chat/stream', { body: requestBody, signal, requestId });
     }
   }
 
