@@ -1,6 +1,6 @@
 # Phase 3 — Scored Registry Routing Implementation Plan
 
-**Status:** Planning only — no code written  
+**Status:** Historical implementation plan — Phase 3 is implemented and remains feature-flagged
 **Based on:** Phase 0–2 verified architecture (`docs/opencode-continuation-audit.md`)  
 **Scope:** Scored candidate routing over `ModelRegistry.compatibleModels()`  
 **Branch target:** `feature/phase1-rag-gating`

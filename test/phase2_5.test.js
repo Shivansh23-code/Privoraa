@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { completionNotice } from '../src/features/chat/completionState.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -118,11 +119,16 @@ test('useChat onDone reads finishReason from payload', () => {
   assert.ok(src.includes('finishReason: usage.finishReason'), 'onDone must read usage.finishReason');
 });
 
-test('MessageBubble renders distinct limit and transport failure messages', () => {
-  const src = readFileSync(resolve(ROOT, 'src/features/chat/MessageBubble.jsx'), 'utf-8');
-  assert.ok(src.includes("completionStatus === 'limit_reached'"));
-  assert.ok(src.includes('This answer reached the maximum response length.'));
-  assert.ok(src.includes("completionStatus === 'incomplete'"));
-  assert.ok(src.includes('The connection ended before the response completed.'));
-  assert.equal(src.includes('Use Regenerate for a complete answer'), false);
+test('completion states map to distinct runtime notices', () => {
+  assert.equal(completionNotice({ completionStatus: 'complete' }), null);
+  assert.equal(completionNotice({ completionStatus: 'limit_reached' }),
+    'This answer reached the maximum response length.');
+  assert.equal(completionNotice({ completionStatus: 'incomplete' }),
+    'The connection ended before the response completed.');
+  assert.equal(completionNotice({ completionStatus: 'aborted', aborted: true }), null);
+  assert.equal(completionNotice({ finishReason: 'content_filter' }),
+    'The provider stopped this response for safety reasons.');
+  assert.equal(completionNotice({ finishReason: 'safety' }),
+    'The provider stopped this response for safety reasons.');
+  assert.equal(completionNotice({ finishReason: 'length' }), null, 'legacy messages render normally');
 });

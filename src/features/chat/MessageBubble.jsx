@@ -9,6 +9,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { Markdown } from './Markdown';
+import { completionNotice } from './completionState';
 
 function ThinkingDots() {
   return (
@@ -47,6 +48,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
   const [copied, setCopied] = useState(false);
   const isUser = message.role === 'user';
   const streaming = isStreaming && message.role === 'assistant';
+  const notice = completionNotice(message);
 
   const copy = async () => {
     try {
@@ -126,14 +128,9 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
           {message.aborted && (
             <p className="mt-2 text-xs italic text-muted">Generation stopped.</p>
           )}
-          {message.completionStatus === 'limit_reached' && (
+          {notice && (
             <p className="mt-2 text-xs italic text-amber-600 dark:text-amber-400">
-              This answer reached the maximum response length.
-            </p>
-          )}
-          {message.completionStatus === 'incomplete' && (
-            <p className="mt-2 text-xs italic text-amber-600 dark:text-amber-400">
-              The connection ended before the response completed.
+              {notice}
             </p>
           )}
         </div>
