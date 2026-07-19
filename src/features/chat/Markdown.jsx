@@ -89,7 +89,7 @@ const components = {
   ),
   td: ({ children }) => <td className="border-b border-line px-3 py-2">{children}</td>,
   blockquote: ({ children }) => (
-    <blockquote className="my-5 border-l-[3px] border-[var(--accent-primary)] bg-surface-2/40 py-2 pl-5 pr-4 text-muted leading-relaxed">
+    <blockquote className="my-5 border-l-[3px] border-[var(--accent-primary)] bg-surface-2/40 py-2 pl-5 pr-4 text-muted">
       {children}
     </blockquote>
   ),
