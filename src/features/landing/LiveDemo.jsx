@@ -28,7 +28,7 @@ const REPLIES = [
 ];
 
 const INTRO =
-  "Hi — I'm Privoraa. Everything you say here stays on this device. Try asking me to remember something, or to plan your day.";
+  "Hi — I'm Vedix. Everything you say here stays on this device. Try asking me to remember something, or to plan your day.";
 
 export default function LiveDemo() {
   const [messages, setMessages] = useState([{ id: 0, who: 'ai', text: INTRO, sealed: false, cipher: null }]);
@@ -167,14 +167,14 @@ export default function LiveDemo() {
   }
 
   return (
-    <div className="demo" id="demo" aria-label="Privoraa interactive demo">
+    <div className="demo" id="demo" aria-label="Vedix interactive demo">
       <div className="demo-bar">
         <span className="mark">
           <svg aria-hidden="true">
             <use href="#i-lock" />
           </svg>
         </span>
-        <span className="demo-name">Privoraa</span>
+        <span className="demo-name">Vedix</span>
         <span className="demo-status">
           <span className="pulse"></span> LOCAL SESSION
         </span>
@@ -216,7 +216,7 @@ export default function LiveDemo() {
           maxLength={160}
           placeholder="Ask anything — it stays here."
           autoComplete="off"
-          aria-label="Message Privoraa demo"
+          aria-label="Message Vedix demo"
           value={value}
           onChange={(e) => setValue(e.target.value)}
         />

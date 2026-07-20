@@ -17,6 +17,13 @@ import { useChat } from './useChat';
 import { useLocalLlm } from './useLocalLlm';
 import { fetchModels, ensureBackend, isUsingMock } from '../../lib/chatService';
 import { fetchDocuments } from '../../lib/documentService';
+import {
+  fetchRemoteConversations,
+  fetchRemoteConversationDetail,
+  createRemoteConversation,
+  updateRemoteConversation,
+  deleteRemoteConversation,
+} from '../../lib/chatSync';
 import { FALLBACK_MODELS } from '../../lib/models';
 
 export default function ChatWorkspace() {
@@ -32,11 +39,166 @@ export default function ChatWorkspace() {
   const setModelSelection = useChatStore((s) => s.setModelSelection);
   const currentId = useChatStore((s) => s.currentId);
   const conversations = useChatStore((s) => s.conversations);
-  const isStreaming = useChatStore((s) => s.isStreaming);
-  const streamingMessageId = useChatStore((s) => s.streamingMessageId);
+  const isConversationStreaming = useChatStore((s) => s.isConversationStreaming);
+  const streamingConversations = useChatStore((s) => s.streamingConversations);
+  const isStreaming = currentId ? isConversationStreaming(currentId) : false;
+  const streamingMessageId = isStreaming && currentId ? streamingConversations[currentId]?.streamingMessageId : null;
   const documents = useChatStore((s) => s.documents);
   const setDocuments = useChatStore((s) => s.setDocuments);
   const updateDocument = useChatStore((s) => s.updateDocument);
+
+  // Cross-device conversation sync. On mount (authenticated), fetch remote
+  // conversations and merge into local state. Also push local mutations upstream.
+  // Periodic re-sync on focus and timer keeps multi-device history consistent.
+  const syncRef = useRef(false);
+  const hydratedRef = useRef({}); // track which conversations have been hydrated
+  const [authToken, setAuthToken] = useState(null);
+  const setSyncStatus = useChatStore((s) => s.setSyncStatus);
+  const setSyncError = useChatStore((s) => s.setSyncError);
+  const setLastSyncAt = useChatStore((s) => s.setLastSyncAt);
+  const syncStatus = useChatStore((s) => s.syncStatus);
+  const syncError = useChatStore((s) => s.syncError);
+
+  useEffect(() => {
+    const check = () => {
+      const token = localStorage.getItem('userToken');
+      setAuthToken(token);
+    };
+    check();
+    window.addEventListener('storage', check);
+    return () => window.removeEventListener('storage', check);
+  }, []);
+
+  // Pull: fetch remote conversations and merge into local state.
+  const pullRemote = useCallback(async () => {
+    if (!authToken) return;
+    const live = await ensureBackend();
+    if (!live) return;
+    setSyncStatus('syncing');
+    const result = await fetchRemoteConversations();
+    if (!result.success) {
+      setSyncStatus('error');
+      setSyncError(result.error);
+      return;
+    }
+    const remote = result.data;
+    if (!Array.isArray(remote)) {
+      setSyncStatus('idle');
+      return;
+    }
+    const s = useChatStore.getState();
+    const merged = [...s.conversations];
+    let changed = false;
+    for (const r of remote) {
+      const idx = merged.findIndex((c) => c.id === r.id);
+      if (idx !== -1) {
+        const existing = merged[idx];
+        if (r.title !== existing.title || r.pinned !== existing.pinned || r.updatedAt !== existing.updatedAt) {
+          merged[idx] = { ...existing, title: r.title, pinned: r.pinned, updatedAt: r.updatedAt };
+          changed = true;
+        }
+      } else {
+        merged.push({
+          id: r.id,
+          title: r.title,
+          mode: r.mode || 'general',
+          pinned: r.pinned || false,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+          messages: [],
+        });
+        changed = true;
+      }
+    }
+    if (changed) {
+      useChatStore.setState({ conversations: merged });
+    }
+    setSyncStatus('synced');
+    setLastSyncAt(new Date().toISOString());
+  }, [authToken, setSyncStatus, setSyncError, setLastSyncAt]);
+
+  // Initial pull + periodic re-sync on focus and timer.
+  useEffect(() => {
+    if (!authToken || syncRef.current) return;
+    syncRef.current = true;
+    pullRemote();
+    const onFocus = () => pullRemote();
+    window.addEventListener('focus', onFocus);
+    const interval = setInterval(pullRemote, 30000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      clearInterval(interval);
+    };
+  }, [authToken, pullRemote]);
+
+  // Hydrate messages when opening a conversation that has no messages yet.
+  useEffect(() => {
+    if (!authToken || !currentId) return;
+    if (hydratedRef.current[currentId]) return;
+    const convo = useChatStore.getState().conversations.find((c) => c.id === currentId);
+    if (!convo || convo.messages.length > 0) return;
+    hydratedRef.current[currentId] = true;
+    ensureBackend().then((live) => {
+      if (!live) return;
+      fetchRemoteConversationDetail(currentId).then((result) => {
+        if (!result.success || !result.data) return;
+        const remote = result.data;
+        if (!remote.messages || remote.messages.length === 0) return;
+        const s = useChatStore.getState();
+        const existing = s.conversations.find((c) => c.id === currentId);
+        if (!existing) return;
+        if (existing.messages.length > 0) return;
+        useChatStore.setState({
+          conversations: s.conversations.map((c) =>
+            c.id === currentId
+              ? { ...c, messages: remote.messages, title: remote.title, mode: remote.mode, pinned: remote.pinned }
+              : c
+          ),
+        });
+      });
+    });
+  }, [authToken, currentId]);
+
+  // Push: subscribe to local conversation mutations and sync upstream.
+  useEffect(() => {
+    if (!authToken) return;
+    const unsub = useChatStore.subscribe((s, prev) => {
+      if (s.conversations === prev.conversations) return;
+      const prevIds = new Set(prev.conversations.map((c) => c.id));
+      const currIds = new Set(s.conversations.map((c) => c.id));
+      // New conversations: push to remote with local ID (backend now accepts it).
+      for (const c of s.conversations) {
+        if (!prevIds.has(c.id)) {
+          createRemoteConversation(c.id, c.title, c.mode);
+        }
+      }
+      // Deleted conversations: remove from remote.
+      for (const c of prev.conversations) {
+        if (!currIds.has(c.id)) {
+          deleteRemoteConversation(c.id).then((result) => {
+            if (!result.success) {
+              setSyncStatus('error');
+              setSyncError(result.error);
+            }
+          });
+        }
+      }
+      // Renamed/pinned: update remote.
+      const prevMap = new Map(prev.conversations.map((c) => [c.id, c]));
+      for (const c of s.conversations) {
+        const p = prevMap.get(c.id);
+        if (p && (p.title !== c.title || p.pinned !== c.pinned)) {
+          updateRemoteConversation(c.id, { title: c.title, pinned: c.pinned }).then((result) => {
+            if (!result.success) {
+              setSyncStatus('error');
+              setSyncError(result.error);
+            }
+          });
+        }
+      }
+    });
+    return unsub;
+  }, [authToken, setSyncError, setSyncStatus]);
 
   const convo = conversations.find((c) => c.id === currentId) || null;
   const messages = convo?.messages ?? [];
@@ -55,7 +217,7 @@ export default function ChatWorkspace() {
   const [usingMock, setUsingMock] = useState(true);
   const [serverWaking, setServerWaking] = useState(false); // cold-start in progress
   const fileInputRef = useRef(null);
-  const hydratedRef = useRef(false);
+  const docsHydratedRef = useRef(false);
   const drawerRef = useRef(null);
   const mobileMenuTriggerRef = useRef(null);
 
@@ -81,8 +243,8 @@ export default function ChatWorkspace() {
   // (a single stable mount) avoids the refetch DocumentsPanel caused by being
   // mounted twice and remounting on panel toggle.
   useEffect(() => {
-    if (hydratedRef.current) return;
-    hydratedRef.current = true;
+    if (docsHydratedRef.current) return;
+    docsHydratedRef.current = true;
     ensureBackend().then((live) => {
       if (!live) return;
       fetchDocuments().then((docs) => {
@@ -234,6 +396,19 @@ export default function ChatWorkspace() {
 
         <VaultLockBar />
 
+        {syncStatus === 'error' && syncError && (
+          <div className="flex items-center justify-center gap-2 border-b border-line bg-red-500/10 px-4 py-1 text-xs text-red-600 dark:text-red-400">
+            Sync issue: {syncError}
+          </div>
+        )}
+
+        {syncStatus === 'syncing' && (
+          <div className="flex items-center justify-center gap-2 border-b border-line bg-blue-500/10 px-4 py-1 text-xs text-blue-600 dark:text-blue-400">
+            <Loader2 size={11} className="animate-spin" />
+            Syncing conversations…
+          </div>
+        )}
+
         {serverWaking && (
           <div className="flex items-center justify-center gap-2 border-b border-line bg-amber-500/10 px-4 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400">
             <Loader2 size={13} className="animate-spin" />
@@ -251,13 +426,13 @@ export default function ChatWorkspace() {
             isStreaming={isStreaming}
             streamingMessageId={streamingMessageId}
             onRegenerate={(msgId) => regenerate(convo.id, msgId)}
-            onStop={stop}
+            onStop={() => stop(convo?.id)}
           />
         )}
 
         <Composer
           onSend={send}
-          onStop={stop}
+          onStop={() => stop(convo?.id)}
           isStreaming={isStreaming}
           onOpenSources={() => setSourcesOpen(true)}
           mode={mode}

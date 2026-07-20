@@ -32,7 +32,7 @@ function domain(url) {
 function Citations({ citations }) {
   if (!citations?.length) return null;
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+    <div className="mobile-citations mt-2 flex flex-wrap items-center gap-1 sm:mt-3 sm:gap-1.5">
       <span className="mr-0.5 text-[11px] font-medium tracking-wide text-muted/70 uppercase">Sources</span>
       {citations.map((c) => (
         <a
@@ -87,7 +87,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
   if (isUser) {
     return (
       <div className="flex animate-rise justify-end">
-        <div className="max-w-[86%] rounded-2xl rounded-tr-md bg-[var(--user-message-bg)] px-4 py-2.5 text-white shadow-sm sm:max-w-[75%] sm:px-5 sm:py-3">
+        <div className="max-w-[88%] rounded-2xl rounded-tr-md bg-[var(--user-message-bg)] px-3 py-2 text-white shadow-sm sm:max-w-[75%] sm:px-5 sm:py-3">
           {message.image && (
             <img
               src={message.image}
@@ -111,11 +111,11 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
       {message.model && (
         <div className="mb-1.5 flex items-center gap-1.5 text-xs text-muted">
           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[var(--assistant-identity)] ring-1 ring-line">
-            <span className="font-display text-[9px] font-bold">P</span>
+            <span className="font-display text-[9px] font-bold">V</span>
           </div>
-          <span className="truncate font-medium text-fg/80">{message.model}</span>
-          {message.routeReason && (
-            <span className="hidden truncate sm:inline">· {message.routeReason}</span>
+          <span className="truncate font-medium text-fg/80" title={`${message.model}${message.routeReason ? ` · ${message.routeReason}` : ''}`}>Vedix Assistant</span>
+          {message.model && (
+            <span className="hidden truncate sm:inline text-faint">· {message.model}{message.routeReason ? ` · ${message.routeReason}` : ''}</span>
           )}
         </div>
       )}
@@ -145,7 +145,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
       )}
 
       {!message.error && (
-        <div className="mt-2.5 flex min-h-7 items-center gap-0.5">
+        <div className="mobile-action-row mt-2 flex min-h-6 items-center gap-0.5 sm:mt-2.5 sm:min-h-7">
           {streaming ? (
             <button
               onClick={onStop}

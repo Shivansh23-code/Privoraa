@@ -1,10 +1,10 @@
-# Privoraa — Your Private AI Companion
+# Vedix — Your Private AI Companion
 
 A privacy-first AI workspace with a vault-themed identity: chat with AI through a single
 interface, with smart model routing, study modes for exam prep, and answers grounded in your
 own notes — designed so conversations stay yours.
 
-**Live demo:** https://privoraa.vercel.app
+**Live demo:** https://vedix.vercel.app
 
 > **Status:** the frontend is complete and the **Spring Boot backend is live** (in
 > `BackendPrivoraa/`). It runs against **local models via Ollama (fully offline)** by default,
@@ -173,5 +173,5 @@ src/
 ---
 
 Built by [Shivansh Tiwari](https://github.com/Shivansh23-code) ·
-[Repository](https://github.com/Shivansh23-code/Privoraa)
-Make clear Privoraa is a personal portfolio/learning project, not a commercial service — shown in the landing-page footer (site-wide) and prominently on the Plans page above pricing, since that's where payments are presented.
+[Repository](https://github.com/Shivansh23-code/Vedix)
+Make clear Vedix is a personal portfolio/learning project, not a commercial service — shown in the landing-page footer (site-wide) and prominently on the Plans page above pricing, since that's where payments are presented.

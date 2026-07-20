@@ -15,7 +15,7 @@ export default function Faq() {
           <details className="faq">
             <summary>Does it really work offline?</summary>
             <p className="a">
-              Yes. The model and your vault both live on your device, so Privoraa behaves
+              Yes. The model and your vault both live on your device, so Vedix behaves
               identically with the connection off.{' '}
               <b>An internet connection is an option, never a requirement.</b>
             </p>

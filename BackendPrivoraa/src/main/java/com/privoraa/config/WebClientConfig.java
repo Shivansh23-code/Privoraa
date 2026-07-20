@@ -4,7 +4,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
+import java.time.Duration;
 
 /**
  * WebClient pointed at OpenRouter. The API key lives only here, server-side —
@@ -40,7 +43,9 @@ public class WebClientConfig {
         WebClient.Builder builder = WebClient.builder()
                 .baseUrl(props.baseUrl())
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .codecs(c -> c.defaultCodecs().maxInMemorySize(8 * 1024 * 1024));
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(8 * 1024 * 1024))
+                .clientConnector(new ReactorClientHttpConnector(
+                        HttpClient.create().responseTimeout(Duration.ofSeconds(120))));
         if (props.configured()) {
             builder.defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + props.apiKey());
         }

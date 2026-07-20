@@ -89,7 +89,7 @@ export default function Vault() {
             <span className="eyebrow">The vault</span>
             <h2 className="t">Your memory, under your key.</h2>
             <p>
-              Everything Privoraa remembers for you lives in a vault on your device —{' '}
+              Everything Vedix remembers for you lives in a vault on your device —{' '}
               <b>sealed at rest, readable only when you're the one asking.</b>
             </p>
             <p>

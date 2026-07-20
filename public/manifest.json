@@ -1,7 +1,7 @@
 {
-  "name": "Privoraa — Your Private AI Companion",
-  "short_name": "Privoraa",
-  "description": "Privoraa is a private, offline-first AI assistant designed to help you focus, remember, and feel safe.",
+  "name": "Vedix — Your Private AI Companion",
+  "short_name": "Vedix",
+  "description": "Vedix is a private, offline-first AI assistant designed to help you focus, remember, and feel safe.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

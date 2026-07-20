@@ -42,7 +42,7 @@ export default function VaultPanel() {
       <Section>
         <p className="text-xs text-muted">
           Your browser doesn't support the secure-crypto APIs the vault needs
-          (this usually means an insecure connection). Open Privoraa over HTTPS to
+          (this usually means an insecure connection). Open Vedix over HTTPS to
           use the sealed vault.
         </p>
       </Section>

@@ -106,7 +106,7 @@ export default function PlansPage() {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-accent-500 text-white">
             <Sparkles size={16} />
           </span>
-          Privoraa
+          Vedix
         </Link>
       </header>
 
@@ -123,7 +123,7 @@ export default function PlansPage() {
           when you need bigger models and more power.
         </p>
         <p className="mx-auto mt-4 max-w-xl rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
-          Privoraa is a personal portfolio project built for learning — not a commercial product.
+          Vedix is a personal portfolio project built for learning — not a commercial product.
           Please don&apos;t use it for real business or payments.
         </p>
       </div>

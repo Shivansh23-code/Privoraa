@@ -7,14 +7,14 @@
 //
 // Browsers allow https -> http://localhost (localhost is a "secure context").
 // The user's Ollama must allow this web origin, e.g. start it with:
-//   OLLAMA_ORIGINS=https://privoraaai.vercel.app   (or *)
+//   OLLAMA_ORIGINS=https://vedix.vercel.app   (or *)
 
 const DEFAULT_BASE = 'http://localhost:11434';
 
 // Concise persona for browser-direct chat (RAG/personas live server-side; this
 // path is plain local chat). Mirrors the no-tables, conversational style.
 const LOCAL_SYSTEM =
-  'You are Privoraa, a helpful, friendly AI assistant running privately on the ' +
+  'You are Vedix, a helpful, friendly AI assistant running privately on the ' +
   "user's own device. Answer clearly in natural prose with short paragraphs and bullet " +
   'points for lists, steps and comparisons. Do NOT use Markdown tables — ever; even for ' +
   'comparisons, give each item a short heading with bullet points (one bullet per attribute) ' +

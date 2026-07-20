@@ -35,9 +35,21 @@ public class ConversationService {
 
     @Transactional
     public ConversationDto create(String userId, CreateConversationRequest req) {
-        Conversation convo = newConversation(userId,
-                req.mode() == null ? "general" : req.mode(),
-                req.title() == null ? "New chat" : req.title());
+        String mode = req.mode() == null ? "general" : req.mode();
+        String title = req.title() == null ? "New chat" : req.title();
+        String clientId = req.id();
+        if (clientId != null) {
+            Conversation existing = conversationRepository.findByIdAndUserId(clientId, userId).orElse(null);
+            if (existing != null) {
+                return ConversationDto.from(existing);
+            }
+            if (!conversationRepository.existsById(clientId)) {
+                Conversation convo = newConversation(userId, mode, title);
+                convo.setId(clientId);
+                return ConversationDto.from(conversationRepository.save(convo));
+            }
+        }
+        Conversation convo = newConversation(userId, mode, title);
         return ConversationDto.from(conversationRepository.save(convo));
     }
 

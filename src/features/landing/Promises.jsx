@@ -3,10 +3,10 @@ export default function Promises() {
     <section id="promises">
       <div className="wrap">
         <div className="reveal">
-          <span className="eyebrow">What Privoraa is for</span>
+          <span className="eyebrow">What Vedix is for</span>
           <h2 className="t">Built on three promises.</h2>
           <p className="sub">
-            Not thirty features — three things done properly. Everything in Privoraa exists to help
+            Not thirty features — three things done properly. Everything in Vedix exists to help
             you focus, remember, and feel safe.
           </p>
         </div>

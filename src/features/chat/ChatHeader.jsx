@@ -197,7 +197,7 @@ export default function ChatHeader({
               }}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition hover:bg-surface-2"
             >
-              <HardDrive size={15} className="text-brand-500" /> Get Privoraa Offline
+              <HardDrive size={15} className="text-brand-500" /> Get Vedix Offline
             </button>
             <div className="my-1 h-px bg-line" />
             <button

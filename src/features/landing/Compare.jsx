@@ -4,7 +4,7 @@ export default function Compare() {
       <div className="wrap">
         <div className="reveal">
           <span className="eyebrow">The honest comparison</span>
-          <h2 className="t">Privoraa vs. the usual deal.</h2>
+          <h2 className="t">Vedix vs. the usual deal.</h2>
           <p className="sub">
             Choose cloud convenience or supported local models. The important difference is knowing
             which mode you are using.
@@ -18,7 +18,7 @@ export default function Compare() {
                   <span className="sr-only">Question</span>
                 </th>
                 <th scope="col" className="pv">
-                  Privoraa
+                  Vedix
                 </th>
                 <th scope="col">Typical cloud assistant</th>
               </tr>

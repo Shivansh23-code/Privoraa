@@ -151,7 +151,7 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, m
   };
 
   return (
-    <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-3 pb-[max(.5rem,env(safe-area-inset-bottom,0px))] pt-6 sm:px-6">
+    <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-2 pb-[max(.5rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-6">
       <div className="mx-auto w-full max-w-[860px]">
         <p className="sr-only" aria-live="polite">{attachmentStatus}</p>
         {/* Compact Sources and image previews. */}
@@ -305,7 +305,7 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, m
           )}
         </form>
         <p className="mt-1.5 hidden px-1 text-center text-[11px] text-faint sm:block">
-          Privoraa can make mistakes. Verify important info. · Mode: <span className="capitalize">{mode.replace('_', ' ')}</span>
+          Vedix can make mistakes. Verify important info. · Mode: <span className="capitalize">{mode.replace('_', ' ')}</span>
         </p>
       </div>
     </div>

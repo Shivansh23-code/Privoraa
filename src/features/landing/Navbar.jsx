@@ -23,7 +23,7 @@ export default function Navbar() {
               <use href="#i-lock" />
             </svg>
           </span>
-          Privoraa
+          Vedix
         </Link>
         <nav className={`nav-links${open ? ' open' : ''}`} id="navLinks" aria-label="Main">
           <a href="#promises" onClick={closeMenu}>Features</a>

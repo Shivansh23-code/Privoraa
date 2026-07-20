@@ -16,10 +16,13 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Flux;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Talks to OpenRouter's OpenAI-compatible API. The only place the API key is used.
@@ -54,6 +57,11 @@ public class OpenRouterClient {
         }
         Map<String, Object> body = buildBody(model, messages, opts, true);
         logRequest(model, opts, 1);
+        AtomicInteger chunks = new AtomicInteger();
+        AtomicInteger contentChunks = new AtomicInteger();
+        AtomicInteger contentChars = new AtomicInteger();
+        AtomicReference<String> capturedFinish = new AtomicReference<>();
+        AtomicReference<Instant> started = new AtomicReference<>(Instant.now());
         return webClient.post()
                 .uri("/chat/completions")
                 .accept(MediaType.TEXT_EVENT_STREAM)
@@ -66,7 +74,28 @@ public class OpenRouterClient {
                 .mapNotNull(ServerSentEvent::data)
                 .takeWhile(data -> !"[DONE]".equals(data.trim()))
                 .map(this::toEvent)
-                .filter(e -> e.terminal() || e.delta() != null)
+                .filter(e -> e.terminal() || e.delta() != null
+                        || e.promptTokens() > 0 || e.completionTokens() > 0)
+                .doOnNext(e -> {
+                    chunks.incrementAndGet();
+                    if (e.delta() != null && !e.delta().isEmpty()) {
+                        contentChunks.incrementAndGet();
+                        contentChars.addAndGet(e.delta().length());
+                    }
+                    if (e.terminal() && e.finishReason() != null) {
+                        capturedFinish.set(e.finishReason());
+                    }
+                })
+                .doFinally(signal -> {
+                    Duration elapsed = Duration.between(started.get(), Instant.now());
+                    String finish = capturedFinish.get();
+                    log.info("OpenRouter stream completed provider=openrouter model={} "
+                                    + "chunks={} contentChunks={} contentChars={} "
+                                    + "finishReason={} elapsedMs={} signal={}",
+                            model, chunks.get(), contentChunks.get(),
+                            contentChars.get(), finish != null ? finish : "null",
+                            elapsed.toMillis(), signal);
+                })
                 // Free models frequently return a transient 429. The status is known
                 // before any token is emitted, so retrying the request is safe. A short
                 // backoff clears brief bursts; if it persists, ChatService falls back to

@@ -147,7 +147,12 @@ async function streamLive(payload, { onMeta, onToken, onDone, onError, signal })
     while ((idx = buffer.indexOf('\n\n')) !== -1) {
       const raw = buffer.slice(0, idx);
       buffer = buffer.slice(idx + 2);
-      dispatchEvent(raw, { onMeta, onToken, onDone, onError });
+      try {
+        dispatchEvent(raw, { onMeta, onToken, onDone, onError });
+      } catch (err) {
+        // A single malformed event must never crash the stream.
+        console.warn('SSE dispatch error', err);
+      }
     }
   }
 }

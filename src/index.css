@@ -6,7 +6,7 @@
 
 /* ------------------------------------------------------------------ *
  * Tailwind theme tokens — ink / teal / violet design system           *
- * (matches design-reference/privoraa-landing-reference.html)          *
+ * (matches design-reference/vedix-landing-reference.html)          *
  * ------------------------------------------------------------------ */
 @theme inline {
   --font-sans: 'Manrope', system-ui, sans-serif;
@@ -345,4 +345,20 @@ html.dark [data-plan='pro'] { --bg:#080a0d; --surface:#0f1217; --surface-2:#151a
   .prose-chat hr { margin: .9rem 0; }
   .prose-chat .katex-display { margin: .55rem 0; }
   .prose-chat code:not(pre code) { font-size: .88em; }
+  .prose-chat table { font-size: .7rem; min-width: 24rem; }
+}
+
+/* ------------------------------------------------------------------ *
+ * Mobile UX polish: tighter spacing, compact bubbles, better reach    *
+ * ------------------------------------------------------------------ */
+@media (max-width: 640px) {
+  .mobile-compact { gap: 0.75rem; }
+  .mobile-compact .msg-gap { margin-bottom: 0.375rem; }
+  .mobile-action-row button { padding: 0.25rem 0.375rem; font-size: 11px; }
+  .mobile-action-row button svg { width: 11px; height: 11px; }
+  .mobile-bubble { padding: 0.5rem 0.75rem; border-radius: 1rem; }
+  .mobile-bubble-inner { padding: 0.5rem 0.75rem; max-width: 88%; }
+  .mobile-citations { margin-top: 0.375rem; }
+  .mobile-citations a { padding: 0.125rem 0.5rem; font-size: 10px; }
+  .mobile-composer-pad { padding-left: 0.5rem; padding-right: 0.5rem; }
 }

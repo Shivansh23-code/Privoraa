@@ -18,9 +18,13 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Google Gemini via its OpenAI-compatible endpoint. Used as a free but much
@@ -95,14 +99,16 @@ public class GeminiProvider implements LlmProvider {
                                              ChatOptions opts, boolean minimal, int attempt) {
         Map<String, Object> body = buildBody(model, messages, opts, true, minimal);
         logRequest(model, opts, body, attempt);
+        AtomicInteger chunks = new AtomicInteger();
+        AtomicInteger contentChunks = new AtomicInteger();
+        AtomicInteger contentChars = new AtomicInteger();
+        AtomicReference<String> capturedFinish = new AtomicReference<>();
+        AtomicReference<Instant> started = new AtomicReference<>(Instant.now());
         return web.post()
                 .uri("/chat/completions")
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .bodyValue(body)
                 .retrieve()
-                // Surface the real upstream reason instead of a generic "busy" — a
-                // 400 (bad request), 401/403 (bad key) or 429 (free-tier limit) all
-                // look the same otherwise.
                 .onStatus(HttpStatusCode::isError, resp -> resp.bodyToMono(String.class)
                         .defaultIfEmpty("")
                         .flatMap(b -> upstreamError(model, opts, body, attempt,
@@ -111,7 +117,28 @@ public class GeminiProvider implements LlmProvider {
                 .mapNotNull(ServerSentEvent::data)
                 .takeWhile(data -> !"[DONE]".equals(data.trim()))
                 .map(this::toEvent)
-                .filter(e -> e.terminal() || e.delta() != null);
+                .filter(e -> e.terminal() || e.delta() != null
+                        || e.promptTokens() > 0 || e.completionTokens() > 0)
+                .doOnNext(e -> {
+                    chunks.incrementAndGet();
+                    if (e.delta() != null && !e.delta().isEmpty()) {
+                        contentChunks.incrementAndGet();
+                        contentChars.addAndGet(e.delta().length());
+                    }
+                    if (e.terminal() && e.finishReason() != null) {
+                        capturedFinish.set(e.finishReason());
+                    }
+                })
+                .doFinally(signal -> {
+                    Duration elapsed = Duration.between(started.get(), Instant.now());
+                    String finish = capturedFinish.get();
+                    log.info("Gemini stream completed provider=gemini model={} requestAttempt={} "
+                                    + "chunks={} contentChunks={} contentChars={} "
+                                    + "finishReason={} elapsedMs={} signal={}",
+                            model, attempt, chunks.get(), contentChunks.get(),
+                            contentChars.get(), finish != null ? finish : "null",
+                            elapsed.toMillis(), signal);
+                });
     }
 
     @Override

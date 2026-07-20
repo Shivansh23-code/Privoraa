@@ -7,28 +7,20 @@ import { streamChat } from '../../lib/chatService';
 import { retrieveContext } from '../../lib/ragService';
 import { retrieveVaultContext, retrieveMemory } from '../../lib/vectorStore';
 import { isUnlocked } from '../../lib/vaultBridge';
-import { createSingleFlightGuard } from './singleFlight';
 import { finalContentPatch } from './finalContent';
 import {
   ensureLocalOllama, localHasModel, streamLocalOllamaChat, buildLocalMessages,
 } from '../../lib/localOllama';
 
 export function useChat(catalog) {
-  const abortRef = useRef(null);
-  const inFlightRef = useRef(null);
-  if (!inFlightRef.current) inFlightRef.current = createSingleFlightGuard();
-
+  const abortRefMap = useRef({});
   const store = useChatStore;
 
   const run = useCallback(
     async (conversationId, content, { isRegenerate = false, image = null } = {}) => {
-      if (!inFlightRef.current.tryStart()) return;
       const s = store.getState();
       const convo = s.conversations.find((c) => c.id === conversationId);
-      if (!convo) {
-        inFlightRef.current.finish();
-        return;
-      }
+      if (!convo) return;
 
       if (!isRegenerate) {
         s.addMessage(conversationId, { role: 'user', content, image: image || undefined });
@@ -40,14 +32,13 @@ export function useChat(catalog) {
         model: s.model,
         pending: true,
       });
-      s.setStreaming(true, assistantId);
+      s.setConversationStreaming(conversationId, assistantId);
 
-      // A new request supersedes any in-flight one: abort it first so we never run
-      // two live streams (e.g. the user hits Stop then sends again immediately).
-      abortRef.current?.abort();
+      // A new request for this conversation supersedes any in-flight one for the same conversation.
+      abortRefMap.current[conversationId]?.abort();
 
       const controller = new AbortController();
-      abortRef.current = controller;
+      abortRefMap.current[conversationId] = controller;
 
       // Finalize the assistant bubble exactly once (clears the pending/"thinking"
       // state). Without this, an aborted stream left the bubble stuck looking like
@@ -183,13 +174,12 @@ export function useChat(catalog) {
         // Stop ends the stream without an onDone — finalize so the bubble doesn't
         // stay stuck "responding". finalize() is idempotent.
         if (controller.signal.aborted) finalize({ aborted: true });
-        // Only clear the shared streaming/abort state if THIS run is still the
-        // active one; a newer request may have already taken over.
-        if (abortRef.current === controller) {
-          store.getState().setStreaming(false, null);
-          abortRef.current = null;
+        // Only clear the per-conversation streaming/abort state if THIS run is still the
+        // active one for this conversation; a newer request may have already taken over.
+        if (abortRefMap.current[conversationId] === controller) {
+          store.getState().clearConversationStreaming(conversationId);
+          delete abortRefMap.current[conversationId];
         }
-        inFlightRef.current.finish();
       }
     },
     [catalog, store]
@@ -206,8 +196,13 @@ export function useChat(catalog) {
     [run, store]
   );
 
-  const stop = useCallback(() => {
-    abortRef.current?.abort();
+  const stop = useCallback((conversationId) => {
+    if (conversationId) {
+      abortRefMap.current[conversationId]?.abort();
+    } else {
+      // Legacy: stop all
+      Object.values(abortRefMap.current).forEach((c) => c?.abort());
+    }
   }, []);
 
   const regenerate = useCallback(
