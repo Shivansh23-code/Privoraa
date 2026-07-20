@@ -66,6 +66,7 @@ header.nav.scrolled{border-bottom-color:var(--hair);background:var(--nav-bg-soli
   background:linear-gradient(135deg,var(--teal),var(--violet-deep));
   box-shadow:0 6px 18px rgba(43,224,190,.25)}
 .mark svg{width:16px;height:16px;color:var(--ink)}
+.mark img{width:18px;height:18px;object-fit:contain;display:block}
 .nav-links{display:flex;align-items:center;gap:2px}
 .nav-links a{color:var(--dim);text-decoration:none;font-size:.92rem;font-weight:600;
   padding:9px 13px;border-radius:9px;transition:color .2s,background .2s}
@@ -134,6 +135,7 @@ h2.t{font-family:var(--display);font-weight:700;letter-spacing:-.025em;
   background:rgba(255,255,255,.02)}
 .demo-bar .mark{width:26px;height:26px;box-shadow:none}
 .demo-bar .mark svg{width:12px;height:12px}
+.demo-bar .mark img{width:14px;height:14px}
 .demo-name{font-family:var(--display);font-weight:600;font-size:.95rem}
 .demo-status{margin-left:auto;font-family:var(--mono);font-size:.7rem;color:var(--teal);
   display:flex;align-items:center;gap:7px}

@@ -15,10 +15,7 @@ export default function NotFound() {
       />
 
       <span className="relative flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-brand-600 shadow-[0_6px_18px_rgba(43,224,190,.25)]">
-        <svg viewBox="0 0 24 24" className="h-5 w-5 text-[#070b14]" aria-hidden="true">
-          <path fill="none" stroke="currentColor" strokeWidth="2.2" d="M7 11V8a5 5 0 0 1 10 0v3" />
-          <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />
-        </svg>
+        <img src="/logo.png" alt="Vedix" />
       </span>
       <p className="relative mt-6 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-accent-500">
         Error 404

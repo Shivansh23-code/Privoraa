@@ -175,14 +175,11 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
           aria-label={onCollapse ? 'Collapse sidebar' : 'Vedix'}
           className="brand-grad group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm"
         >
-          <svg
-            viewBox="0 0 24 24"
-            className={`h-3.5 w-3.5 text-[#070b14] ${onCollapse ? 'group-hover:opacity-0' : ''}`}
-            aria-hidden="true"
-          >
-            <path fill="none" stroke="currentColor" strokeWidth="2.2" d="M7 11V8a5 5 0 0 1 10 0v3" />
-            <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />
-          </svg>
+          <img
+            src="/logo.png"
+            alt="Vedix"
+            className={`pointer-events-none ${onCollapse ? 'group-hover:opacity-0' : ''}`}
+          />
           {onCollapse && (
             <PanelLeftClose
               size={16}

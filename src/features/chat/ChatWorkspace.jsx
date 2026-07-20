@@ -331,10 +331,7 @@ export default function ChatWorkspace() {
             className="group flex h-9 w-9 items-center justify-center rounded-lg transition hover:bg-surface-2"
           >
             <span className="brand-grad flex h-8 w-8 items-center justify-center rounded-full group-hover:opacity-0">
-              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-[#070b14]" aria-hidden="true">
-                <path fill="none" stroke="currentColor" strokeWidth="2.2" d="M7 11V8a5 5 0 0 1 10 0v3" />
-                <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />
-              </svg>
+              <img src="/logo.png" alt="Vedix" />
             </span>
             <PanelLeftOpen size={18} className="absolute text-brand-500 opacity-0 transition group-hover:opacity-100" />
           </button>
