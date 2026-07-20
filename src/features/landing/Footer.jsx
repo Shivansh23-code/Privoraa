@@ -8,9 +8,7 @@ export default function Footer() {
           <div className="foot-brand">
             <a href="#top" className="brand">
               <span className="mark">
-                <svg aria-hidden="true">
-                  <use href="#i-lock" />
-                </svg>
+                <img src="/logo.png" alt="Vedix" />
               </span>
               Vedix
             </a>

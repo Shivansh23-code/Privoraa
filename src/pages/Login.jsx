@@ -52,10 +52,7 @@ const Login = () => {
       {/* Brand */}
       <Link to="/" className="relative mb-6 flex items-center gap-3">
         <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-accent-500 to-brand-600">
-          <svg viewBox="0 0 24 24" className="h-4 w-4 text-[#070B14]" aria-hidden="true">
-            <path fill="none" stroke="currentColor" strokeWidth="2.2" d="M7 11V8a5 5 0 0 1 10 0v3" />
-            <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />
-          </svg>
+          <img src="/logo.png" alt="Vedix" />
         </span>
         <span className="font-display text-lg font-bold">Vedix</span>
       </Link>
