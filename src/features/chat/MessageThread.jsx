@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { ChevronDown } from 'lucide-react';
 import MessageBubble from './MessageBubble';
 
 export default function MessageThread({
@@ -10,14 +11,22 @@ export default function MessageThread({
 }) {
   const endRef = useRef(null);
   const containerRef = useRef(null);
-  const pinnedRef = useRef(true); // is the user scrolled to the bottom?
+  const pinnedRef = useRef(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
 
-  // Track whether we should auto-follow the stream.
-  const onScroll = () => {
+  const onScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
-    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-  };
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    pinnedRef.current = nearBottom;
+    setShowScrollButton(!nearBottom && !isStreaming);
+  }, [isStreaming]);
+
+  const scrollToBottom = useCallback(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    pinnedRef.current = true;
+    setShowScrollButton(false);
+  }, []);
 
   useEffect(() => {
     if (pinnedRef.current) {
@@ -51,6 +60,18 @@ export default function MessageThread({
             onStop={onStop}
           />
         ))}
+        {showScrollButton && (
+          <div className="flex justify-center">
+            <button
+              onClick={scrollToBottom}
+              className="flex items-center gap-1 rounded-full border border-line/70 bg-surface-2/90 px-3 py-1.5 text-xs text-muted shadow-sm backdrop-blur transition hover:bg-surface-2 hover:text-fg"
+              aria-label="Scroll to bottom"
+            >
+              <ChevronDown size={14} />
+              Newer
+            </button>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
     </div>

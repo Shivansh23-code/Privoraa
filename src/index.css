@@ -220,11 +220,28 @@ html.dark [data-plan='pro'] { --bg:#080a0d; --surface:#0f1217; --surface-2:#151a
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
+@keyframes caret-fade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
 .streaming-caret::after {
   content: '▋';
   margin-left: 1px;
   animation: caret-blink 1s step-end infinite;
   color: var(--color-accent-500);
+}
+.streaming-caret.streaming-caret-fade::after {
+  animation: caret-fade 0.2s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .streaming-caret::after {
+    animation: none;
+    opacity: 1;
+  }
+  .streaming-caret.streaming-caret-fade::after {
+    animation: none;
+    opacity: 0;
+  }
 }
 
 @keyframes fade-rise {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Check,
   Copy,
@@ -55,9 +55,22 @@ function Citations({ citations }) {
 
 export default function MessageBubble({ message, isStreaming, onCopy, onRegenerate, onStop }) {
   const [copied, setCopied] = useState(false);
+  const [caretFading, setCaretFading] = useState(false);
+  const prevStreaming = useRef(false);
+  const fadeTimer = useRef(null);
   const isUser = message.role === 'user';
   const streaming = isStreaming && message.role === 'assistant';
   const notice = completionNotice(message);
+
+  // Caret fade-out on completion transition.
+  useEffect(() => {
+    if (prevStreaming.current && !streaming) {
+      setCaretFading(true);
+      fadeTimer.current = setTimeout(() => setCaretFading(false), 200);
+    }
+    prevStreaming.current = streaming;
+    return () => { if (fadeTimer.current) clearTimeout(fadeTimer.current); };
+  }, [streaming]);
 
   const copy = async () => {
     try {
@@ -115,7 +128,7 @@ export default function MessageBubble({ message, isStreaming, onCopy, onRegenera
       ) : message.pending && !message.content ? (
         <ThinkingDots />
       ) : (
-        <div className={streaming ? 'streaming-caret' : ''}>
+        <div className={`${streaming || caretFading ? 'streaming-caret' : ''} ${caretFading ? 'streaming-caret-fade' : ''}`}>
           <Markdown>{message.content}</Markdown>
         </div>
       )}

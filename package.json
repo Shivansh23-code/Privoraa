@@ -8,7 +8,7 @@
     "build": "vite build && vite build --ssr src/entry-server.jsx --outDir dist-server && node scripts/prerender.mjs",
     "build:client": "vite build",
     "lint": "eslint .",
-    "test": "node --test test/composerInput.test.js test/phase2_5.test.js test/singleFlight.test.js test/finalContent.test.js",
+    "test": "node --test test/composerInput.test.js test/phase2_5.test.js test/singleFlight.test.js test/finalContent.test.js test/streamingPolish.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
