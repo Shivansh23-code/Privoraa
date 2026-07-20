@@ -58,7 +58,7 @@ const SignUp = () => {
             <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />
           </svg>
         </span>
-        <span className="font-display text-lg font-bold">Privoraa</span>
+        <span className="font-display text-lg font-bold">Vedix</span>
       </Link>
 
       {/* Card */}

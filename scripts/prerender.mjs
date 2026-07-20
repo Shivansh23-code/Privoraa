@@ -12,22 +12,22 @@ const template = fs.readFileSync(path.join(distDir, 'index.html'), 'utf-8');
 
 const { render } = await import(url.pathToFileURL(path.join(root, 'dist-server', 'entry-server.js')).href);
 
-const SITE = 'https://privoraaai.vercel.app';
+const SITE = 'https://vedix.vercel.app';
 
 // Per-route head. Without this all pages shipped the landing's title/description/
 // canonical/OG, which hurts SEO and produces wrong link-unfurl previews.
 const META = {
   '/': {
-    title: 'Privoraa — Your Private AI Companion',
-    desc: 'Privoraa is a private AI companion that helps you focus, remember, and feel safe — your conversations stay sealed in a vault only you can open.',
+    title: 'Vedix — Your Private AI Companion',
+    desc: 'Vedix is a private AI companion that helps you focus, remember, and feel safe — your conversations stay sealed in a vault only you can open.',
   },
   '/plans': {
-    title: 'Plans & Pricing — Privoraa',
-    desc: 'Choose your Privoraa plan. Start free; upgrade for bigger models and more power. Private AI that runs in the cloud or fully on your device.',
+    title: 'Plans & Pricing — Vedix',
+    desc: 'Choose your Vedix plan. Start free; upgrade for bigger models and more power. Private AI that runs in the cloud or fully on your device.',
   },
   '/download': {
-    title: 'Privoraa Offline — Run AI privately on your device',
-    desc: 'Run Privoraa fully offline with the open-source Ollama engine. Download a model once, then chat with no internet — nothing leaves your device.',
+    title: 'Vedix Offline — Run AI privately on your device',
+    desc: 'Run Vedix fully offline with the open-source Ollama engine. Download a model once, then chat with no internet — nothing leaves your device.',
   },
 };
 

@@ -55,7 +55,7 @@ export default function Hero() {
               </span>
             </h1>
             <p className="lead">
-              Privoraa brings cloud and supported local models into one focused workspace. Run
+              Vedix brings cloud and supported local models into one focused workspace. Run
               compatible models <strong>on your device</strong>, keep selected memory in an encrypted
               vault, and continue local conversations without Wi-Fi.
             </p>

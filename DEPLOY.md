@@ -1,4 +1,4 @@
-# Deploying Privoraa (frontend on Vercel + backend on Render)
+# Deploying Vedix (frontend on Vercel + backend on Render)
 
 The frontend is already on Vercel. These steps put the **backend** online and connect
 the two so the live site does real AI chat, PDF/RAG upload, and image (vision) — not demo mode.

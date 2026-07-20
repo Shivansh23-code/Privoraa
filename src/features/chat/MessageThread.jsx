@@ -50,7 +50,7 @@ export default function MessageThread({
       aria-busy={isStreaming}
     >
       <span className="sr-only" aria-live="polite">{isStreaming ? 'Assistant is responding.' : ''}</span>
-      <div className="flex w-full max-w-none flex-col gap-5 px-5 pb-[calc(var(--composer-height,9rem)+2rem)] pt-6 sm:mx-auto sm:max-w-[760px] sm:px-6 sm:gap-6 lg:max-w-[860px] lg:px-0">
+      <div className="flex w-full max-w-none flex-col gap-4 px-4 pb-[calc(var(--composer-height,9rem)+2rem)] pt-4 sm:mx-auto sm:max-w-[760px] sm:px-6 sm:gap-6 lg:max-w-[860px] lg:px-0">
         {messages.map((m) => (
           <MessageBubble
             key={m.id}

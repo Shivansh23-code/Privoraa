@@ -13,7 +13,7 @@ function Login() {
 
     // Mock credentials (you can change this)
     const mockAdmin = {
-      email: 'admin@privoraa.com',
+      email: 'admin@vedix.app',
       password: 'admin123'
     };
 

@@ -39,9 +39,13 @@ export const useChatStore = create(
       documents: [],
       useRag: false, // "Use my notes" composer toggle
 
-      // transient (not persisted)
-      isStreaming: false,
-      streamingMessageId: null,
+      // transient (not persisted) — per-conversation streaming state for parallel chats
+      streamingConversations: {}, // { [conversationId]: { streamingMessageId } }
+
+      // cross-device sync state (transient)
+      syncStatus: 'idle', // 'idle' | 'syncing' | 'error' | 'synced'
+      syncError: null, // string | null
+      lastSyncAt: null, // ISO timestamp | null
 
       /* ----------------------------- selectors ---------------------------- */
       currentConversation: () =>
@@ -172,10 +176,35 @@ export const useChatStore = create(
         if (id) get().setConversationMode(id, mode);
       },
 
-      setStreaming: (isStreaming, streamingMessageId = null) =>
-        set({ isStreaming, streamingMessageId }),
+      setStreaming: (isStreaming) => {
+        if (!isStreaming) {
+          set({ streamingConversations: {} });
+        }
+      },
+
+      isConversationStreaming: (conversationId) =>
+        !!get().streamingConversations[conversationId],
+
+      setConversationStreaming: (conversationId, streamingMessageId) =>
+        set((s) => ({
+          streamingConversations: {
+            ...s.streamingConversations,
+            [conversationId]: { streamingMessageId },
+          },
+        })),
+
+      clearConversationStreaming: (conversationId) =>
+        set((s) => {
+          const { [conversationId]: _, ...rest } = s.streamingConversations;
+          return { streamingConversations: rest };
+        }),
 
       setUseRag: (useRag) => set({ useRag }),
+
+      /* ----------------------------- sync state --------------------------- */
+      setSyncStatus: (syncStatus) => set({ syncStatus }),
+      setSyncError: (syncError) => set({ syncError }),
+      setLastSyncAt: (lastSyncAt) => set({ lastSyncAt }),
 
       /* ----------------------------- documents ---------------------------- */
       // Replace the whole list (used to hydrate from the backend on load).

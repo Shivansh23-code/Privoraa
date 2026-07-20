@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { X, Download, ShieldCheck, WifiOff, Boxes, Sparkles, Check } from 'lucide-react';
 
 /**
- * "Get Privoraa Offline" — the upsell/onboarding for the private, on-device mode.
+ * "Get Vedix Offline" — the upsell/onboarding for the private, on-device mode.
  * Cloud users (OpenRouter) can discover the offline experience here. Honest framing:
- * powered by open-source models run locally via Ollama; the paid value is Privoraa's
+ * powered by open-source models run locally via Ollama; the paid value is Vedix's
  * curated catalog, UI, RAG and future plans — not the open-source engine itself.
  */
 export default function OfflineOffer({ open, onClose }) {
@@ -28,7 +28,7 @@ export default function OfflineOffer({ open, onClose }) {
           <span className="relative inline-flex items-center gap-1.5 rounded-full bg-brand-500/15 px-2.5 py-1 text-[11px] font-semibold text-brand-400">
             <Sparkles size={12} /> Free while in beta
           </span>
-          <h2 className="relative mt-2 font-display text-xl font-bold">Privoraa Offline</h2>
+          <h2 className="relative mt-2 font-display text-xl font-bold">Vedix Offline</h2>
           <p className="relative mt-1 text-sm text-muted">
             Run AI privately on your own machine. Nothing leaves your device — no cloud, no API
             keys, no per-message cost.
@@ -53,7 +53,7 @@ export default function OfflineOffer({ open, onClose }) {
               </li>
               <li className="flex gap-2">
                 <span className="font-semibold text-brand-500">2.</span>
-                Open Privoraa locally and pick a model from the catalog —
+                Open Vedix locally and pick a model from the catalog —
                 <span className="text-fg/80"> one click to download it.</span>
               </li>
               <li className="flex gap-2">
@@ -68,13 +68,13 @@ export default function OfflineOffer({ open, onClose }) {
             onClick={onClose}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-brand-600 to-accent-500 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-95"
           >
-            <Download size={17} /> Get Privoraa Offline
+            <Download size={17} /> Get Vedix Offline
           </Link>
 
           <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-relaxed text-faint">
             <Check size={13} className="mt-0.5 shrink-0 text-emerald-500" />
             Powered by open-source models (Llama, Qwen, Gemma, DeepSeek…) run locally via the
-            open-source Ollama runtime. Privoraa curates and manages them for you — it does not
+            open-source Ollama runtime. Vedix curates and manages them for you — it does not
             host or resell the model weights. You own your data.
           </p>
         </div>

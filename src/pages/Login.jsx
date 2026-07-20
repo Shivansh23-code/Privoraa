@@ -57,7 +57,7 @@ const Login = () => {
             <rect x="5" y="11" width="14" height="10" rx="2.5" fill="currentColor" />
           </svg>
         </span>
-        <span className="font-display text-lg font-bold">Privoraa</span>
+        <span className="font-display text-lg font-bold">Vedix</span>
       </Link>
 
       {/* Card */}
@@ -131,7 +131,7 @@ const Login = () => {
         </form>
 
         <p className="mt-6 text-center text-sm text-muted">
-          New to Privoraa?{' '}
+          New to Vedix?{' '}
           <Link to="/signup" className="font-semibold text-accent-500 hover:underline">
             Create an account
           </Link>

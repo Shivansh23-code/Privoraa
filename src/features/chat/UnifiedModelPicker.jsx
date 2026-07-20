@@ -415,7 +415,7 @@ function OllamaStatus({ probing, ollama, origin, isMobile, onRecheck, onHelp }) 
           Offline models run through Ollama, which only works on desktop (Windows, macOS, Linux) —
           not on phones. On mobile, use <span className="font-medium text-fg">Online</span> or{' '}
           <span className="font-medium text-fg">Auto</span>. To run your own local models, open
-          Privoraa on your computer.
+          Vedix on your computer.
         </p>
       </div>
     );

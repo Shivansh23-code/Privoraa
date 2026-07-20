@@ -6,7 +6,7 @@ export default function HowItWorks() {
           <span className="eyebrow">How it works</span>
           <h2 className="t">Three steps. Zero round-trips.</h2>
           <p className="sub">
-            Most assistants send your words to a data center and back. Privoraa's loop starts and
+            Most assistants send your words to a data center and back. Vedix's loop starts and
             ends in your hands.
           </p>
         </div>
@@ -32,7 +32,7 @@ export default function HowItWorks() {
             <h3>It seals</h3>
             <p>
               Anything worth remembering is encrypted into your local vault. You hold the key —
-              Privoraa just holds the door.
+              Vedix just holds the door.
             </p>
           </div>
         </div>

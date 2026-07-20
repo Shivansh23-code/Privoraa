@@ -369,7 +369,7 @@ function UpgradePanel({ currentPlan, onClose }) {
           })}
         </div>
         <p className="mt-4 text-center text-[11px] text-faint">
-          Paid plans are coming soon — Free is fully usable today. Models are open-source, run locally; Privoraa curates and manages them for you.
+          Paid plans are coming soon — Free is fully usable today. Models are open-source, run locally; Vedix curates and manages them for you.
         </p>
       </div>
     </div>
@@ -536,15 +536,15 @@ function SetupCard({ health, onRetry }) {
       </h3>
       <p className="mt-1 text-sm text-muted">
         {isCloud
-          ? 'These models run privately on your own computer — nothing leaves your device. The cloud app uses online models; to download and run local ones, use Privoraa with Ollama on your machine.'
-          : 'Privoraa runs models locally through Ollama. Pulling a model needs internet once; every chat afterward is fully offline.'}
+          ? 'These models run privately on your own computer — nothing leaves your device. The cloud app uses online models; to download and run local ones, use Vedix with Ollama on your machine.'
+          : 'Vedix runs models locally through Ollama. Pulling a model needs internet once; every chat afterward is fully offline.'}
       </p>
       <ol className="mx-auto mt-4 max-w-sm space-y-2 text-left text-sm">
         <li className="flex gap-2">
           <span className="font-semibold text-brand-500">1.</span>
           Get the free engine from{' '}
           <Link to="/download" className="text-brand-500 underline">
-            Privoraa’s download page
+            Vedix's download page
           </Link>
         </li>
         <li className="flex gap-2">
@@ -554,7 +554,7 @@ function SetupCard({ health, onRetry }) {
         </li>
         <li className="flex gap-2">
           <span className="font-semibold text-brand-500">3.</span>
-          {isCloud ? 'Open Privoraa on that machine to run it.' : 'Come back and hit retry.'}
+          {isCloud ? 'Open Vedix on that machine to run it.' : 'Come back and hit retry.'}
         </li>
       </ol>
       <button

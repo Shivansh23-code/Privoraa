@@ -48,7 +48,7 @@ export async function startUpgrade(plan, user) {
       order_id: res.orderId,
       amount: res.amount,
       currency: res.currency,
-      name: 'Privoraa',
+      name: 'Vedix',
       description: `${res.plan} plan`,
       prefill: { email: user?.email || '', name: user?.name || '' },
       theme: { color: '#6366f1' },

@@ -171,8 +171,8 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
           type="button"
           onClick={onCollapse}
           disabled={!onCollapse}
-          title={onCollapse ? 'Collapse sidebar' : 'Privoraa'}
-          aria-label={onCollapse ? 'Collapse sidebar' : 'Privoraa'}
+          title={onCollapse ? 'Collapse sidebar' : 'Vedix'}
+          aria-label={onCollapse ? 'Collapse sidebar' : 'Vedix'}
           className="brand-grad group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm"
         >
           <svg
@@ -190,7 +190,7 @@ export default function Sidebar({ onNavigate, fileInputRef, onCollapse }) {
             />
           )}
         </button>
-        <span className="font-display text-lg font-bold tracking-tight text-fg">Privoraa</span>
+        <span className="font-display text-lg font-bold tracking-tight text-fg">Vedix</span>
         {user?.plan === 'PRO' ? (
           <span title="Pro member" className="flex items-center gap-1 rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent-primary)]">
             <Crown size={10} /> Pro

@@ -52,7 +52,7 @@ const AdminPatternManager = () => {
 
   return (
     <div style={{ padding: '2rem' }}>
-      <h2>🔧 Admin: Manage Privoraa Patterns (Local Mode)</h2>
+      <h2>🔧 Admin: Manage Vedix Patterns (Local Mode)</h2>
       <PatternForm
         onSubmit={handleAddOrUpdate}
         existingPattern={editing}
