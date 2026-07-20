@@ -46,6 +46,28 @@ public final class Modes {
                     + "a table or a grid of columns. This matters because answers are often read on phones, "
                     + "where tables become unreadable. Use fenced code blocks for code and LaTeX for math.";
 
+    /**
+     * Response-style rules appended to every persona. Improves answer quality
+     * without forcing every response into the same template.
+     */
+    private static final String FORMATTING =
+            "\n\nResponse style:\n"
+                    + "- Answer directly. Do not use filler like \"Quick answer\", \"Here is the answer\", "
+                    + "\"Below is\", \"Let's dive in\", or \"Certainly\".\n"
+                    + "- Avoid unnecessary headings. Use headings only when the answer is long enough to benefit.\n"
+                    + "- Keep paragraphs concise. Do not repeat the user's question or the same conclusion.\n"
+                    + "- Use markdown naturally. Avoid excessive bold text. Do not make entire list items bold.\n"
+                    + "- Prefer short, clear explanations. Preserve technical correctness.\n"
+                    + "- For coding requests, when useful: brief explanation, code, key points, complexity/caveats.\n"
+                    + "  Do not force a rigid template on short requests.\n"
+                    + "- For tutorials: explain progressively with examples; avoid excessive sections or bloated "
+                    + "introductions; end naturally without a synthetic \"Conclusion\" unless useful.\n"
+                    + "- For concise requests: return concise answers; do not expand unnecessarily.\n"
+                    + "- For long answers: use calm editorial hierarchy; avoid over-nesting; use at most 2-3 heading "
+                    + "levels; avoid unnecessary horizontal rules.\n"
+                    + "- For code: fenced code blocks with language tags; code must be syntactically valid when "
+                    + "practical; do not repeat the same code in multiple blocks; explain only the important parts.";
+
     private static final String EXAM_TUTOR =
             "You tutor students for competitive exams. For each question: (1) give the core concept and "
                     + "intuition, (2) a fully worked step-by-step solution, (3) one short practice question to "
@@ -105,6 +127,6 @@ public final class Modes {
 
     public static String systemPrompt(String mode) {
         String persona = PROMPTS.getOrDefault(mode == null ? "general" : mode, GENERAL);
-        return CORE + "\n\n" + persona + STYLE;
+        return CORE + "\n\n" + persona + STYLE + FORMATTING;
     }
 }

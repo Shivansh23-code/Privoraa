@@ -70,6 +70,7 @@ export function useChat(catalog) {
             citations: meta.citations,
           }),
         onToken: (delta) => {
+          if (finalized) return;
           if (firstToken) {
             firstToken = false;
             store.getState().updateMessage(conversationId, assistantId, { pending: false });
