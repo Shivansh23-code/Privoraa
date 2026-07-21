@@ -1,6 +1,7 @@
 package com.privoraa.conversation;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -37,4 +38,8 @@ public interface MessageRepository extends JpaRepository<Message, String> {
               and m.role = com.privoraa.conversation.MessageRole.ASSISTANT
             """)
     long totalRequestsForUser(@Param("userId") String userId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM Message m WHERE m.conversation.id = :conversationId")
+    int deleteAllByConversationId(@Param("conversationId") String conversationId);
 }

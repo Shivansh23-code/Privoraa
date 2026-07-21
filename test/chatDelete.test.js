@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { create } from 'zustand';
+
+const ROOT = resolve(fileURLToPath(import.meta.url), '../..');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -98,7 +103,10 @@ function createTestStore() {
           return { conversations, currentId };
         });
       } else {
-        set({ syncStatus: 'error', syncError: result.error });
+        const errorMessage = result.status === 401
+          ? 'Your session has expired. Please sign in again.'
+          : result.error;
+        set({ syncStatus: 'error', syncError: errorMessage });
       }
 
       set((s) => { const { [id]: _, ...rest } = s.deletingConversationIds; return { deletingConversationIds: rest }; });
@@ -267,7 +275,7 @@ test('authenticated delete with 404 response removes conversation locally', asyn
 });
 
 // ---- 4. 401/403/409/500/network failure keeps conversation ----
-test('401 error keeps conversation and sets syncError', async () => {
+test('401 error keeps conversation and shows session-expired message', async () => {
   const store = createTestStore();
   store.getState()._setAuth(true);
   store.getState()._setDeleteResult({ success: false, data: null, error: 'Unauthorized', status: 401, _called: 0 });
@@ -277,7 +285,8 @@ test('401 error keeps conversation and sets syncError', async () => {
 
   assert(store.getState().conversations.some((c) => c.id === id));
   assert.equal(store.getState().syncStatus, 'error');
-  assert(store.getState().syncError?.includes('Unauthorized'));
+  assert(store.getState().syncError.includes('Your session has expired'));
+  assert(store.getState().syncError.includes('sign in again'));
 });
 
 test('403 error keeps conversation and sets syncError', async () => {
@@ -628,3 +637,38 @@ test('unauthenticated delete removes locally without remote call', async () => {
   // Removed locally
   assert(!store.getState().conversations.some((c) => c.id === id));
 });
+
+// ===========================================================================
+// Bearer token chain — verify DELETE carries Authorization header end-to-end
+// ===========================================================================
+
+test('deleteRemoteConversation sends DELETE with Bearer token via apiFetch chain', () => {
+  const apiClient = readFileSync(resolve(ROOT, 'src/lib/apiClient.js'), 'utf-8');
+  const chatSync = readFileSync(resolve(ROOT, 'src/lib/chatSync.js'), 'utf-8');
+  const chatStore = readFileSync(resolve(ROOT, 'src/store/chatStore.js'), 'utf-8');
+
+  // 1. getToken reads 'userToken' from localStorage
+  assert.match(apiClient, /getToken.*\{\s*return localStorage\.getItem\(ACCESS_KEY\)/);
+  assert.match(apiClient, /ACCESS_KEY.*=.*'userToken'/);
+
+  // 2. authHeaders builds Authorization: Bearer <token> from getToken()
+  assert.match(apiClient, /Authorization.*`Bearer \$\{token\}`/);
+
+  // 3. rawFetch passes authHeaders to every fetch call
+  assert.match(apiClient, /headers:\s*authHeaders\(/);
+
+  // 4. apiFetch calls rawFetch with the caller's opts (including method: 'DELETE')
+  assert.match(apiClient, /let res = await rawFetch\(path, opts\)/);
+
+  // 5. deleteRemoteConversation calls apiFetch with method: 'DELETE'
+  assert.match(chatSync, /apiFetch\(`\/conversations\/\$\{id\}`, \{ method: 'DELETE' \}\)/);
+
+  // 6. chatStore calls deleteRemoteConversation(id)
+  assert.match(chatStore, /deleteRemoteConversation\(id\)/);
+
+  // 7. 401 response maps to 'Your session has expired. Please sign in again.'
+  assert.match(chatStore, /result\.status === 401/);
+  assert.match(chatStore, /'Your session has expired\. Please sign in again\.'/);
+});
+
+

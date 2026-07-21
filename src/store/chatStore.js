@@ -127,7 +127,10 @@ export const useChatStore = create(
             return { conversations, currentId };
           });
         } else {
-          set({ syncStatus: 'error', syncError: result.error });
+          const errorMessage = result.status === 401
+            ? 'Your session has expired. Please sign in again.'
+            : result.error;
+          set({ syncStatus: 'error', syncError: errorMessage });
         }
 
         set((s) => {
