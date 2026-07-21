@@ -22,9 +22,14 @@ import {
   fetchRemoteConversationDetail,
   createRemoteConversation,
   updateRemoteConversation,
-  deleteRemoteConversation,
 } from '../../lib/chatSync';
 import { FALLBACK_MODELS } from '../../lib/models';
+
+// Tracks which conversation IDs have been confirmed to exist on the remote
+// server across sync cycles. Used to detect cross-device deletion: if a
+// conversation that was previously server-backed no longer appears in a remote
+// response, it was deleted by another device and should be removed locally.
+let prevRemoteIds = null;
 
 export default function ChatWorkspace() {
   const { data: models = FALLBACK_MODELS } = useQuery({
@@ -87,9 +92,11 @@ export default function ChatWorkspace() {
       return;
     }
     const s = useChatStore.getState();
+    const deletingIds = s.deletingConversationIds || {};
     const merged = [...s.conversations];
     let changed = false;
     for (const r of remote) {
+      if (deletingIds[r.id]) continue;
       const idx = merged.findIndex((c) => c.id === r.id);
       if (idx !== -1) {
         const existing = merged[idx];
@@ -110,8 +117,31 @@ export default function ChatWorkspace() {
         changed = true;
       }
     }
+    // Cross-device deletion: remove local conversations that were previously
+    // confirmed to exist on the server but no longer appear in the remote list.
+    if (prevRemoteIds && remote.length > 0) {
+      const remoteIds = new Set(remote.map((r) => r.id));
+      const toRemove = merged.filter(
+        (c) => prevRemoteIds.has(c.id) && !remoteIds.has(c.id) && !deletingIds[c.id]
+      );
+      for (const c of toRemove) {
+        const idx = merged.findIndex((m) => m.id === c.id);
+        if (idx !== -1) {
+          merged.splice(idx, 1);
+          changed = true;
+        }
+      }
+    }
+    if (prevRemoteIds === null || remote.length > 0) {
+      prevRemoteIds = new Set(remote.map((r) => r.id));
+    }
+
     if (changed) {
-      useChatStore.setState({ conversations: merged });
+      const patch = { conversations: merged };
+      if (s.currentId && !merged.some((c) => c.id === s.currentId)) {
+        patch.currentId = merged[0]?.id ?? null;
+      }
+      useChatStore.setState(patch);
     }
     setSyncStatus('synced');
     setLastSyncAt(new Date().toISOString());
@@ -165,22 +195,10 @@ export default function ChatWorkspace() {
     const unsub = useChatStore.subscribe((s, prev) => {
       if (s.conversations === prev.conversations) return;
       const prevIds = new Set(prev.conversations.map((c) => c.id));
-      const currIds = new Set(s.conversations.map((c) => c.id));
       // New conversations: push to remote with local ID (backend now accepts it).
       for (const c of s.conversations) {
         if (!prevIds.has(c.id)) {
           createRemoteConversation(c.id, c.title, c.mode);
-        }
-      }
-      // Deleted conversations: remove from remote.
-      for (const c of prev.conversations) {
-        if (!currIds.has(c.id)) {
-          deleteRemoteConversation(c.id).then((result) => {
-            if (!result.success) {
-              setSyncStatus('error');
-              setSyncError(result.error);
-            }
-          });
         }
       }
       // Renamed/pinned: update remote.

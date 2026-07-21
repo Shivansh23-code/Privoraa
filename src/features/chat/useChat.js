@@ -8,6 +8,7 @@ import { retrieveContext } from '../../lib/ragService';
 import { retrieveVaultContext, retrieveMemory } from '../../lib/vectorStore';
 import { isUnlocked } from '../../lib/vaultBridge';
 import { finalContentPatch } from './finalContent';
+import { abortControllers } from '../../lib/streamRegistry';
 import {
   ensureLocalOllama, localHasModel, streamLocalOllamaChat, buildLocalMessages,
 } from '../../lib/localOllama';
@@ -21,6 +22,7 @@ export function useChat(catalog) {
       const s = store.getState();
       const convo = s.conversations.find((c) => c.id === conversationId);
       if (!convo) return;
+      if (s.deletingConversationIds?.[conversationId]) return;
 
       if (!isRegenerate) {
         s.addMessage(conversationId, { role: 'user', content, image: image || undefined });
@@ -39,6 +41,7 @@ export function useChat(catalog) {
 
       const controller = new AbortController();
       abortRefMap.current[conversationId] = controller;
+      abortControllers[conversationId] = controller;
 
       // Finalize the assistant bubble exactly once (clears the pending/"thinking"
       // state). Without this, an aborted stream left the bubble stuck looking like
@@ -177,6 +180,9 @@ export function useChat(catalog) {
         // Only clear the per-conversation streaming/abort state if THIS run is still the
         // active one for this conversation; a newer request may have already taken over.
         if (abortRefMap.current[conversationId] === controller) {
+          if (abortControllers[conversationId] === controller) {
+            delete abortControllers[conversationId];
+          }
           store.getState().clearConversationStreaming(conversationId);
           delete abortRefMap.current[conversationId];
         }
