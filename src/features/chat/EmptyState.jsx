@@ -47,21 +47,21 @@ export default function EmptyState({ mode, onPick }) {
   const suggestions = SUGGESTIONS[mode] || SUGGESTIONS.general;
 
   return (
-    <div className="mx-auto flex min-h-full max-w-[760px] flex-col items-center justify-center px-4 pb-[calc(var(--composer-height,9rem)+2rem)] pt-10 text-center">
-      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-[var(--accent-primary)] ring-1 ring-line shadow-xl">
+    <div className="mobile-empty-state mx-auto flex min-h-full max-w-[760px] flex-col items-center justify-center px-4 pb-[calc(var(--composer-height,9rem)+2rem)] pt-10 text-center">
+      <div className="mobile-hero-icon mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface-2 text-[var(--accent-primary)] ring-1 ring-line shadow-xl">
         <Icon size={26} />
       </div>
-      <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl">How can I help?</h1>
-      <p className="mt-2 max-w-md text-sm text-muted">
+      <h1 className="mobile-hero-title font-display text-2xl font-semibold tracking-tight sm:text-3xl">How can I help?</h1>
+      <p className="mobile-hero-subtitle mt-2 max-w-md text-sm text-muted">
         {m.description}
       </p>
 
-      <div className="mt-7 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
+      <div className="mobile-suggestions mt-7 grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
         {suggestions.map((s) => (
           <button
             key={s}
             onClick={() => onPick(s)}
-            className="control-surface min-h-14 rounded-2xl px-4 py-3 text-left text-sm leading-5 text-fg/90 transition hover:-translate-y-0.5"
+            className="mobile-suggestion control-surface min-h-14 rounded-2xl px-4 py-3 text-left text-sm leading-5 text-fg/90 transition hover:-translate-y-0.5"
           >
             {s}
           </button>
@@ -69,7 +69,7 @@ export default function EmptyState({ mode, onPick }) {
       </div>
 
       {/* Signature motto */}
-      <div className="mt-9 flex items-center gap-3 text-faint">
+      <div className="mobile-motto mt-9 flex items-center gap-3 text-faint">
         <span className="h-px w-8 bg-gradient-to-r from-transparent to-line" />
         <p className="bg-gradient-to-r from-brand-400 to-accent-400 bg-clip-text text-xs font-semibold italic tracking-wide text-transparent">
           Your confidence decides who you are.

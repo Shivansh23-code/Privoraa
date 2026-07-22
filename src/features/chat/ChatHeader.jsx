@@ -89,13 +89,13 @@ export default function ChatHeader({
 
   return (
     <>
-      <header className="relative z-30 flex h-14 shrink-0 items-center gap-1 border-b border-line bg-bg/75 px-2 backdrop-blur-xl sm:h-16 sm:gap-2 sm:px-4">
+      <header className="mobile-chat-header relative z-30 flex h-14 shrink-0 items-center gap-1 border-b border-line bg-bg/75 px-2 backdrop-blur-xl sm:h-16 sm:gap-2 sm:px-4">
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r ${theme.accent}`} />
       <button
         ref={mobileMenuTriggerRef}
         onClick={onToggleSidebar}
         aria-label="Open navigation"
-        className="flex h-11 w-11 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg lg:hidden"
+        className="mobile-header-control flex h-11 w-11 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg lg:hidden"
         title="Menu"
       >
         <Menu size={18} />
@@ -165,7 +165,7 @@ export default function ChatHeader({
           aria-label="Open account menu"
           aria-expanded={menuOpen}
           aria-haspopup="true"
-          className="control-surface flex h-11 items-center gap-1.5 rounded-xl px-2 text-sm transition"
+          className="mobile-profile-control control-surface flex h-11 items-center gap-1.5 rounded-xl px-2 text-sm transition"
         >
           <span className={`flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br ${theme.ring} text-[11px] font-bold text-white`}>
             {(user?.name || user?.email || 'U').charAt(0).toUpperCase()}
