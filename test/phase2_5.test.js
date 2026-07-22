@@ -86,10 +86,20 @@ test('mobile assistant footer separates primary actions from icon actions and to
   const bubble = readFileSync(resolve(ROOT, 'src/features/chat/MessageBubble.jsx'), 'utf-8');
   const css = readFileSync(resolve(ROOT, 'src/index.css'), 'utf-8');
   assert.match(bubble, /mobile-action-primary/);
-  assert.match(bubble, /mobile-action-secondary/);
+  assert.match(bubble, /AssistantOverflowMenu/);
   assert.match(bubble, /mobile-token-count/);
   assert.match(css, /\.mobile-action-row\s*\{[^}]*flex-direction:\s*column/s);
-  assert.match(css, /\.mobile-action-secondary\s*\{[^}]*display:\s*flex/s);
+  assert.match(css, /\.mobile-action-primary\s*\{[^}]*display:\s*flex/s);
+});
+
+test('assistant overflow menu is accessible and supports outside click and Escape', () => {
+  const menu = readFileSync(resolve(ROOT, 'src/features/chat/AssistantOverflowMenu.jsx'), 'utf-8');
+  assert.match(menu, /aria-haspopup="menu"/);
+  assert.match(menu, /role="menu"/);
+  assert.match(menu, /role="menuitem"/);
+  assert.match(menu, /useClickOutside\(close, open\)/);
+  assert.match(menu, /event\.key === 'Escape'/);
+  assert.match(menu, /\['ArrowDown', 'ArrowUp'\]/);
 });
 
 // ---- Typography system ----
