@@ -71,6 +71,7 @@ function MessageBubble({ message, isStreaming, onCopy, onRegenerate, onContinue,
   const [feedback, setFeedback] = useState(null);
   const [actionStatus, setActionStatus] = useState('');
   const prevStreaming = useRef(false);
+  const citationsRef = useRef(null);
   const fadeTimer = useRef(null);
   const isUser = message.role === 'user';
   const streaming = isStreaming && message.role === 'assistant';
@@ -187,7 +188,7 @@ function MessageBubble({ message, isStreaming, onCopy, onRegenerate, onContinue,
         </div>
       )}
 
-      <Citations citations={message.citations} />
+      <div ref={citationsRef}><Citations citations={message.citations} /></div>
 
       {message.aborted && (
         <p className="mt-2 text-xs italic text-muted">Generation stopped.</p>
@@ -224,6 +225,15 @@ function MessageBubble({ message, isStreaming, onCopy, onRegenerate, onContinue,
                 >
                   {copied ? <Check size={15} className="text-emerald-500" /> : <Copy size={15} />}
                 </button>
+                <button aria-label="Like response" aria-pressed={feedback === 'up'} onClick={() => setFeedback(feedback === 'up' ? null : 'up')} className={`rounded-md p-1.5 hover:bg-surface-2 ${feedback === 'up' ? 'text-brand-500' : 'text-muted/70'} transition`}><ThumbsUp size={14} /></button>
+                <button aria-label="Dislike response" aria-pressed={feedback === 'down'} onClick={() => setFeedback(feedback === 'down' ? null : 'down')} className={`rounded-md p-1.5 hover:bg-surface-2 ${feedback === 'down' ? 'text-brand-500' : 'text-muted/70'} transition`}><ThumbsDown size={14} /></button>
+                <button
+                  onClick={share}
+                  aria-label="Share response"
+                  className="rounded-md p-1.5 text-muted/70 transition hover:bg-surface-2 hover:text-fg"
+                >
+                  <Share2 size={15} />
+                </button>
                 <button
                   onClick={onRegenerate}
                   aria-label="Regenerate response"
@@ -231,12 +241,18 @@ function MessageBubble({ message, isStreaming, onCopy, onRegenerate, onContinue,
                 >
                   <RefreshCw size={15} />
                 </button>
-                <button aria-label="Like response" aria-pressed={feedback === 'up'} onClick={() => setFeedback(feedback === 'up' ? null : 'up')} className={`mobile-icon-action rounded-md p-1.5 hover:bg-surface-2 ${feedback === 'up' ? 'text-brand-500' : 'text-muted/70'}`}><ThumbsUp size={13} /></button>
-                <button aria-label="Dislike response" aria-pressed={feedback === 'down'} onClick={() => setFeedback(feedback === 'down' ? null : 'down')} className={`mobile-icon-action rounded-md p-1.5 hover:bg-surface-2 ${feedback === 'down' ? 'text-brand-500' : 'text-muted/70'}`}><ThumbsDown size={13} /></button>
                 <AssistantOverflowMenu items={[
-                  { id: 'share', label: 'Share', icon: Share2, onSelect: share },
                   { id: 'download', label: 'Download', icon: Download, onSelect: download },
                 ]} />
+                {message.citations?.length > 0 && (
+                  <button
+                    onClick={() => citationsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })}
+                    aria-label="View sources"
+                    className="rounded-md p-1.5 text-muted/70 transition hover:bg-surface-2 hover:text-fg"
+                  >
+                    <ExternalLink size={15} />
+                  </button>
+                )}
                 {message.completionTokens != null && (
                   <span className="mobile-token-count ml-auto text-[11px] text-faint">
                     {message.completionTokens} tokens
