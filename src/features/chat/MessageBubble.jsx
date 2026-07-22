@@ -193,37 +193,41 @@ function MessageBubble({ message, isStreaming, onCopy, onRegenerate, onContinue,
             </button>
           ) : (
             <>
-              <button
-                onClick={copy}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-muted/70 transition hover:bg-surface-2 hover:text-fg"
-              >
-                {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                {copied ? 'Copied' : 'Copy'}
-              </button>
-              <button
-                onClick={onRegenerate}
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-muted/70 transition hover:bg-surface-2 hover:text-fg"
-              >
-                <RefreshCw size={12} /> Regenerate
-              </button>
-              {canContinueResponse(message) && (
-                <button onClick={onContinue} className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-[var(--accent-primary)] transition hover:bg-surface-2">
-                  Continue response
+              <div className="mobile-action-primary contents">
+                {canContinueResponse(message) && (
+                  <button onClick={onContinue} className="mobile-continue-action flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-[var(--accent-primary)] transition hover:bg-surface-2">
+                    Continue response
+                  </button>
+                )}
+                <button
+                  onClick={copy}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-muted/70 transition hover:bg-surface-2 hover:text-fg"
+                >
+                  {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                  {copied ? 'Copied' : 'Copy'}
                 </button>
-              )}
-              <button aria-label="Share response" onClick={async () => { try {
-                if (navigator.share) { await navigator.share({ title: 'Vedix response', text: message.content }); setActionStatus('Shared.'); }
-                else { await navigator.clipboard.writeText(message.content); setActionStatus('Sharing is unavailable. Response copied instead.'); }
-              } catch { setActionStatus('Could not share this response.'); }
-              }} className="rounded-md p-1.5 text-muted/70 hover:bg-surface-2 hover:text-fg"><Share2 size={13} /></button>
-              <button aria-label="Download response" onClick={() => downloadText(message.content, `vedix-response-${message.id}.md`)} className="rounded-md p-1.5 text-muted/70 hover:bg-surface-2 hover:text-fg"><Download size={13} /></button>
-              <button aria-label="Like response" aria-pressed={feedback === 'up'} onClick={() => setFeedback(feedback === 'up' ? null : 'up')} className={`rounded-md p-1.5 hover:bg-surface-2 ${feedback === 'up' ? 'text-brand-500' : 'text-muted/70'}`}><ThumbsUp size={13} /></button>
-              <button aria-label="Dislike response" aria-pressed={feedback === 'down'} onClick={() => setFeedback(feedback === 'down' ? null : 'down')} className={`rounded-md p-1.5 hover:bg-surface-2 ${feedback === 'down' ? 'text-brand-500' : 'text-muted/70'}`}><ThumbsDown size={13} /></button>
-              {message.completionTokens != null && (
-                <span className="ml-auto text-[11px] text-faint">
-                  {message.completionTokens} tokens
-                </span>
-              )}
+                <button
+                  onClick={onRegenerate}
+                  className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-muted/70 transition hover:bg-surface-2 hover:text-fg"
+                >
+                  <RefreshCw size={12} /> Regenerate
+                </button>
+              </div>
+              <div className="mobile-action-secondary contents">
+                <button aria-label="Share response" onClick={async () => { try {
+                  if (navigator.share) { await navigator.share({ title: 'Vedix response', text: message.content }); setActionStatus('Shared.'); }
+                  else { await navigator.clipboard.writeText(message.content); setActionStatus('Sharing is unavailable. Response copied instead.'); }
+                } catch { setActionStatus('Could not share this response.'); }
+                }} className="mobile-icon-action rounded-md p-1.5 text-muted/70 hover:bg-surface-2 hover:text-fg"><Share2 size={13} /></button>
+                <button aria-label="Download response" onClick={() => downloadText(message.content, `vedix-response-${message.id}.md`)} className="mobile-icon-action rounded-md p-1.5 text-muted/70 hover:bg-surface-2 hover:text-fg"><Download size={13} /></button>
+                <button aria-label="Like response" aria-pressed={feedback === 'up'} onClick={() => setFeedback(feedback === 'up' ? null : 'up')} className={`mobile-icon-action rounded-md p-1.5 hover:bg-surface-2 ${feedback === 'up' ? 'text-brand-500' : 'text-muted/70'}`}><ThumbsUp size={13} /></button>
+                <button aria-label="Dislike response" aria-pressed={feedback === 'down'} onClick={() => setFeedback(feedback === 'down' ? null : 'down')} className={`mobile-icon-action rounded-md p-1.5 hover:bg-surface-2 ${feedback === 'down' ? 'text-brand-500' : 'text-muted/70'}`}><ThumbsDown size={13} /></button>
+                {message.completionTokens != null && (
+                  <span className="mobile-token-count ml-auto text-[11px] text-faint">
+                    {message.completionTokens} tokens
+                  </span>
+                )}
+              </div>
             </>
           )}
         </div>

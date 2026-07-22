@@ -74,6 +74,10 @@ public class Message {
     @Column(name = "completion_status", length = 24)
     private String completionStatus;
 
+    @Lob
+    @Column(name = "response_plan_json")
+    private String responsePlanJson;
+
     @Column(name = "cost_micros", nullable = false)
     private long costMicros;
 

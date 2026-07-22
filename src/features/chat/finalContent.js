@@ -26,5 +26,10 @@ export function finalContentPatch(usage = {}, streamedContent = '') {
     continuationExhausted: usage.continuationExhausted === true,
     finalizationReason: usage.finalizationReason,
     contentAnalysisReason: usage.contentAnalysisReason,
+    hasRemainingContent: usage.hasRemainingContent === true,
+    segmentIndex: usage.segmentIndex,
+    totalSegments: usage.totalSegments,
+    completedSections: usage.completedSections,
+    remainingSections: usage.remainingSections,
   };
 }

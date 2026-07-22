@@ -1,5 +1,6 @@
 import { apiFetch, ApiError } from './apiClient';
 import { getToken } from './apiClient';
+import { normalizeRemoteMessage } from './messageNormalization.js';
 
 export function isAuthenticated() {
   return !!getToken();
@@ -34,7 +35,9 @@ export async function fetchRemoteConversationDetail(id) {
   if (unauth) return unauth;
   try {
     const data = await apiFetch(`/conversations/${id}`);
-    return data ? ok(data) : fail('Conversation not found');
+    if (!data) return fail('Conversation not found');
+    const messages = Array.isArray(data.messages) ? data.messages.map(normalizeRemoteMessage) : [];
+    return ok({ ...data, messages });
   } catch (err) {
     return fail(err instanceof Error ? err.message : 'Failed to fetch conversation detail');
   }

@@ -81,6 +81,7 @@ public class ChatService {
     private final ModelRegistry registry;
     private final ChatContinuationProperties continuationProps;
     private final ChatCompletionRepairProperties repairProps;
+    private final SemanticResponsePlanner responsePlanner;
 
     @Autowired
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
@@ -90,7 +91,8 @@ public class ChatService {
                        PrivacyPolicyEvaluator privacyPolicy, ScoredRouter scoredRouter,
                        ChatOutputProperties outputProps, ModelRegistry registry,
                        ChatContinuationProperties continuationProps,
-                       ChatCompletionRepairProperties repairProps) {
+                       ChatCompletionRepairProperties repairProps,
+                       SemanticResponsePlanner responsePlanner) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
@@ -109,6 +111,7 @@ public class ChatService {
         this.registry = registry;
         this.continuationProps = continuationProps;
         this.repairProps = repairProps;
+        this.responsePlanner = responsePlanner;
     }
 
     // ----------------------------------------------------------------- streaming
@@ -139,7 +142,7 @@ public class ChatService {
         Prepared p;
         try {
             RequestClassification classification = classifyAndEnforce(req);
-            p = prepare(userId, req, classification);
+            p = prepare(userId, req, classification, true);
         } catch (Exception e) {
             send(emitter, "error", Map.of("message", friendly(e)));
             emitter.complete();
@@ -298,6 +301,15 @@ public class ChatService {
         private void onSegmentComplete(String rawReason) {
             FinishReasonClassifier.Classification finish = FinishReasonClassifier.classify(rawReason);
             ResponseCompletenessAnalyzer.Result analysis = ResponseCompletenessAnalyzer.analyze(accumulated.toString());
+            boolean plannedBoundary = prepared.responsePlan() != null
+                    && prepared.responsePlan().hasRemainingContent()
+                    && finish.kind() == FinishReasonClassifier.Kind.COMPLETE
+                    && analysis.complete();
+            if (plannedBoundary) {
+                state = StreamState.COMPLETED;
+                finish(finish.raw(), "partial", false);
+                return;
+            }
             boolean incomplete = finish.kind() == FinishReasonClassifier.Kind.TOKEN_LIMIT || !analysis.complete();
             boolean recoverable = finish.kind() == FinishReasonClassifier.Kind.TOKEN_LIMIT
                     || (finish.kind() == FinishReasonClassifier.Kind.COMPLETE && analysis.recoverable())
@@ -417,7 +429,12 @@ public class ChatService {
             List<Map<String, Object>> messages = new ArrayList<>(prepared.messages());
             int tailStart = Math.max(0, accumulated.length() - continuationProps.overlapWindowChars());
             messages.add(Map.of("role", "assistant", "content", accumulated.substring(tailStart)));
-            messages.add(Map.of("role", "user", "content", CONTINUE_INSTRUCTION));
+            String instruction = prepared.responsePlan() == null ? CONTINUE_INSTRUCTION
+                    : prepared.continuation()
+                        ? responsePlanner.continuationInstruction(prepared.responsePlan())
+                        : responsePlanner.generationInstruction(prepared.responsePlan())
+                            + " Continue only from the prior output; do not repeat content already produced.";
+            messages.add(Map.of("role", "user", "content", instruction));
             return messages;
         }
 
@@ -481,6 +498,14 @@ public class ChatService {
             payload.put("tokenCountEstimated", tokenCountEstimated);
             payload.put("contentAnalysisReason", analysis.reason());
             payload.put("finalizationReason", operationalFinalizationReason(classified, completionStatus, exhausted));
+            if (prepared.responsePlan() != null) {
+                SemanticResponsePlanner.Plan plan = prepared.responsePlan();
+                payload.put("hasRemainingContent", plan.hasRemainingContent());
+                payload.put("segmentIndex", plan.segmentIndex());
+                payload.put("totalSegments", plan.totalSegments());
+                payload.put("completedSections", plan.completedSections());
+                payload.put("remainingSections", plan.remainingSections());
+            }
             log.info("Chat stream finalized requestId={} conversationId={} assistantMessageId={} provider={} model={} "
                             + "accumulatedLength={} finalContentLength={} completionEventContentLength={} "
                             + "persistedAssistantLength={} rawFinishReason={} normalizedFinishReason={} "
@@ -499,6 +524,7 @@ public class ChatService {
         private String operationalFinalizationReason(FinishReasonClassifier.Classification reason,
                                                      String status, boolean exhausted) {
             if ("aborted".equals(status)) return "cancelled";
+            if ("partial".equals(status) && prepared.responsePlan() != null) return "PLANNED_SEGMENTATION";
             if (reason.kind() == FinishReasonClassifier.Kind.SAFETY) return "safety_or_refusal";
             if ("timeout".equals(reason.normalized())) return "timeout";
             if (repairAttempted && !completionRepaired && !"complete".equals(status)) return "repair_failed";
@@ -515,7 +541,7 @@ public class ChatService {
     public ChatResponse chat(String userId, ChatRequest req) {
         rateLimit.check(userId);
         RequestClassification classification = classifyAndEnforce(req);
-        Prepared p = prepare(userId, req, classification);
+        Prepared p = prepare(userId, req, classification, false);
 
         ChatResult result = null;
         String usedModel = null;
@@ -587,7 +613,8 @@ public class ChatService {
     }
 
     /** Shared setup: persist the user message, route, retrieve RAG, build the prompt. */
-    private Prepared prepare(String userId, ChatRequest req, RequestClassification classification) {
+    private Prepared prepare(String userId, ChatRequest req, RequestClassification classification,
+                             boolean semanticPlanning) {
         Conversation convo = conversations.getOrCreate(userId, req.conversationId(), req.modeOrDefault());
         String conversationId = convo.getId();
         String mode = convo.getMode();
@@ -681,6 +708,19 @@ public class ChatService {
         int unknownFallback = outputProps.unknownModelMaxTokens();
         options = options.withOutputClamp(configuredBudget, ctx, descriptorLimit, promptTokens, safetyMargin, unknownFallback);
 
+        SemanticResponsePlanner.Plan responsePlan = continuationTarget == null
+                ? (semanticPlanning ? responsePlanner.plan(req.content(), options.maxTokens()) : null)
+                : responsePlanner.read(continuationTarget.getResponsePlanJson());
+        if (responsePlan != null && continuationTarget != null) responsePlan = responsePlan.advance();
+        if (responsePlan != null && continuationTarget == null) {
+            messages = new ArrayList<>(messages);
+            messages.add(1, Map.of("role", "system", "content",
+                    responsePlanner.generationInstruction(responsePlan)));
+            promptTokens = promptBuilder.estimatePromptTokens(messages);
+            options = options.withOutputClamp(configuredBudget, ctx, descriptorLimit, promptTokens,
+                    safetyMargin, unknownFallback);
+        }
+
         if (log.isDebugEnabled()) {
             log.debug("Output budget: category={} configuredBudget={} contextWindow={} "
                             + "descriptorLimit={} promptTokens={} safetyMargin={} unknownFallback={} finalMaxTokens={} "
@@ -693,7 +733,7 @@ public class ChatService {
         String existing = continuationTarget == null ? "" : continuationTarget.getContent();
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
                 routed.chain(), provider, options, scoredResult, continuationTarget != null,
-                continuationTarget == null ? null : continuationTarget.getId(), existing);
+                continuationTarget == null ? null : continuationTarget.getId(), existing, responsePlan);
     }
 
     /** The provider for this request: the picker's choice, else the server default. */
@@ -704,14 +744,25 @@ public class ChatService {
 
     private Message persistAssistant(String userId, Prepared p, String modelName, String content,
                                      int promptTokens, int completionTokens, String completionStatus) {
+        String planJson = responsePlanner.write(p.responsePlan());
         if (p.continuation()) {
+            if (planJson == null) {
+                return conversations.updateAssistantMessage(userId, p.conversationId(), p.targetAssistantMessageId(),
+                        content, modelName, p.routed().category(), p.routed().reason(), promptTokens,
+                        completionTokens, completionStatus, p.provider().id());
+            }
             return conversations.updateAssistantMessage(userId, p.conversationId(), p.targetAssistantMessageId(),
                     content, modelName, p.routed().category(), p.routed().reason(), promptTokens,
-                    completionTokens, completionStatus, p.provider().id());
+                    completionTokens, completionStatus, p.provider().id(), planJson);
+        }
+        if (planJson == null) {
+            return conversations.addAssistantMessage(p.conversationId(), content, modelName,
+                    p.routed().category(), p.routed().reason(), promptTokens, completionTokens,
+                    completionStatus, p.provider().id());
         }
         return conversations.addAssistantMessage(p.conversationId(), content, modelName,
                 p.routed().category(), p.routed().reason(), promptTokens, completionTokens,
-                completionStatus, p.provider().id());
+                completionStatus, p.provider().id(), planJson);
     }
 
     private Map<String, Object> metaPayload(String modelName, Prepared p) {
@@ -840,6 +891,7 @@ public class ChatService {
             ScoredRoutingResult scoredResult,
             boolean continuation,
             String targetAssistantMessageId,
-            String existingContent
+            String existingContent,
+            SemanticResponsePlanner.Plan responsePlan
     ) {}
 }

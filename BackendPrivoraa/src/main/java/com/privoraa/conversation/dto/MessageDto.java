@@ -21,7 +21,8 @@ public record MessageDto(
         Instant createdAt,
         String selectedProvider,
         List<String> images,
-        List<Map<String, Object>> attachments
+        List<Map<String, Object>> attachments,
+        Map<String, Object> responsePlan
 ) {
     private static final ObjectMapper JSON = new ObjectMapper();
     public static MessageDto from(Message m) {
@@ -36,7 +37,8 @@ public record MessageDto(
                 m.getCompletionTokens(),
                 m.getCompletionStatus(),
                 m.getCreatedAt(), m.getSelectedProvider(), read(m.getImagesJson(), new TypeReference<List<String>>() {}),
-                read(m.getAttachmentsJson(), new TypeReference<List<Map<String, Object>>>() {}));
+                read(m.getAttachmentsJson(), new TypeReference<List<Map<String, Object>>>() {}),
+                read(m.getResponsePlanJson(), new TypeReference<Map<String, Object>>() {}));
     }
 
     private static <T> T read(String json, TypeReference<T> type) {
