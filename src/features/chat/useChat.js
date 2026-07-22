@@ -8,6 +8,8 @@ import { retrieveContext } from '../../lib/ragService';
 import { retrieveVaultContext, retrieveMemory } from '../../lib/vectorStore';
 import { isUnlocked } from '../../lib/vaultBridge';
 import { finalContentPatch } from './finalContent';
+import { assistantRunPlan, manualContinuationOptions } from './continuationMode';
+import { truncateRemoteConversation } from '../../lib/chatSync';
 import { abortControllers } from '../../lib/streamRegistry';
 import {
   ensureLocalOllama, localHasModel, streamLocalOllamaChat, buildLocalMessages,
@@ -19,26 +21,43 @@ export function useChat(catalog) {
   const store = useChatStore;
 
   const run = useCallback(
-    async (conversationId, content, { isRegenerate = false, image = null } = {}) => {
+    async (conversationId, content, {
+      isRegenerate = false, isContinuation = false, targetAssistantMessageId = null,
+      existingContent = '', image = null, images = null, attachments = [], modelOverride, providerOverride,
+    } = {}) => {
       const s = store.getState();
+      const requestModel = modelOverride || s.model;
+      const requestProvider = providerOverride || s.modelProvider;
       const convo = s.conversations.find((c) => c.id === conversationId);
       if (!convo) return;
       if (s.deletingConversationIds?.[conversationId]) return;
 
-      if (!isRegenerate) {
-        s.addMessage(conversationId, { role: 'user', content, image: image || undefined });
+      const runPlan = assistantRunPlan({ isRegenerate, isContinuation, targetAssistantMessageId });
+      let userMessageId;
+      if (runPlan.addUserMessage) {
+        userMessageId = s.addMessage(conversationId, {
+          role: 'user', content, image: image || images?.[0] || undefined,
+          images: images?.length ? images : undefined, attachments,
+          selectedModel: requestModel, selectedProvider: requestProvider,
+        });
+      } else if (!isContinuation) {
+        const current = store.getState().conversations.find((item) => item.id === conversationId);
+        userMessageId = [...(current?.messages || [])].reverse().find((item) => item.role === 'user')?.id;
       }
 
-      const assistantId = s.addMessage(conversationId, {
-        role: 'assistant',
-        content: '',
-        model: s.model,
-        pending: true,
+      const assistantId = isContinuation ? runPlan.assistantId : s.addMessage(conversationId, {
+        role: 'assistant', content: '', model: requestModel, pending: true,
       });
+      if (isContinuation) {
+        if (!assistantId || !convo.messages.some((message) => message.id === assistantId && message.role === 'assistant')) return;
+        s.updateMessage(conversationId, assistantId, { pending: true, error: undefined });
+      }
       const requestId = globalThis.crypto?.randomUUID?.()
         || `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const runKey = `${conversationId}:${assistantId}:${requestId}`;
-      streamRunsRef.current[runKey] = { conversationId, assistantId, requestId, content: '' };
+      streamRunsRef.current[runKey] = {
+        conversationId, assistantId, requestId, content: isContinuation ? existingContent : '',
+      };
       s.setConversationStreaming(conversationId, assistantId, requestId);
 
       // A new request for this conversation supersedes any in-flight one for the same conversation.
@@ -114,12 +133,12 @@ export function useChat(catalog) {
       // Ollama running on THIS device with that model, stream straight from the
       // browser to it — uses the model they already downloaded, no cloud hop.
       const wantLocal =
-        s.modelProvider === 'offline' && s.model && s.model !== 'auto' && !s.model.includes('/');
+        requestProvider === 'offline' && requestModel && requestModel !== 'auto' && !requestModel.includes('/');
       let handledLocally = false;
       try {
         if (wantLocal) {
           const local = await ensureLocalOllama();
-          if (local && localHasModel(local, s.model)) {
+          if (local && localHasModel(local, requestModel)) {
             handledLocally = true;
 
             // "Chat with my notes" for on-device models. Prefer the SEALED VAULT
@@ -160,13 +179,13 @@ export function useChat(catalog) {
             else if (memoryBlock) reason += ' · using your memory';
             else if (ragBlock) reason += sealed ? ' · grounded on your sealed notes' : ' · grounded on your notes';
 
-            callbacks.onMeta({ model: s.model, category: 'general', reason, citations });
+            callbacks.onMeta({ model: requestModel, category: 'general', reason, citations });
             const conv = store.getState().conversations.find((c) => c.id === conversationId);
             const history = (conv?.messages || []).filter((m) => m.id !== assistantId);
             await streamLocalOllamaChat(
               {
                 base: local.base,
-                model: s.model,
+                model: requestModel,
                 messages: buildLocalMessages(history, null, ragBlock, memoryBlock),
               },
               callbacks
@@ -178,14 +197,20 @@ export function useChat(catalog) {
           await streamChat(
             {
               content,
-              model: s.model,
-              provider: s.modelProvider,
+              model: requestModel,
+              provider: requestProvider,
               mode: convo.mode,
               useRag: s.useRag && s.documents.some((d) => d.status === 'READY'),
               conversationId,
               catalog,
               image,
+              images,
+              userMessageId,
+              attachments,
               requestId,
+              isContinuation,
+              targetAssistantMessageId: isContinuation ? assistantId : undefined,
+              existingContent: isContinuation ? existingContent : undefined,
             },
             callbacks
           );
@@ -214,12 +239,12 @@ export function useChat(catalog) {
   );
 
   const send = useCallback(
-    (content, image = null) => {
+    (content, image = null, images = null, attachments = []) => {
       const text = content.trim();
       if (!text && !image) return; // allow image-only sends
       const s = store.getState();
       const conversationId = s.ensureConversation();
-      run(conversationId, text, { image });
+      run(conversationId, text, { image, images, attachments });
     },
     [run, store]
   );
@@ -243,10 +268,42 @@ export function useChat(catalog) {
       const prompt = [...convo.messages.slice(0, idx)].reverse().find((m) => m.role === 'user');
       if (!prompt) return;
       s.truncateAfter(conversationId, assistantMessageId);
-      run(conversationId, prompt.content, { isRegenerate: true });
+      run(conversationId, prompt.content, {
+        isRegenerate: true, image: prompt.image || null, images: prompt.images || null,
+        attachments: prompt.attachments || [],
+        modelOverride: prompt.selectedModel || prompt.model, providerOverride: prompt.selectedProvider,
+      });
     },
     [run, store]
   );
 
-  return { send, stop, regenerate };
+  const editPrompt = useCallback(async (conversationId, messageId, content) => {
+    const s = store.getState();
+    const convo = s.conversations.find((c) => c.id === conversationId);
+    const message = convo?.messages.find((m) => m.id === messageId && m.role === 'user');
+    const text = content.trim();
+    if (!message || (!text && !message.image && !message.images?.length && !message.attachments?.length)) return;
+    abortRefMap.current[conversationId]?.abort();
+    const remote = await truncateRemoteConversation(conversationId, messageId);
+    if (!remote.success && remote.error !== 'Not authenticated') throw new Error(remote.error);
+    s.truncateFrom(conversationId, messageId);
+    run(conversationId, text, {
+      image: message.image || null,
+      images: message.images || null,
+      attachments: message.attachments || [],
+      modelOverride: message.selectedModel || message.model,
+      providerOverride: message.selectedProvider,
+    });
+  }, [run, store]);
+
+  const continueResponse = useCallback((conversationId, assistantMessageId) => {
+    const convo = store.getState().conversations.find((item) => item.id === conversationId);
+    const message = convo?.messages.find((item) => item.id === assistantMessageId && item.role === 'assistant');
+    if (!message) return;
+    run(conversationId,
+      'Continue exactly from where the previous response stopped. Do not restart, repeat, introduce, or summarize. Complete the unfinished sentence or structure and finish the original answer.',
+      manualContinuationOptions(message));
+  }, [run, store]);
+
+  return { send, stop, regenerate, editPrompt, continueResponse };
 }

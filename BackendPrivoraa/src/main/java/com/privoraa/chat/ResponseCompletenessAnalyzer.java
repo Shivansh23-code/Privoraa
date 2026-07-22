@@ -32,7 +32,8 @@ public final class ResponseCompletenessAnalyzer {
     private static final Set<String> CONTINUATION_HINTS = Set.of(
             "however", "but", "and", "or", "because", "although", "while",
             "whereas", "therefore", "moreover", "furthermore", "nevertheless",
-            "nonetheless", "consequently", "then");
+            "nonetheless", "consequently", "then", "as", "with", "to", "for",
+            "of", "the", "a", "an", "is", "are", "was", "were");
 
     private static final Set<Character> SENTENCE_END = Set.of('.', '!', '?', '\u0964', '\uFE52', '\u3002');
 
@@ -61,6 +62,18 @@ public final class ResponseCompletenessAnalyzer {
             return result(State.UNFINISHED_MARKDOWN, "unfinished markdown span",
                     cs, ba, text);
         }
+        if (isBalancedStructuredContent(text, cs)) {
+            return new Result(State.COMPLETE, "complete structure",
+                    text.length(), text.length(), "", false, false);
+        }
+        if (hasUnclosedTable(text)) {
+            return result(State.UNFINISHED_MARKDOWN, "unclosed markdown table", cs, ba, text);
+        }
+        if (ba.lastBlock != null && ba.lastBlock.type == BlockType.PARAGRAPH
+                && endsWithContinuationHint(ba.lastBlock.content)) {
+            return result(cs.lastSafeBoundary >= 0 ? State.INCOMPLETE_PROSE_BLOCK : State.NO_SAFE_FALLBACK,
+                    "dangling connector", cs, ba, text);
+        }
 
         if (ba.lastBlock != null
                 && !isStructurallyComplete(ba.lastBlock, cs, text)) {
@@ -86,7 +99,7 @@ public final class ResponseCompletenessAnalyzer {
                     -1, -1, text, false, false);
         }
 
-        return new Result(State.COMPLETE, "structurally complete",
+        return new Result(State.COMPLETE, "complete structure",
                 text.length(), text.length(), "", false, false);
     }
 
@@ -247,7 +260,10 @@ public final class ResponseCompletenessAnalyzer {
                 if (lines.length <= 1) yield true;
                 yield hasTerminalPunctuation(lines[1]) || isShortAnswer(lines[1]);
             }
-            case LIST_ITEM -> true;
+            case LIST_ITEM -> {
+                String last = block.lines().reduce((a, b) -> b).orElse(block).strip();
+                yield !endsWithCommaColonSemicolon(last) && !endsWithContinuationHint(last);
+            }
             case BLOCKQUOTE -> isCompleteBlock(block.replaceAll("^>\\s?", ""), BlockType.PARAGRAPH);
             case CODE_BLOCK -> block.strip().endsWith("```");
             case TABLE -> block.matches("(?s).*\\|.*\\|---.*\\|.*");
@@ -263,6 +279,8 @@ public final class ResponseCompletenessAnalyzer {
     }
 
     private static boolean isStructurallyComplete(Block block, CharScan cs, String fullText) {
+        if (block.type == BlockType.LIST_ITEM) return isCompleteBlock(block.content, block.type);
+        if (block.content.strip().matches("(?s).*`[^`]+`$")) return true;
         if (isCompleteBlock(block.content, block.type)) return true;
         if (hasTerminalPunctuation(block.content)) return true;
         if (endsWithCommaColonSemicolon(block.content)) return false;
@@ -291,8 +309,20 @@ public final class ResponseCompletenessAnalyzer {
     /** Secondary lexical hint: suffix ends with a continuation word. */
     private static boolean endsWithContinuationHint(String suffix) {
         if (suffix.isBlank()) return false;
+        if (!plainProseTail(suffix)) return false;
         String lastWord = suffix.replaceAll(".*\\s+", "").replaceAll("[^\\p{L}]", "");
         return CONTINUATION_HINTS.contains(lastWord.toLowerCase(Locale.ROOT));
+    }
+
+    private static boolean plainProseTail(String suffix) {
+        String value = suffix.strip();
+        if (value.startsWith("#") || value.startsWith("|") || value.startsWith("```")
+                || value.startsWith("{") || value.startsWith("[") || value.startsWith("<")) return false;
+        if (value.matches("`[^`]+`") || value.matches("(['\"]).*\\1")) return false;
+        String last = value.replaceAll(".*\\s+", "");
+        if (last.matches("`[^`]+`") || last.matches("(['\"]).*\\1")) return false;
+        return !last.contains(".") && !last.contains("/") && !last.contains("\\")
+                && !last.matches("[A-Za-z_$][A-Za-z0-9_$]*[(){}\\[\\]]+");
     }
 
     /** Secondary lexical hint check — not the primary mechanism. */
@@ -390,14 +420,38 @@ public final class ResponseCompletenessAnalyzer {
         return index + 2 < text.length() && text.startsWith("```", index);
     }
 
+    private static boolean hasUnclosedTable(String text) {
+        String[] lines = text.split("\\R", -1);
+        int lastTable = -1;
+        for (int i = 0; i < lines.length; i++) {
+            if (lines[i].strip().startsWith("|") && lines[i].strip().endsWith("|")) lastTable = i;
+        }
+        return lastTable >= 0 && lastTable == lines.length - 1
+                && lines[lastTable].chars().filter(ch -> ch == '|').count() < 3;
+    }
+
+    private static boolean isBalancedStructuredContent(String text, CharScan scan) {
+        String value = text.strip();
+        if (!scan.unbalancedBrace && !scan.unbalancedSquare
+                && ((value.startsWith("{") && value.endsWith("}"))
+                    || (value.startsWith("[") && value.endsWith("]")))) return true;
+        return value.startsWith("<") && value.endsWith(">")
+                && value.matches("(?s)^<([A-Za-z][\\w:.-]*)\\b[^>]*>.*</\\1>$");
+    }
+
     // --------------------------------------------------------------- records
 
     public record Result(State state, String reason,
                          int lastCompleteSentenceBoundary,
                          int lastCompleteBlockBoundary,
                          String suspiciousSuffix,
-                         boolean repairRecommended,
-                         boolean trimSafe) {}
+                          boolean repairRecommended,
+                          boolean trimSafe) {
+        public boolean complete() { return state == State.COMPLETE; }
+        public double confidence() { return complete() ? 0.9 : 0.95; }
+        public String detectedStructure() { return state.name().toLowerCase(Locale.ROOT); }
+        public boolean recoverable() { return state != State.COMPLETE && state != State.NO_SAFE_FALLBACK || !suspiciousSuffix.isBlank(); }
+    }
 
     private record CharScan(boolean openFence, boolean unbalancedParen,
                             boolean unbalancedSquare, boolean unbalancedBrace,

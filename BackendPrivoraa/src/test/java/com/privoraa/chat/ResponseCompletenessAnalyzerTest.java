@@ -196,6 +196,26 @@ class ResponseCompletenessAnalyzerTest {
                 "First sentence. Consider:").state());
     }
 
+    @Test
+    void observedRegisteredAsEndingIsIncompleteAndRecoverable() {
+        ResponseCompletenessAnalyzer.Result result = ResponseCompletenessAnalyzer.analyze(
+                "Check relevant business registries to ensure the name isn't already registered as");
+        assertFalse(result.complete());
+        assertTrue(result.recoverable());
+    }
+
+    @Test
+    void unfinishedBulletEndingInConnectorIsIncomplete() {
+        assertFalse(ResponseCompletenessAnalyzer.analyze("- Verify trademark status with").complete());
+    }
+
+    @Test
+    void connectorsInsideCodeAndJsonDoNotCreateFalseIncompleteResult() {
+        assertTrue(ResponseCompletenessAnalyzer.analyze("```java\nString value = \"as\";\n```").complete());
+        assertTrue(ResponseCompletenessAnalyzer.analyze("{\"label\":\"registered as\"}").complete());
+        assertTrue(ResponseCompletenessAnalyzer.analyze("Use the literal `as`").complete());
+    }
+
     // ---- OPEN CODE FENCE ----
 
     @Test

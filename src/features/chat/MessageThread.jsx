@@ -7,6 +7,8 @@ export default function MessageThread({
   isStreaming,
   streamingMessageId,
   onRegenerate,
+  onContinue,
+  onEditPrompt,
   onStop,
 }) {
   const endRef = useRef(null);
@@ -57,6 +59,8 @@ export default function MessageThread({
             message={m}
             isStreaming={isStreaming && m.id === streamingMessageId}
             onRegenerate={() => onRegenerate(m.id)}
+            onContinue={() => onContinue(m.id)}
+            onEditPrompt={(content) => onEditPrompt(m.id, content)}
             onStop={onStop}
           />
         ))}

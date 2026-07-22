@@ -11,8 +11,9 @@ class ChatContractCompatibilityTest {
 
     @Test
     void requestAndResponseRecordComponentsRemainStable() {
-        assertEquals(List.of("conversationId", "model", "mode", "content", "useRag", "image", "provider"),
-                componentNames(ChatRequest.class));
+        assertEquals(List.of("conversationId", "model", "mode", "content", "useRag", "image", "provider",
+                        "images", "userMessageId", "attachments", "isContinuation",
+                        "targetAssistantMessageId", "existingContent"), componentNames(ChatRequest.class));
         assertEquals(List.of("conversationId", "model", "category", "reason", "message",
                         "promptTokens", "completionTokens", "citations",
                         "registryId", "pricingTier", "topology"),

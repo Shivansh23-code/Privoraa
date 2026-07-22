@@ -32,9 +32,10 @@ public class RuntimeDiagnostics {
                 output.codeMaxTokens(), output.reasoningMaxTokens(), output.documentMaxTokens(),
                 output.visionMaxTokens(), output.unknownModelMaxTokens(), output.safetyMargin());
         log.info("Chat continuation configuration loaded: enabled={} maxSegments={} "
-                        + "maxTotalCompletionTokens={} overlapWindowChars={}",
+                        + "maxOutputTokens={} maxTotalCompletionTokens={} timeoutSeconds={} overlapWindowChars={}",
                 continuation.enabled(), continuation.maxSegments(),
-                continuation.maxTotalCompletionTokens(), continuation.overlapWindowChars());
+                continuation.maxOutputTokens(), continuation.maxTotalCompletionTokens(),
+                continuation.timeoutSeconds(), continuation.overlapWindowChars());
         log.info("Chat completion repair configuration loaded: enabled={} maxAttempts={} maxOutputTokens={}",
                 completionRepair.enabled(), completionRepair.maxAttempts(), completionRepair.maxOutputTokens());
         log.info("Build identity: version={} gitCommit={} buildTimestamp={}",

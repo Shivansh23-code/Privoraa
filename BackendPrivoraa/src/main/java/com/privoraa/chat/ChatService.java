@@ -53,6 +53,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -145,7 +146,7 @@ public class ChatService {
             return emitter;
         }
 
-        new StreamSession(emitter, p, requestId).start();
+        new StreamSession(emitter, p, requestId, userId).start();
         return emitter;
     }
 
@@ -163,6 +164,7 @@ public class ChatService {
         private final SseEmitter emitter;
         private final Prepared prepared;
         private final String requestId;
+        private final String userId;
         private final StringBuilder accumulated = new StringBuilder();
         private final Disposable.Swap active = Disposables.swap();
         private final AtomicBoolean cancelled = new AtomicBoolean(false);
@@ -177,11 +179,13 @@ public class ChatService {
         private int segments;
         private int modelIndex;
         private String activeModel;
+        private int unknownContinuations;
 
-        StreamSession(SseEmitter emitter, Prepared prepared, String requestId) {
+        StreamSession(SseEmitter emitter, Prepared prepared, String requestId, String userId) {
             this.emitter = emitter;
             this.prepared = prepared;
             this.requestId = requestId;
+            this.userId = userId;
             emitter.onTimeout(this::cancel);
             emitter.onError(ignored -> cancel());
             emitter.onCompletion(this::cancel);
@@ -189,10 +193,12 @@ public class ChatService {
 
         void start() {
             activeModel = prepared.chain().getFirst();
+            if (prepared.continuation()) accumulated.append(prepared.existingContent());
             log.info("Chat stream started requestId={} provider={} model={}",
                     requestId, prepared.provider().id(), activeModel);
             send(emitter, "meta", metaPayload(nameOf(activeModel), prepared));
-            runSegment(prepared.messages(), false);
+            runSegment(prepared.continuation() ? continuationMessages() : prepared.messages(),
+                    prepared.continuation());
         }
 
         private void runSegment(List<Map<String, Object>> messages, boolean continuation) {
@@ -207,10 +213,17 @@ public class ChatService {
             AtomicInteger providerCompletion = new AtomicInteger();
             int remaining = Math.max(1, continuationProps.maxTotalCompletionTokens()
                     - totalCompletionTokens.get());
-            ChatOptions segmentOptions = prepared.options().maxTokens() != null
-                    && prepared.options().maxTokens() > remaining
-                    ? prepared.options().withMaxTokens(remaining) : prepared.options();
+            int configured = continuation ? continuationProps.maxOutputTokens()
+                    : (prepared.options().maxTokens() == null ? remaining : prepared.options().maxTokens());
+            ChatOptions segmentOptions = prepared.options().withMaxTokens(Math.max(1, Math.min(configured, remaining)));
+            send(emitter, "segment", Map.of("segment", segments, "continuation", continuation,
+                    "maxOutputTokens", segmentOptions.maxTokens()));
+            log.info("Chat segment request requestId={} conversationId={} provider={} model={} segment={} "
+                            + "requestedMaxOutputTokens={} promptTokenEstimate={}",
+                    requestId, prepared.conversationId(), prepared.provider().id(), activeModel, segments,
+                    segmentOptions.maxTokens(), promptBuilder.estimatePromptTokens(messages));
             Disposable subscription = prepared.provider().streamChat(activeModel, messages, segmentOptions)
+                    .timeout(Duration.ofSeconds(continuationProps.timeoutSeconds()))
                     .subscribeOn(Schedulers.boundedElastic())
                     .subscribe(event -> {
                         if (cancelled.get()) return;
@@ -218,7 +231,7 @@ public class ChatService {
                         if (event.completionTokens() > 0) providerCompletion.set(event.completionTokens());
                         if (event.terminal()) {
                             terminal.set(true);
-                            reason.set(normalizeReason(event.finishReason()));
+                            reason.set(event.finishReason());
                         } else if (event.delta() != null && !event.delta().isEmpty()) {
                             emitted.set(true);
                             segment.append(event.delta());
@@ -278,32 +291,55 @@ public class ChatService {
                     requestId, prepared.provider().id(), activeModel,
                     !accumulated.isEmpty(), segments, err.getClass().getSimpleName());
             state = StreamState.FAILED;
-            finish("error", "incomplete", false);
+            finish(err instanceof java.util.concurrent.TimeoutException ? "timeout" : "provider_error",
+                    "incomplete", false);
         }
 
-        private void onSegmentComplete(String reason) {
-            if ("length".equals(reason) && canContinue()) {
-                runSegment(continuationMessages(), true);
-            } else if ("length".equals(reason)) {
+        private void onSegmentComplete(String rawReason) {
+            FinishReasonClassifier.Classification finish = FinishReasonClassifier.classify(rawReason);
+            ResponseCompletenessAnalyzer.Result analysis = ResponseCompletenessAnalyzer.analyze(accumulated.toString());
+            boolean incomplete = finish.kind() == FinishReasonClassifier.Kind.TOKEN_LIMIT || !analysis.complete();
+            boolean recoverable = finish.kind() == FinishReasonClassifier.Kind.TOKEN_LIMIT
+                    || (finish.kind() == FinishReasonClassifier.Kind.COMPLETE && analysis.recoverable())
+                    || (finish.kind() == FinishReasonClassifier.Kind.UNKNOWN && analysis.recoverable()
+                        && unknownContinuations < 1);
+            boolean continueNow = incomplete && recoverable && canContinue();
+            log.info("Chat segment complete requestId={} conversationId={} provider={} model={} segment={} "
+                            + "completionTokens={} rawFinishReason={} normalizedFinishReason={} accumulatedLength={} "
+                            + "continuationDecision={} continuationStopReason={}",
+                    requestId, prepared.conversationId(), prepared.provider().id(), activeModel, segments,
+                    totalCompletionTokens.get(), finish.raw(), finish.normalized(), accumulated.length(), continueNow,
+                    continueNow ? "continuing" : continuationStopReason(finish, incomplete));
+            if (continueNow) {
+                if (finish.kind() == FinishReasonClassifier.Kind.UNKNOWN) unknownContinuations++;
+                if (finish.kind() == FinishReasonClassifier.Kind.COMPLETE && repairProps.enabled()
+                        && repairProps.maxAttempts() > 0 && !repairAttempted) runRepair();
+                else runSegment(continuationMessages(), true);
+            } else if (incomplete && recoverable) {
                 state = StreamState.LIMIT_REACHED;
-                finish("length", "limit_reached", false);
-            } else if ("stop".equals(reason)) {
-                ResponseCompletenessAnalyzer.Result analysis = ResponseCompletenessAnalyzer.analyze(
-                        accumulated.toString());
-                if (repairProps.enabled() && repairProps.maxAttempts() > 0
-                        && analysis.repairRecommended() && !accumulated.isEmpty()) {
-                    runRepair();
-                } else {
-                    state = StreamState.COMPLETED;
-                    finish("stop", "complete", false);
-                }
-            } else if ("content_filter".equals(reason) || "safety".equals(reason)) {
+                finish(finish.raw(), finish.kind() == FinishReasonClassifier.Kind.TOKEN_LIMIT
+                        ? "limit_reached" : "incomplete", false);
+            } else if ((finish.kind() == FinishReasonClassifier.Kind.COMPLETE
+                    || finish.kind() == FinishReasonClassifier.Kind.UNKNOWN) && analysis.complete()) {
                 state = StreamState.COMPLETED;
-                finish(reason, "incomplete", false);
+                finish(finish.raw(), "complete", false);
+            } else if (finish.kind() == FinishReasonClassifier.Kind.SAFETY) {
+                state = StreamState.COMPLETED;
+                finish(finish.raw(), "incomplete", false);
             } else {
                 state = StreamState.FAILED;
-                finish(reason, "incomplete", false);
+                finish(finish.raw(), "incomplete", false);
             }
+        }
+
+        private String continuationStopReason(FinishReasonClassifier.Classification finish, boolean incomplete) {
+            if (!incomplete) return "complete";
+            if (finish.kind() == FinishReasonClassifier.Kind.SAFETY) return "safety_or_refusal";
+            if (finish.kind() == FinishReasonClassifier.Kind.CANCELLED_OR_ERROR) return "provider_error";
+            if (!continuationProps.enabled()) return "disabled";
+            if (segments >= continuationProps.maxSegments()) return "max_segments";
+            if (totalCompletionTokens.get() >= continuationProps.maxTotalCompletionTokens()) return "token_budget";
+            return "unrecoverable";
         }
 
         private void runRepair() {
@@ -311,6 +347,7 @@ public class ChatService {
             state = StreamState.REPAIRING;
             repairAttempted = true;
             repairSegments = 1;
+            segments++;
             List<Map<String, Object>> messages = new ArrayList<>(prepared.messages());
             messages.add(Map.of("role", "assistant", "content", accumulated.toString()));
             messages.add(Map.of("role", "user", "content", REPAIR_INSTRUCTION));
@@ -343,8 +380,11 @@ public class ChatService {
                             state = StreamState.COMPLETED;
                             finish("stop", "complete", false);
                         } else {
-                            state = StreamState.COMPLETED;
-                            finish("stop", "complete", false);
+                            if (canContinue()) runSegment(continuationMessages(), true);
+                            else {
+                                state = StreamState.LIMIT_REACHED;
+                                finish(terminalReason.get(), "incomplete", false);
+                            }
                         }
                     });
             active.update(subscription);
@@ -352,8 +392,8 @@ public class ChatService {
 
         private void finishAfterFailedRepair(String repair) {
             mergeRepair(repair);
-            state = StreamState.COMPLETED;
-            finish("stop", "complete", false);
+            state = StreamState.FAILED;
+            finish("provider_error", "incomplete", false);
         }
 
         private String mergeRepair(String repair) {
@@ -375,7 +415,8 @@ public class ChatService {
 
         private List<Map<String, Object>> continuationMessages() {
             List<Map<String, Object>> messages = new ArrayList<>(prepared.messages());
-            messages.add(Map.of("role", "assistant", "content", accumulated.toString()));
+            int tailStart = Math.max(0, accumulated.length() - continuationProps.overlapWindowChars());
+            messages.add(Map.of("role", "assistant", "content", accumulated.substring(tailStart)));
             messages.add(Map.of("role", "user", "content", CONTINUE_INSTRUCTION));
             return messages;
         }
@@ -416,36 +457,56 @@ public class ChatService {
             // tail trimming can discard fenced code and made persistence disagree
             // with what the user saw while streaming.
             String finalContent = rawContent;
-            Message persisted = persistAssistant(prepared, nameOf(activeModel), finalContent, prompt, completion);
             ResponseCompletenessAnalyzer.Result analysis =
                     ResponseCompletenessAnalyzer.analyze(rawContent);
+            FinishReasonClassifier.Classification classified = FinishReasonClassifier.classify(reason);
+            boolean incomplete = !"complete".equals(completionStatus);
+            boolean exhausted = incomplete && (segments >= continuationProps.maxSegments()
+                    || totalCompletionTokens.get() >= continuationProps.maxTotalCompletionTokens());
+            Message persisted = persistAssistant(userId, prepared, nameOf(activeModel), finalContent,
+                    prompt, completion, completionStatus);
             Map<String, Object> payload = donePayload(nameOf(activeModel), prepared, prompt, completion, reason);
             payload.put("completionStatus", completionStatus);
             payload.put("finalContent", finalContent);
             payload.put("rawFinishReason", reason);
+            payload.put("normalizedFinishReason", classified.normalized());
             payload.put("tailTrimmed", false);
             payload.put("repairAttempted", repairAttempted);
             payload.put("completionRepaired", completionRepaired);
             payload.put("repairSegments", repairSegments);
             payload.put("segments", segments);
-            payload.put("continued", segments > 1);
+            payload.put("continued", prepared.continuation() || segments > 1);
+            payload.put("continuationExhausted", exhausted);
+            payload.put("incomplete", incomplete);
             payload.put("tokenCountEstimated", tokenCountEstimated);
-            payload.put("finalizationReason", analysis.reason());
+            payload.put("contentAnalysisReason", analysis.reason());
+            payload.put("finalizationReason", operationalFinalizationReason(classified, completionStatus, exhausted));
             log.info("Chat stream finalized requestId={} conversationId={} assistantMessageId={} provider={} model={} "
                             + "accumulatedLength={} finalContentLength={} completionEventContentLength={} "
-                            + "persistedAssistantLength={} finishReason={} segments={}",
+                            + "persistedAssistantLength={} rawFinishReason={} normalizedFinishReason={} "
+                            + "completionStatus={} segments={}",
                     requestId, prepared.conversationId(), persisted == null ? null : persisted.getId(), prepared.provider().id(), activeModel,
                     rawContent.length(), finalContent.length(), finalContent.length(),
                     persisted == null || persisted.getContent() == null ? finalContent.length() : persisted.getContent().length(),
-                    reason, segments);
+                    reason, classified.normalized(), completionStatus, segments);
             if (aborted) payload.put("aborted", true);
             send(emitter, "done", payload);
             emitter.complete();
         }
 
-        private String normalizeReason(String reason) {
-            if (reason == null || reason.isBlank()) return "unknown";
-            return reason.toLowerCase(java.util.Locale.ROOT);
+        private String normalizeReason(String reason) { return FinishReasonClassifier.classify(reason).normalized(); }
+
+        private String operationalFinalizationReason(FinishReasonClassifier.Classification reason,
+                                                     String status, boolean exhausted) {
+            if ("aborted".equals(status)) return "cancelled";
+            if (reason.kind() == FinishReasonClassifier.Kind.SAFETY) return "safety_or_refusal";
+            if ("timeout".equals(reason.normalized())) return "timeout";
+            if (repairAttempted && !completionRepaired && !"complete".equals(status)) return "repair_failed";
+            if (reason.kind() == FinishReasonClassifier.Kind.CANCELLED_OR_ERROR) return "provider_error";
+            if (exhausted && segments >= continuationProps.maxSegments()) return "max_segments";
+            if (exhausted) return "total_token_budget";
+            if (!continuationProps.enabled() && !"complete".equals(status)) return "continuation_disabled";
+            return "complete".equals(status) ? (segments > 1 ? "complete" : "normal_stop") : "provider_error";
         }
     }
 
@@ -477,7 +538,8 @@ public class ChatService {
         int completionTokens = result.completionTokens() > 0
                 ? result.completionTokens() : Math.max(1, result.content().length() / 4);
 
-        Message saved = persistAssistant(p, usedModel, result.content(), promptTokens, completionTokens);
+        Message saved = persistAssistant(userId, p, usedModel, result.content(), promptTokens,
+                completionTokens, null);
         String registryId = p.scoredResult() != null ? p.scoredResult().registryId() : null;
         String pricingTier = p.scoredResult() != null ? p.scoredResult().pricingTier().name() : null;
         String topology = p.scoredResult() != null ? p.scoredResult().topology().name() : null;
@@ -494,6 +556,7 @@ public class ChatService {
      * intentionally internal in Phase 1 to preserve REST and SSE response shapes.
      */
     private RequestClassification classifyAndEnforce(ChatRequest req) {
+        validateImages(req.effectiveImages());
         RequestClassification classification = requestClassifier.classify(
                 new RequestClassificationInput(
                         req.content(), req.modeOrDefault(), req.provider(), req.model(),
@@ -510,13 +573,36 @@ public class ChatService {
         return classification;
     }
 
+    private void validateImages(List<String> images) {
+        if (images.size() > 8) throw ApiException.badRequest("Too many images");
+        for (String image : images) {
+            String lower = image.toLowerCase(java.util.Locale.ROOT);
+            boolean allowed = lower.startsWith("data:image/png;base64,")
+                    || lower.startsWith("data:image/jpeg;base64,")
+                    || lower.startsWith("data:image/webp;base64,")
+                    || lower.startsWith("data:image/gif;base64,")
+                    || lower.startsWith("https://");
+            if (!allowed) throw ApiException.badRequest("Unsupported image format");
+        }
+    }
+
     /** Shared setup: persist the user message, route, retrieve RAG, build the prompt. */
     private Prepared prepare(String userId, ChatRequest req, RequestClassification classification) {
         Conversation convo = conversations.getOrCreate(userId, req.conversationId(), req.modeOrDefault());
         String conversationId = convo.getId();
         String mode = convo.getMode();
 
-        conversations.addUserMessage(conversationId, req.content());
+        Message continuationTarget = null;
+        if (req.continuation()) {
+            if (req.targetAssistantMessageId() == null || req.targetAssistantMessageId().isBlank()) {
+                throw ApiException.badRequest("Continuation target is required");
+            }
+            continuationTarget = conversations.requireOwnedAssistant(userId, conversationId,
+                    req.targetAssistantMessageId());
+        } else {
+            conversations.addUserMessage(conversationId, req.content(), req.userMessageId(), req.model(),
+                    req.provider(), req.effectiveImages(), req.attachments());
+        }
 
         boolean useRag = req.ragEnabled() && documentService.hasReadyDocuments(userId);
         RagContext rag = useRag ? ragService.retrieve(userId, req.content()) : RagContext.empty();
@@ -574,8 +660,14 @@ public class ChatService {
         }
 
         List<Message> history = conversations.messages(conversationId);
-        List<Map<String, Object>> messages = promptBuilder.build(
-                mode, history, rag, req.hasImage() ? req.image() : null);
+        if (continuationTarget != null) {
+            String targetId = continuationTarget.getId();
+            history = history.stream().filter(message -> !message.getId().equals(targetId)).toList();
+        }
+        List<String> requestImages = req.effectiveImages();
+        List<Map<String, Object>> messages = requestImages.size() <= 1
+                ? promptBuilder.build(mode, history, rag, requestImages.isEmpty() ? null : requestImages.getFirst())
+                : promptBuilder.buildWithImages(mode, history, rag, requestImages);
         int promptTokens = promptBuilder.estimatePromptTokens(messages);
 
         // Config-driven output budgets — read from privoraa.chat.output.* properties.
@@ -598,8 +690,10 @@ public class ChatService {
                     provider.id(), firstModel, tokenFieldName(provider.id()));
         }
 
+        String existing = continuationTarget == null ? "" : continuationTarget.getContent();
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
-                routed.chain(), provider, options, scoredResult);
+                routed.chain(), provider, options, scoredResult, continuationTarget != null,
+                continuationTarget == null ? null : continuationTarget.getId(), existing);
     }
 
     /** The provider for this request: the picker's choice, else the server default. */
@@ -608,10 +702,16 @@ public class ChatService {
         return id != null ? providers.byId(id) : providers.active();
     }
 
-    private Message persistAssistant(Prepared p, String modelName, String content,
-                                     int promptTokens, int completionTokens) {
+    private Message persistAssistant(String userId, Prepared p, String modelName, String content,
+                                     int promptTokens, int completionTokens, String completionStatus) {
+        if (p.continuation()) {
+            return conversations.updateAssistantMessage(userId, p.conversationId(), p.targetAssistantMessageId(),
+                    content, modelName, p.routed().category(), p.routed().reason(), promptTokens,
+                    completionTokens, completionStatus, p.provider().id());
+        }
         return conversations.addAssistantMessage(p.conversationId(), content, modelName,
-                p.routed().category(), p.routed().reason(), promptTokens, completionTokens);
+                p.routed().category(), p.routed().reason(), promptTokens, completionTokens,
+                completionStatus, p.provider().id());
     }
 
     private Map<String, Object> metaPayload(String modelName, Prepared p) {
@@ -737,6 +837,9 @@ public class ChatService {
             List<String> chain,
             LlmProvider provider,
             ChatOptions options,
-            ScoredRoutingResult scoredResult
+            ScoredRoutingResult scoredResult,
+            boolean continuation,
+            String targetAssistantMessageId,
+            String existingContent
     ) {}
 }

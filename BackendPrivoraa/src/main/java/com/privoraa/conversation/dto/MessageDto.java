@@ -1,8 +1,12 @@
 package com.privoraa.conversation.dto;
 
 import com.privoraa.conversation.Message;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 
 public record MessageDto(
         String id,
@@ -13,8 +17,13 @@ public record MessageDto(
         String routeReason,
         int promptTokens,
         int completionTokens,
-        Instant createdAt
+        String completionStatus,
+        Instant createdAt,
+        String selectedProvider,
+        List<String> images,
+        List<Map<String, Object>> attachments
 ) {
+    private static final ObjectMapper JSON = new ObjectMapper();
     public static MessageDto from(Message m) {
         return new MessageDto(
                 m.getId(),
@@ -25,6 +34,13 @@ public record MessageDto(
                 m.getRouteReason(),
                 m.getPromptTokens(),
                 m.getCompletionTokens(),
-                m.getCreatedAt());
+                m.getCompletionStatus(),
+                m.getCreatedAt(), m.getSelectedProvider(), read(m.getImagesJson(), new TypeReference<List<String>>() {}),
+                read(m.getAttachmentsJson(), new TypeReference<List<Map<String, Object>>>() {}));
+    }
+
+    private static <T> T read(String json, TypeReference<T> type) {
+        if (json == null || json.isBlank()) return null;
+        try { return JSON.readValue(json, type); } catch (Exception ignored) { return null; }
     }
 }

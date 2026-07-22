@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { completionNotice } from '../src/features/chat/completionState.js';
+import { canContinueResponse, completionNotice } from '../src/features/chat/completionState.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -45,10 +45,12 @@ test('aborted messages show no incomplete notice regardless of finishReason', ()
 
 // ---- Continue and Regenerate remain separate ----
 
-test('no visible synthetic continuation user message is created', async () => {
-  const src = readFileSync(resolve(ROOT, 'src/features/chat/useChat.js'), 'utf-8');
-  assert.equal(src.includes('Continue from where you left off'), false);
-  assert.equal(src.includes('continueGeneration'), false);
+test('manual continuation is offered only for completed incomplete assistant bubbles', () => {
+  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'incomplete' }), true);
+  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'limit_reached' }), true);
+  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'complete' }), false);
+  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'incomplete', pending: true }), false);
+  assert.equal(canContinueResponse({ role: 'user', completionStatus: 'incomplete' }), false);
 });
 
 // ---- Typography system ----

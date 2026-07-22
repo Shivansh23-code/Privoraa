@@ -69,4 +69,12 @@ public class ConversationController {
     public void delete(@AuthenticationPrincipal PrivoraaUserDetails user, @PathVariable String id) {
         service.delete(user.getId(), id);
     }
+
+    @DeleteMapping("/{id}/messages/{messageId}/from")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete the selected message and all later messages")
+    public void truncateFrom(@AuthenticationPrincipal PrivoraaUserDetails user,
+                             @PathVariable String id, @PathVariable String messageId) {
+        service.truncateFromMessage(user.getId(), id, messageId);
+    }
 }

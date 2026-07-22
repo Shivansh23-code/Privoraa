@@ -108,6 +108,12 @@ async function streamLive(payload, { onMeta, onToken, onDone, onError, signal })
     content: payload.content,
     useRag: payload.useRag,
     image: payload.image, // data URL for vision; omitted server-side when null
+    images: payload.images?.length ? payload.images : undefined,
+    userMessageId: payload.userMessageId,
+    attachments: payload.attachments?.length ? payload.attachments : undefined,
+    isContinuation: payload.isContinuation || undefined,
+    targetAssistantMessageId: payload.targetAssistantMessageId,
+    existingContent: payload.existingContent,
   };
 
   let res = await streamFetch('/chat/stream', { body: requestBody, signal, requestId });

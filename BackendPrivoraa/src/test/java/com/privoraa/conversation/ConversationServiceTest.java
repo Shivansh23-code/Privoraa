@@ -7,6 +7,7 @@ import com.privoraa.conversation.dto.ConversationDetailDto;
 import com.privoraa.conversation.dto.ConversationDto;
 import com.privoraa.conversation.dto.CreateConversationRequest;
 import org.junit.jupiter.api.Test;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.List;
@@ -21,7 +22,7 @@ class ConversationServiceTest {
     private final ConversationRepository repo = mock(ConversationRepository.class);
     private final MessageRepository msgRepo = mock(MessageRepository.class);
     private final UserRepository userRepo = mock(UserRepository.class);
-    private final ConversationService service = new ConversationService(repo, msgRepo, userRepo);
+    private final ConversationService service = new ConversationService(repo, msgRepo, userRepo, new ObjectMapper());
 
     private User user(String id) {
         User u = new User();
@@ -125,5 +126,27 @@ class ConversationServiceTest {
         assertEquals("Existing chat", dto.title());
         assertEquals("general", dto.mode());
         verify(repo, never()).save(any());
+    }
+
+    @Test
+    void truncateFromMessageDeletesOwnedBranchFromTimestamp() {
+        Conversation convo = conversation("convo-1", "user-1", "Chat");
+        Instant timestamp = Instant.now();
+        Message message = Message.builder().id("msg-1").conversation(convo).role(MessageRole.USER)
+                .content("old").createdAt(timestamp).build();
+        when(repo.findByIdAndUserId("convo-1", "user-1")).thenReturn(Optional.of(convo));
+        when(msgRepo.findById("msg-1")).thenReturn(Optional.of(message));
+        when(msgRepo.deleteFrom("convo-1", timestamp)).thenReturn(3);
+
+        assertEquals(3, service.truncateFromMessage("user-1", "convo-1", "msg-1"));
+        verify(msgRepo).deleteFrom("convo-1", timestamp);
+    }
+
+    @Test
+    void truncateFromMessageRejectsCrossUserAccess() {
+        when(repo.findByIdAndUserId("convo-1", "attacker")).thenReturn(Optional.empty());
+        assertThrows(ApiException.class,
+                () -> service.truncateFromMessage("attacker", "convo-1", "msg-1"));
+        verify(msgRepo, never()).deleteFrom(anyString(), any());
     }
 }

@@ -54,11 +54,25 @@ public class Message {
     @Column(name = "route_reason")
     private String routeReason;
 
+    @Column(name = "selected_provider", length = 40)
+    private String selectedProvider;
+
+    @Lob
+    @Column(name = "images_json")
+    private String imagesJson;
+
+    @Lob
+    @Column(name = "attachments_json")
+    private String attachmentsJson;
+
     @Column(name = "prompt_tokens", nullable = false)
     private int promptTokens;
 
     @Column(name = "completion_tokens", nullable = false)
     private int completionTokens;
+
+    @Column(name = "completion_status", length = 24)
+    private String completionStatus;
 
     @Column(name = "cost_micros", nullable = false)
     private long costMicros;

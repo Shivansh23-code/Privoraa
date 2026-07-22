@@ -4,7 +4,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
-import { Check, Copy, WrapText } from 'lucide-react';
+import { Check, Copy, WrapText, Download, ChevronDown } from 'lucide-react';
 
 import 'katex/dist/katex.min.css';
 import 'highlight.js/styles/github-dark.css';
@@ -20,6 +20,7 @@ function nodeToText(node) {
 function CodeBlock({ className, children }) {
   const [copied, setCopied] = useState(false);
   const [wrapped, setWrapped] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const lang = /language-(\w+)/.exec(className || '')?.[1] || 'text';
   const code = nodeToText(children).replace(/\n$/, '');
 
@@ -31,11 +32,20 @@ function CodeBlock({ className, children }) {
     } catch { /* clipboard unavailable */ }
   }, [code]);
 
+  const download = useCallback(() => {
+    const extensions = { javascript: 'js', typescript: 'ts', python: 'py', java: 'java', json: 'json', html: 'html', css: 'css', bash: 'sh' };
+    const url = URL.createObjectURL(new Blob([code], { type: 'text/plain' }));
+    const link = document.createElement('a');
+    link.href = url; link.download = `vedix-code.${extensions[lang] || lang || 'txt'}`; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }, [code, lang]);
+
   return (
     <div className="group/code my-5 overflow-hidden rounded-xl border border-line/80 bg-[#08090b] shadow-sm transition-shadow duration-200 hover:shadow-md">
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line/60 bg-[#0c0d10] px-4 py-2">
         <span className="font-mono text-[11px] font-medium tracking-wide text-accent-500/80 uppercase">{lang}</span>
         <div className="flex items-center gap-1">
+          <button onClick={() => setCollapsed((value) => !value)} aria-expanded={!collapsed} aria-label={collapsed ? 'Expand code' : 'Collapse code'} className="rounded-md p-1 text-muted hover:bg-white/5 hover:text-fg"><ChevronDown size={13} className={`transition ${collapsed ? '-rotate-90' : ''}`} /></button>
           <button
             onClick={() => setWrapped((w) => !w)}
             aria-label={wrapped ? 'Disable word wrap' : 'Enable word wrap'}
@@ -45,6 +55,7 @@ function CodeBlock({ className, children }) {
           >
             <WrapText size={13} />
           </button>
+          <button onClick={download} aria-label={`Download ${lang} code`} className="rounded-md p-1 text-muted hover:bg-white/5 hover:text-fg"><Download size={13} /></button>
           <button
             onClick={copy}
             aria-label={`Copy ${lang} code`}
@@ -55,9 +66,14 @@ function CodeBlock({ className, children }) {
           </button>
         </div>
       </div>
-      <pre className={`scroll-thin overflow-x-auto p-4 text-[13.5px] leading-relaxed ${wrapped ? 'whitespace-pre-wrap break-all' : ''}`}>
-        <code className={`${className || ''} bg-transparent`}>{children}</code>
-      </pre>
+      {!collapsed && <div className="flex min-w-0">
+        <div aria-hidden="true" className="select-none border-r border-white/5 px-2 py-4 text-right font-mono text-[13.5px] leading-relaxed text-white/25">
+          {code.split('\n').map((_, index) => <span key={index} className="block">{index + 1}</span>)}
+        </div>
+        <pre className={`scroll-thin min-w-0 flex-1 overflow-x-auto p-4 text-[13.5px] leading-relaxed ${wrapped ? 'whitespace-pre-wrap break-all' : ''}`}>
+          <code className={`${className || ''} bg-transparent`}>{children}</code>
+        </pre>
+      </div>}
     </div>
   );
 }

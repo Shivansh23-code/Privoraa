@@ -12,6 +12,8 @@ import com.privoraa.config.ChatOutputProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.conversation.Conversation;
 import com.privoraa.conversation.ConversationService;
+import com.privoraa.conversation.Message;
+import com.privoraa.conversation.MessageRole;
 import com.privoraa.llm.*;
 import com.privoraa.model.ModelCatalogService;
 import com.privoraa.rag.DocumentService;
@@ -21,6 +23,8 @@ import com.privoraa.ratelimit.RateLimitService;
 import com.privoraa.routing.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
@@ -55,7 +59,7 @@ class ChatServiceStreamingIntegrationTest {
         prompts = mock(PromptBuilder.class);
         router = mock(ModelRouter.class);
         provider = new ScriptedProvider();
-        continuation = new ChatContinuationProperties(true, 3, 24000, 600);
+        continuation = new ChatContinuationProperties(true, 3, 4096, 24000, 120, 600);
         rateLimit = mock(RateLimitService.class);
 
         when(conversations.getOrCreate(anyString(), any(), anyString())).thenReturn(
@@ -91,9 +95,10 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(false, done.get("tokenCountEstimated"));
         assertEquals(1, emitter.count("meta"));
         assertEquals(1, emitter.count("done"));
-        verify(conversations, times(1)).addUserMessage("conversation-1", "original prompt");
+        verify(conversations, times(1)).addUserMessage(eq("conversation-1"), eq("original prompt"),
+                isNull(), eq("auto"), isNull(), eq(List.of()), isNull());
         verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
-                eq("First paragraph. Second paragraph."), anyString(), anyString(), anyString(), eq(50), eq(8));
+                eq("First paragraph. Second paragraph."), anyString(), anyString(), anyString(), eq(50), eq(8), eq("complete"), eq("openrouter"));
         verify(documents, times(1)).hasReadyDocuments("user-1");
         verify(rag, times(1)).retrieve("user-1", "original prompt");
         verifyNoMoreInteractions(rag);
@@ -102,6 +107,61 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals("user", provider.requests.get(1).get(2).get("role"));
         assertTrue(provider.requests.get(1).get(2).get("content").toString().startsWith("Continue exactly"));
         assertFalse(emitter.containsData("Continue exactly"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"length", "MAX_TOKENS", "max_tokens"})
+    void providerTokenLimitAliasesAlwaysContinue(String finishReason) throws Exception {
+        provider.enqueue("m1", segment("First part and", finishReason, 10, 3));
+        provider.enqueue("m1", segment(" the completed ending.", "stop", 11, 4));
+        Map<String, Object> done = run(false, List.of("m1")).awaitDone();
+        assertEquals(2, done.get("segments"));
+        assertEquals(true, done.get("continued"));
+        assertEquals("complete", done.get("completionStatus"));
+        assertEquals("First part and the completed ending.", done.get("finalContent"));
+    }
+
+    @Test
+    void manualContinuationUpdatesSameAssistantWithoutCreatingMessages() throws Exception {
+        Conversation conversation = Conversation.builder().id("conversation-1").mode("general").build();
+        Message target = Message.builder().id("assistant-1").conversation(conversation)
+                .role(MessageRole.ASSISTANT).content("The name may be registered as").build();
+        when(conversations.requireOwnedAssistant("user-1", "conversation-1", "assistant-1")).thenReturn(target);
+        when(conversations.messages("conversation-1")).thenReturn(List.of(target));
+        provider.enqueue("m1", segment(" a private company.", "stop", 10, 4));
+
+        ChatRequest request = new ChatRequest("conversation-1", "auto", "general", "Continue exactly",
+                false, null, null, null, null, null, true, "assistant-1", target.getContent());
+        CapturingEmitter emitter = new CapturingEmitter();
+        service().stream("user-1", request, emitter);
+        Map<String, Object> done = emitter.awaitDone();
+
+        assertEquals("The name may be registered as a private company.", done.get("finalContent"));
+        assertEquals(1, emitter.count("done"));
+        assertEquals(1, provider.requests.getFirst().stream().filter(m -> "assistant".equals(m.get("role"))).count());
+        verify(conversations, never()).addUserMessage(anyString(), anyString(), any(), any(), any(), anyList(), any());
+        verify(conversations, never()).addAssistantMessage(anyString(), anyString(), anyString(), anyString(), anyString(), anyInt(), anyInt(), any(), any());
+        verify(conversations, times(1)).updateAssistantMessage(eq("user-1"), eq("conversation-1"),
+                eq("assistant-1"), eq("The name may be registered as a private company."),
+                anyString(), anyString(), anyString(), anyInt(), anyInt(), eq("complete"), eq("openrouter"));
+    }
+
+    @Test
+    void unknownIncompleteGetsAtMostOneContinuation() throws Exception {
+        provider.enqueue("m1", segment("The company is registered as", "mystery_reason", 10, 4));
+        provider.enqueue("m1", segment(" a private company and", "mystery_reason", 11, 4));
+        Map<String, Object> done = run(false, List.of("m1")).awaitDone();
+        assertEquals(2, provider.requests.size());
+        assertEquals("incomplete", done.get("completionStatus"));
+        assertEquals(1, ((Number) done.get("segments")).intValue() - 1);
+    }
+
+    @Test
+    void unknownReasonWithCompleteStructureFinalizesNormally() throws Exception {
+        provider.enqueue("m1", segment("This response is complete.", "future_stop", 10, 4));
+        Map<String, Object> done = run(false, List.of("m1")).awaitDone();
+        assertEquals("complete", done.get("completionStatus"));
+        assertEquals(1, provider.requests.size());
     }
 
     // ---- Complete STOP → no repair ----
@@ -115,7 +175,8 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(false, done.get("repairAttempted"));
         assertEquals(false, done.get("completionRepaired"));
         assertEquals(0, done.get("repairSegments"));
-        assertEquals("structurally complete", done.get("finalizationReason"));
+        assertEquals("normal_stop", done.get("finalizationReason"));
+        assertEquals("complete structure", done.get("contentAnalysisReason"));
     }
 
     // ---- STOP + arbitrary unfinished prose → one repair ----
@@ -138,9 +199,10 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(512, provider.options.get(1).maxTokens());
         verify(rateLimit, times(1)).check("user-1");
         verify(router, times(1)).resolve(any(), anyString(), anyString(), anyBoolean());
-        verify(conversations, times(1)).addUserMessage("conversation-1", "original prompt");
+        verify(conversations, times(1)).addUserMessage(eq("conversation-1"), eq("original prompt"),
+                isNull(), eq("auto"), isNull(), eq(List.of()), isNull());
         verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
-                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
+                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt(), anyString(), anyString());
         assertEquals("assistant", provider.requests.get(1).get(1).get("role"));
         assertEquals("user", provider.requests.get(1).get(2).get("role"));
         assertTrue(provider.requests.get(1).get(2).get("content").toString()
@@ -196,9 +258,10 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(1, emitter.count("done"));
         assertEquals(2, provider.requests.size());
         assertEquals(512, provider.options.get(1).maxTokens());
-        verify(conversations, times(1)).addUserMessage("conversation-1", "original prompt");
+        verify(conversations, times(1)).addUserMessage(eq("conversation-1"), eq("original prompt"),
+                isNull(), eq("auto"), isNull(), eq(List.of()), isNull());
         verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
-                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
+                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt(), anyString(), anyString());
     }
 
     // ---- Repair error with structural dangling → safe trim ----
@@ -224,7 +287,7 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(false, done.get("tailTrimmed"));
         assertEquals(1, em.count("done"));
         verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
-                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
+                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt(), anyString(), anyString());
     }
 
     // ---- Repair still suspicious → safe structural trim ----
@@ -250,7 +313,7 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(false, done.get("tailTrimmed"));
         assertEquals(1, em.count("done"));
         verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
-                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
+                eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt(), anyString(), anyString());
     }
 
     // ---- Three LENGTHs → limit_reached ----
@@ -263,16 +326,17 @@ class ChatServiceStreamingIntegrationTest {
         Map<String, Object> done = emitter.awaitDone();
         assertEquals("length", done.get("finishReason"));
         assertEquals("limit_reached", done.get("completionStatus"));
+        assertEquals("max_segments", done.get("finalizationReason"));
         assertEquals(3, done.get("segments"));
         assertEquals(1, emitter.count("done"));
         verify(conversations, times(1)).addAssistantMessage(anyString(), eq("ABC"), anyString(),
-                anyString(), anyString(), anyInt(), anyInt());
+                anyString(), anyString(), anyInt(), anyInt(), eq("limit_reached"), eq("openrouter"));
     }
 
     // ---- LENGTH → safe trim (continuation disabled) ----
     @Test
     void incompleteTailIsTrimmedInDonePayloadAndPersistence() throws Exception {
-        continuation = new ChatContinuationProperties(false, 3, 24000, 600);
+        continuation = new ChatContinuationProperties(false, 3, 4096, 24000, 120, 600);
         provider.enqueue("m1", segment("First sentence. Second sentence. This is why",
                 "length", 10, 8));
 
@@ -281,7 +345,7 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals("First sentence. Second sentence. This is why", done.get("finalContent"));
         assertEquals(false, done.get("tailTrimmed"));
         verify(conversations).addAssistantMessage(eq("conversation-1"),
-                eq("First sentence. Second sentence. This is why"), anyString(), anyString(), anyString(), eq(10), eq(8));
+                eq("First sentence. Second sentence. This is why"), anyString(), anyString(), anyString(), eq(10), eq(8), eq("limit_reached"), eq("openrouter"));
     }
 
     // ---- Continuation error retains content ----
@@ -293,9 +357,19 @@ class ChatServiceStreamingIntegrationTest {
         CapturingEmitter emitter = run(false, List.of("m1"));
         Map<String, Object> done = emitter.awaitDone();
         assertEquals("incomplete", done.get("completionStatus"));
+        assertEquals("provider_error", done.get("finalizationReason"));
         assertEquals(1, emitter.count("done"));
         verify(conversations, times(1)).addAssistantMessage(anyString(), eq("Kept. More."), anyString(),
-                anyString(), anyString(), anyInt(), anyInt());
+                anyString(), anyString(), anyInt(), anyInt(), eq("incomplete"), eq("openrouter"));
+    }
+
+    @Test
+    void providerTimeoutHasDistinctFinalizationReason() throws Exception {
+        continuation = new ChatContinuationProperties(true, 3, 4096, 24000, 1, 600);
+        provider.enqueue("m1", Flux.never());
+        Map<String, Object> done = run(false, List.of("m1")).awaitDone();
+        assertEquals("timeout", done.get("finalizationReason"));
+        assertEquals(1, done.get("segments"));
     }
 
     // ---- Cancellation ----
@@ -375,7 +449,8 @@ class ChatServiceStreamingIntegrationTest {
         provider.enqueue("m1", segment("Everything is fine here.", "stop", 10, 2));
         Map<String, Object> done = run(false, List.of("m1")).awaitDone();
         assertNotNull(done.get("finalizationReason"));
-        assertEquals("structurally complete", done.get("finalizationReason"));
+        assertEquals("normal_stop", done.get("finalizationReason"));
+        assertEquals("complete structure", done.get("contentAnalysisReason"));
         assertNotNull(done.get("rawFinishReason"));
         assertEquals("stop", done.get("rawFinishReason"));
     }
@@ -393,14 +468,15 @@ class ChatServiceStreamingIntegrationTest {
         provider.enqueue("m1", segment("Complete.", "stop", 10, 2));
         run(false, List.of("m1")).awaitDone();
         verify(conversations, times(1)).addAssistantMessage(anyString(), anyString(),
-                anyString(), anyString(), anyString(), anyInt(), anyInt());
+                anyString(), anyString(), anyString(), anyInt(), anyInt(), anyString(), anyString());
     }
 
     @Test
     void oneUserPersistence() throws Exception {
         provider.enqueue("m1", segment("Complete.", "stop", 10, 2));
         run(false, List.of("m1")).awaitDone();
-        verify(conversations, times(1)).addUserMessage(anyString(), anyString());
+        verify(conversations, times(1)).addUserMessage(anyString(), anyString(),
+                isNull(), anyString(), isNull(), eq(List.of()), isNull());
     }
 
     @Test
