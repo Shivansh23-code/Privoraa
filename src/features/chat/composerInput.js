@@ -14,6 +14,13 @@ export function clipboardImages(clipboardData) {
     .filter(Boolean);
 }
 
+export function clipboardFiles(clipboardData) {
+  return Array.from(clipboardData?.items || [])
+    .filter((item) => item.kind === 'file' || item.type?.startsWith('image/'))
+    .map((item) => item.getAsFile?.())
+    .filter(Boolean);
+}
+
 export function shouldSubmitFromKey(event) {
   if (event?.nativeEvent?.isComposing || event?.isComposing) return false;
   return event?.key === 'Enter' && !event.shiftKey;

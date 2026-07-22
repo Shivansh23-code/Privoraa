@@ -221,7 +221,7 @@ export default function ChatWorkspace() {
   const convo = conversations.find((c) => c.id === currentId) || null;
   const messages = convo?.messages ?? [];
 
-  const { send, stop, regenerate } = useChat(models);
+  const { send, stop, regenerate, editPrompt, continueResponse } = useChat(models);
   const localLlm = useLocalLlm();
   const { user } = useUserAuth();
   const plan = (user?.plan || 'FREE').toLowerCase(); // drives per-plan dashboard theming
@@ -441,6 +441,8 @@ export default function ChatWorkspace() {
             isStreaming={isStreaming}
             streamingMessageId={streamingMessageId}
             onRegenerate={(msgId) => regenerate(convo.id, msgId)}
+            onContinue={(msgId) => continueResponse(convo.id, msgId)}
+            onEditPrompt={(msgId, content) => editPrompt(convo.id, msgId, content)}
             onStop={() => stop(convo?.id)}
           />
         )}
@@ -450,6 +452,10 @@ export default function ChatWorkspace() {
           onStop={() => stop(convo?.id)}
           isStreaming={isStreaming}
           onOpenSources={() => setSourcesOpen(true)}
+          onEditLast={() => {
+            const lastUser = [...messages].reverse().find((message) => message.role === 'user');
+            if (lastUser) window.dispatchEvent(new CustomEvent('privoraa:edit-prompt', { detail: lastUser.id }));
+          }}
           mode={mode}
         />
       </main>

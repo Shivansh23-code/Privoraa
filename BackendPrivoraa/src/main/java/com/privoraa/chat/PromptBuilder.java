@@ -28,6 +28,10 @@ public class PromptBuilder {
      * accepts either a String or an array of parts per message.
      */
     public List<Map<String, Object>> build(String mode, List<Message> history, RagContext rag, String image) {
+        return buildWithImages(mode, history, rag, image == null ? List.of() : List.of(image));
+    }
+
+    public List<Map<String, Object>> buildWithImages(String mode, List<Message> history, RagContext rag, List<String> images) {
         List<Map<String, Object>> messages = new ArrayList<>();
 
         StringBuilder system = new StringBuilder(Modes.systemPrompt(mode));
@@ -52,8 +56,8 @@ public class PromptBuilder {
         }
 
         // Attach the image to the most recent user message (the current turn).
-        if (image != null && !image.isBlank()) {
-            attachImageToLastUserMessage(messages, image);
+        if (images != null && !images.isEmpty()) {
+            attachImagesToLastUserMessage(messages, images);
         }
         return messages;
     }
@@ -76,7 +80,7 @@ public class PromptBuilder {
     }
 
     @SuppressWarnings("unchecked")
-    private void attachImageToLastUserMessage(List<Map<String, Object>> messages, String image) {
+    private void attachImagesToLastUserMessage(List<Map<String, Object>> messages, List<String> images) {
         for (int i = messages.size() - 1; i >= 0; i--) {
             Map<String, Object> m = messages.get(i);
             if ("user".equals(m.get("role"))) {
@@ -85,7 +89,8 @@ public class PromptBuilder {
                 if (!text.isBlank()) {
                     parts.add(Map.of("type", "text", "text", text));
                 }
-                parts.add(Map.of("type", "image_url", "image_url", Map.of("url", image)));
+                images.stream().filter(image -> image != null && !image.isBlank()).limit(8)
+                        .forEach(image -> parts.add(Map.of("type", "image_url", "image_url", Map.of("url", image))));
                 m.put("content", parts);
                 return;
             }

@@ -11,3 +11,10 @@ export function completionNotice(message = {}) {
   }
   return null;
 }
+
+export function canContinueResponse(message = {}) {
+  return message.role === 'assistant' && !message.pending && !message.aborted
+    && (message.incomplete === true
+      || message.completionStatus === 'incomplete'
+      || message.completionStatus === 'limit_reached');
+}

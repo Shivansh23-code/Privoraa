@@ -53,7 +53,7 @@ class ChatPrivacyBoundaryTest {
                 mock(ScoredRouter.class),
                 new ChatOutputProperties(0, 0, 0, 0, 0, 0, 0, 0, 0),
                 mock(ModelRegistry.class),
-                new ChatContinuationProperties(true, 3, 24000, 600),
+                new ChatContinuationProperties(true, 3, 4096, 24000, 120, 600),
                 new com.privoraa.config.ChatCompletionRepairProperties(true, 1, 512));
 
         ChatRequest request = new ChatRequest(null, "auto", "general",

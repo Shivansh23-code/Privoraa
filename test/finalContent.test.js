@@ -67,6 +67,17 @@ test('completionStatus preserved in patch', () => {
   assert.equal(patch.completionStatus, 'complete');
 });
 
+test('incomplete continuation metadata is preserved without replacing longer streamed content', () => {
+  const patch = finalContentPatch({
+    finalContent: 'short', normalizedFinishReason: 'max_tokens', incomplete: true,
+    continuationExhausted: true,
+  }, 'longer streamed content');
+  assert.equal(patch.content, 'longer streamed content');
+  assert.equal(patch.normalizedFinishReason, 'max_tokens');
+  assert.equal(patch.incomplete, true);
+  assert.equal(patch.continuationExhausted, true);
+});
+
 test('finalizationReason preserved in patch', () => {
   const patch = finalContentPatch({ finalizationReason: 'structurally complete' });
   assert.equal(patch.finalizationReason, 'structurally complete');

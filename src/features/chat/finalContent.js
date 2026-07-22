@@ -20,7 +20,11 @@ export function finalContentPatch(usage = {}, streamedContent = '') {
     completionRepaired: usage.completionRepaired === true,
     repairSegments: Number.isInteger(usage.repairSegments) ? usage.repairSegments : 0,
     rawFinishReason: usage.rawFinishReason,
+    normalizedFinishReason: usage.normalizedFinishReason,
     completionStatus: usage.completionStatus,
+    incomplete: usage.incomplete === true,
+    continuationExhausted: usage.continuationExhausted === true,
     finalizationReason: usage.finalizationReason,
+    contentAnalysisReason: usage.contentAnalysisReason,
   };
 }

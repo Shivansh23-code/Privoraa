@@ -234,6 +234,17 @@ export const useChatStore = create(
         }));
       },
 
+      truncateFrom: (conversationId, messageId) => {
+        if (get().deletingConversationIds?.[conversationId]) return;
+        set((s) => ({
+          conversations: s.conversations.map((c) => {
+            if (c.id !== conversationId) return c;
+            const idx = c.messages.findIndex((m) => m.id === messageId);
+            return idx === -1 ? c : { ...c, messages: c.messages.slice(0, idx), updatedAt: now() };
+          }),
+        }));
+      },
+
       /* --------------------------- ui selections -------------------------- */
       setModel: (model) => set({ model }),
       // Unified picker: choose a model AND which provider it runs on.

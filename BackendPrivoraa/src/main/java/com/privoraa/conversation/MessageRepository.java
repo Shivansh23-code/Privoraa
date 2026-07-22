@@ -42,4 +42,8 @@ public interface MessageRepository extends JpaRepository<Message, String> {
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM Message m WHERE m.conversation.id = :conversationId")
     int deleteAllByConversationId(@Param("conversationId") String conversationId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM Message m WHERE m.conversation.id = :conversationId AND m.createdAt >= :createdAt")
+    int deleteFrom(@Param("conversationId") String conversationId, @Param("createdAt") Instant createdAt);
 }

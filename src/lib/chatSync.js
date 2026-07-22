@@ -81,6 +81,17 @@ export async function deleteRemoteConversation(id) {
   }
 }
 
+export async function truncateRemoteConversation(id, messageId) {
+  const unauth = requireAuth();
+  if (unauth) return unauth;
+  try {
+    await apiFetch(`/conversations/${id}/messages/${messageId}/from`, { method: 'DELETE' });
+    return ok(null);
+  } catch (err) {
+    return fail(err instanceof Error ? err.message : 'Failed to edit conversation history');
+  }
+}
+
 export function subscribeAuth(callback) {
   let authed = isAuthenticated();
   const check = () => {
