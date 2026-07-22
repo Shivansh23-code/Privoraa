@@ -53,7 +53,7 @@ test('onToken checks finalized flag before appending', () => {
 
 test('finalize is idempotent (guarded by finalized flag)', () => {
   const src = readFileSync(resolve(ROOT, 'src/features/chat/useChat.js'), 'utf-8');
-  assert.match(src, /finalized\s*\?\s*undefined/, 'finalize must be idempotent');
+  assert.match(src, /if\s*\(finalized\)\s*return\s+undefined/, 'finalize must be idempotent');
   assert.match(src, /finalized\s*=\s*true/, 'finalize must set finalized flag');
 });
 
