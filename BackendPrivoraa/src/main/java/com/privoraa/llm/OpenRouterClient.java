@@ -90,7 +90,7 @@ public class OpenRouterClient {
                     Duration elapsed = Duration.between(started.get(), Instant.now());
                     String finish = capturedFinish.get();
                     log.info("OpenRouter stream completed provider=openrouter model={} "
-                                    + "chunks={} contentChunks={} contentChars={} "
+                                    + "chunks={} responseParts={} contentChars={} "
                                     + "finishReason={} elapsedMs={} signal={}",
                             model, chunks.get(), contentChunks.get(),
                             contentChars.get(), finish != null ? finish : "null",

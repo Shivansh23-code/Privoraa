@@ -15,6 +15,7 @@ import {
 
 export function useChat(catalog) {
   const abortRefMap = useRef({});
+  const streamRunsRef = useRef({});
   const store = useChatStore;
 
   const run = useCallback(
@@ -34,7 +35,11 @@ export function useChat(catalog) {
         model: s.model,
         pending: true,
       });
-      s.setConversationStreaming(conversationId, assistantId);
+      const requestId = globalThis.crypto?.randomUUID?.()
+        || `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const runKey = `${conversationId}:${assistantId}:${requestId}`;
+      streamRunsRef.current[runKey] = { conversationId, assistantId, requestId, content: '' };
+      s.setConversationStreaming(conversationId, assistantId, requestId);
 
       // A new request for this conversation supersedes any in-flight one for the same conversation.
       abortRefMap.current[conversationId]?.abort();
@@ -48,32 +53,48 @@ export function useChat(catalog) {
       // it was still responding.
       let firstToken = true;
       let finalized = false;
-      const finalize = (patch) =>
-        finalized
-          ? undefined
-          : ((finalized = true),
-            store.getState().updateMessage(conversationId, assistantId, { pending: false, ...patch }));
+      const isActive = () => {
+        const state = store.getState();
+        const active = state.streamingConversations[conversationId];
+        return streamRunsRef.current[runKey]
+          && active?.streamingMessageId === assistantId
+          && active?.requestId === requestId
+          && state.conversations.some((c) => c.id === conversationId);
+      };
+      const finalize = (patch) => {
+        if (finalized) return undefined;
+        if (!isActive()) return undefined;
+        finalized = true;
+        return store.getState().updateMessage(conversationId, assistantId, {
+          pending: false,
+          ...patch,
+        });
+      };
 
       const callbacks = {
         signal: controller.signal,
-        onMeta: (meta) =>
+        onMeta: (meta) => {
+          if (!isActive()) return;
           store.getState().updateMessage(conversationId, assistantId, {
             model: meta.model,
             category: meta.category,
             routeReason: meta.reason,
             citations: meta.citations,
-          }),
+          });
+        },
         onToken: (delta) => {
           if (finalized) return;
+          if (!isActive() || !delta) return;
           if (firstToken) {
             firstToken = false;
             store.getState().updateMessage(conversationId, assistantId, { pending: false });
           }
           store.getState().appendToMessage(conversationId, assistantId, delta);
+          streamRunsRef.current[runKey].content += delta;
         },
         onDone: (usage) =>
           finalize({
-            ...finalContentPatch(usage),
+            ...finalContentPatch(usage, streamRunsRef.current[runKey]?.content || ''),
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
             // Only overwrite citations when this path actually carries them (the
@@ -164,7 +185,7 @@ export function useChat(catalog) {
               conversationId,
               catalog,
               image,
-              requestId: globalThis.crypto?.randomUUID?.(),
+              requestId,
             },
             callbacks
           );
@@ -186,6 +207,7 @@ export function useChat(catalog) {
           store.getState().clearConversationStreaming(conversationId);
           delete abortRefMap.current[conversationId];
         }
+        delete streamRunsRef.current[runKey];
       }
     },
     [catalog, store]

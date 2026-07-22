@@ -9,11 +9,15 @@ import com.privoraa.conversation.dto.CreateConversationRequest;
 import com.privoraa.conversation.dto.UpdateConversationRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 @Service
 public class ConversationService {
+
+    private static final Logger log = LoggerFactory.getLogger(ConversationService.class);
 
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
@@ -57,6 +61,9 @@ public class ConversationService {
     public ConversationDetailDto getDetail(String userId, String id) {
         Conversation convo = requireOwned(userId, id);
         List<Message> messages = messageRepository.findByConversationIdOrderByCreatedAtAsc(id);
+        messages.stream().filter(m -> m.getRole() == MessageRole.ASSISTANT).forEach(m ->
+                log.debug("Fetched assistant message conversationId={} assistantMessageId={} contentLength={}",
+                        id, m.getId(), m.getContent() == null ? 0 : m.getContent().length()));
         return ConversationDetailDto.from(convo, messages);
     }
 

@@ -154,10 +154,10 @@ class ChatServiceStreamingIntegrationTest {
         provider.enqueue("m1", segment("First sentence. However, the cost", "stop", 10, 4));
         provider.enqueue("m1", Flux.error(new IllegalStateException("quota")));
         Map<String, Object> done = run(false, List.of("m1")).awaitDone();
-        assertEquals("First sentence.", done.get("finalContent"));
+        assertEquals("First sentence. However, the cost", done.get("finalContent"));
         assertEquals(true, done.get("repairAttempted"));
         assertEquals(false, done.get("completionRepaired"));
-        assertEquals(true, done.get("tailTrimmed"));
+        assertEquals(false, done.get("tailTrimmed"));
     }
 
     // ---- Repair remains incomplete → safe structural trim ----
@@ -166,9 +166,9 @@ class ChatServiceStreamingIntegrationTest {
         provider.enqueue("m1", segment("First sentence. However, the cost", "stop", 10, 4));
         provider.enqueue("m1", segment(" and", "stop", 12, 1));
         Map<String, Object> done = run(false, List.of("m1")).awaitDone();
-        assertEquals("First sentence.", done.get("finalContent"));
+        assertEquals("First sentence. However, the cost and", done.get("finalContent"));
         assertEquals(false, done.get("completionRepaired"));
-        assertEquals(true, done.get("tailTrimmed"));
+        assertEquals(false, done.get("tailTrimmed"));
     }
 
     // ---- Repair with "ArrayList or linked" style (structural) ----
@@ -216,11 +216,12 @@ class ChatServiceStreamingIntegrationTest {
 
         assertEquals(
                 "Arrays are fundamental because they offer fast access. " +
-                "However, their fixed size makes them less suitable for dynamic collections.",
+                "However, their fixed size makes them less suitable for dynamic collections. " +
+                "For such cases, other data structures like ArrayList or linked",
                 done.get("finalContent"));
         assertEquals(true, done.get("repairAttempted"));
         assertEquals(false, done.get("completionRepaired"));
-        assertEquals(true, done.get("tailTrimmed"));
+        assertEquals(false, done.get("tailTrimmed"));
         assertEquals(1, em.count("done"));
         verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
                 eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
@@ -241,11 +242,12 @@ class ChatServiceStreamingIntegrationTest {
 
         assertEquals(
                 "Arrays are fundamental because they offer fast access. " +
-                "However, their fixed size makes them less suitable for dynamic collections.",
+                "However, their fixed size makes them less suitable for dynamic collections. " +
+                "For such cases, other data structures like ArrayList or linked and",
                 done.get("finalContent"));
         assertEquals(true, done.get("repairAttempted"));
         assertEquals(false, done.get("completionRepaired"));
-        assertEquals(true, done.get("tailTrimmed"));
+        assertEquals(false, done.get("tailTrimmed"));
         assertEquals(1, em.count("done"));
         verify(conversations, times(1)).addAssistantMessage(eq("conversation-1"),
                 eq((String) done.get("finalContent")), anyString(), anyString(), anyString(), anyInt(), anyInt());
@@ -276,10 +278,10 @@ class ChatServiceStreamingIntegrationTest {
 
         Map<String, Object> done = run(false, List.of("m1")).awaitDone();
 
-        assertEquals("First sentence. Second sentence.", done.get("finalContent"));
-        assertEquals(true, done.get("tailTrimmed"));
+        assertEquals("First sentence. Second sentence. This is why", done.get("finalContent"));
+        assertEquals(false, done.get("tailTrimmed"));
         verify(conversations).addAssistantMessage(eq("conversation-1"),
-                eq("First sentence. Second sentence."), anyString(), anyString(), anyString(), eq(10), eq(8));
+                eq("First sentence. Second sentence. This is why"), anyString(), anyString(), anyString(), eq(10), eq(8));
     }
 
     // ---- Continuation error retains content ----
@@ -448,8 +450,8 @@ class ChatServiceStreamingIntegrationTest {
                 "Complete paragraph here.\n\n- Item one\n- Item two\n- Item thr", "stop", 10, 8));
         CapturingEmitter emitter = run(false, List.of("m1"));
         Map<String, Object> done = emitter.awaitDone();
-        assertEquals("Complete paragraph here.", done.get("finalContent"));
-        assertEquals(true, done.get("tailTrimmed"));
+        assertEquals("Complete paragraph here.\n\n- Item one\n- Item two\n- Item thr", done.get("finalContent"));
+        assertEquals(false, done.get("tailTrimmed"));
     }
 
     @Test
@@ -458,8 +460,8 @@ class ChatServiceStreamingIntegrationTest {
                 "First paragraph.\n\n```python\nprint('hello')\nprint('unfinis", "stop", 10, 8));
         CapturingEmitter emitter = run(false, List.of("m1"));
         Map<String, Object> done = emitter.awaitDone();
-        assertEquals("First paragraph.", done.get("finalContent"));
-        assertEquals(true, done.get("tailTrimmed"));
+        assertEquals("First paragraph.\n\n```python\nprint('hello')\nprint('unfinis", done.get("finalContent"));
+        assertEquals(false, done.get("tailTrimmed"));
     }
 
     // --------------------------------------------------------------- helpers

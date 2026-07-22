@@ -253,11 +253,11 @@ export const useChatStore = create(
       isConversationStreaming: (conversationId) =>
         !!get().streamingConversations[conversationId],
 
-      setConversationStreaming: (conversationId, streamingMessageId) =>
+      setConversationStreaming: (conversationId, streamingMessageId, requestId) =>
         set((s) => ({
           streamingConversations: {
             ...s.streamingConversations,
-            [conversationId]: { streamingMessageId },
+            [conversationId]: { streamingMessageId, requestId },
           },
         })),
 

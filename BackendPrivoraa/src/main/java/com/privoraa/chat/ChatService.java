@@ -410,17 +410,20 @@ public class ChatService {
                 tokenCountEstimated = true;
             }
             int prompt = totalPromptTokens.get() == 0 ? prepared.promptTokens() : totalPromptTokens.get();
-            ResponseTailTrimmer.Result finalResponse = ResponseTailTrimmer.trim(
-                    accumulated.toString(), completionStatus);
-            persistAssistant(prepared, nameOf(activeModel), finalResponse.content(), prompt, completion);
             String rawContent = accumulated.toString();
+            // The emitted token stream is the lossless provider response. Do not
+            // replace it with a structural heuristic at completion: prose-oriented
+            // tail trimming can discard fenced code and made persistence disagree
+            // with what the user saw while streaming.
+            String finalContent = rawContent;
+            Message persisted = persistAssistant(prepared, nameOf(activeModel), finalContent, prompt, completion);
             ResponseCompletenessAnalyzer.Result analysis =
                     ResponseCompletenessAnalyzer.analyze(rawContent);
             Map<String, Object> payload = donePayload(nameOf(activeModel), prepared, prompt, completion, reason);
             payload.put("completionStatus", completionStatus);
-            payload.put("finalContent", finalResponse.content());
+            payload.put("finalContent", finalContent);
             payload.put("rawFinishReason", reason);
-            payload.put("tailTrimmed", finalResponse.trimmed());
+            payload.put("tailTrimmed", false);
             payload.put("repairAttempted", repairAttempted);
             payload.put("completionRepaired", completionRepaired);
             payload.put("repairSegments", repairSegments);
@@ -428,6 +431,13 @@ public class ChatService {
             payload.put("continued", segments > 1);
             payload.put("tokenCountEstimated", tokenCountEstimated);
             payload.put("finalizationReason", analysis.reason());
+            log.info("Chat stream finalized requestId={} conversationId={} assistantMessageId={} provider={} model={} "
+                            + "accumulatedLength={} finalContentLength={} completionEventContentLength={} "
+                            + "persistedAssistantLength={} finishReason={} segments={}",
+                    requestId, prepared.conversationId(), persisted == null ? null : persisted.getId(), prepared.provider().id(), activeModel,
+                    rawContent.length(), finalContent.length(), finalContent.length(),
+                    persisted == null || persisted.getContent() == null ? finalContent.length() : persisted.getContent().length(),
+                    reason, segments);
             if (aborted) payload.put("aborted", true);
             send(emitter, "done", payload);
             emitter.complete();

@@ -133,7 +133,7 @@ public class GeminiProvider implements LlmProvider {
                     Duration elapsed = Duration.between(started.get(), Instant.now());
                     String finish = capturedFinish.get();
                     log.info("Gemini stream completed provider=gemini model={} requestAttempt={} "
-                                    + "chunks={} contentChunks={} contentChars={} "
+                                    + "chunks={} responseParts={} contentChars={} "
                                     + "finishReason={} elapsedMs={} signal={}",
                             model, attempt, chunks.get(), contentChunks.get(),
                             contentChars.get(), finish != null ? finish : "null",

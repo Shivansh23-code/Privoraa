@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { finalContentPatch } from '../src/features/chat/finalContent.js';
+import { finalContentPatch, reconcileFinalContent } from '../src/features/chat/finalContent.js';
+
+test('shorter terminal content cannot erase accumulated code', () => {
+  const streamed = 'Explanation\n```js\nconsole.log("kept");\n```';
+  assert.equal(reconcileFinalContent(streamed, 'Explanation'), streamed);
+});
+
+test('terminal content may extend the accumulated stream', () => {
+  assert.equal(reconcileFinalContent('partial', 'partial answer'), 'partial answer');
+});
 
 test('finalContent replaces streamed partial content', () => {
   const message = { content: 'Complete. dangling' };
