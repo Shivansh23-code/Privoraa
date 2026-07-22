@@ -184,7 +184,7 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
         aria-expanded={open}
         aria-haspopup="dialog"
         title="Choose a model — Auto, Online (cloud) or Offline (on your device)"
-        className="control-surface flex h-11 max-w-[160px] items-center gap-2 rounded-xl px-3 text-sm font-medium transition sm:max-w-[240px]"
+        className="mobile-model-picker control-surface flex h-11 max-w-[160px] items-center gap-2 rounded-xl px-3 text-sm font-medium transition sm:max-w-[240px]"
       >
         <HeadIcon size={15} className={`shrink-0 ${headTone}`} />
         <span className="truncate">{currentLabel}</span>
@@ -192,7 +192,7 @@ export default function UnifiedModelPicker({ models = [], value, provider, onCha
       </button>
 
       {open && (
-        <div aria-label="Model selection" className="elevated-surface floating-surface scroll-thin fixed inset-x-2 top-[4.5rem] z-30 max-h-[72vh] overflow-y-auto rounded-2xl p-1.5 sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:mt-2 sm:w-[min(22rem,calc(100vw-1.5rem))]">
+        <div aria-label="Model selection" className="mobile-model-menu elevated-surface floating-surface scroll-thin fixed inset-x-2 top-[4.5rem] z-30 max-h-[72vh] overflow-y-auto rounded-2xl p-1.5 sm:absolute sm:inset-x-auto sm:left-0 sm:top-auto sm:mt-2 sm:w-[min(22rem,calc(100vw-1.5rem))]">
           {/* ---------------- Level 1: Auto / Online / Offline ---------------- */}
           {view === 'root' && (
             <>

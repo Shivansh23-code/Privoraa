@@ -377,12 +377,12 @@ export default function ChatWorkspace() {
       )}
       {/* Mobile drawer */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="mobile-drawer-layer fixed inset-0 z-40 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"
+            className="mobile-drawer-backdrop absolute inset-0 bg-black/65 backdrop-blur-[2px]"
             onClick={() => setSidebarOpen(false)}
           />
-          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Navigation" tabIndex={-1} className="absolute left-0 top-0 h-[100dvh] w-[min(320px,88vw)] overflow-y-auto border-r border-line bg-surface pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)] shadow-2xl">
+          <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Navigation" tabIndex={-1} className="mobile-sidebar-drawer absolute left-0 top-0 h-[100dvh] w-[min(320px,88vw)] overflow-y-auto border-r border-line bg-surface pb-[env(safe-area-inset-bottom,0px)] pt-[env(safe-area-inset-top,0px)] shadow-2xl">
             <button
               onClick={() => setSidebarOpen(false)}
               aria-label="Close navigation"

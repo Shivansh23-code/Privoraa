@@ -109,8 +109,8 @@ function MessageBubble({ message, isStreaming, onCopy, onRegenerate, onContinue,
   // ---- User message: compact right-aligned bubble ----
   if (isUser) {
     return (
-      <div className="group/user flex animate-rise flex-col items-end gap-1">
-        <div className="max-w-[88%] rounded-2xl rounded-tr-md bg-[var(--user-message-bg)] px-3 py-2 text-white shadow-sm sm:max-w-[75%] sm:px-5 sm:py-3">
+      <div className="mobile-user-message group/user flex animate-rise flex-col items-end gap-1">
+        <div className="mobile-user-bubble max-w-[88%] rounded-2xl rounded-tr-md bg-[var(--user-message-bg)] px-3 py-2 text-white shadow-sm sm:max-w-[75%] sm:px-5 sm:py-3">
           {(message.images?.length ? message.images : message.image ? [message.image] : []).map((image, index) => (
             <img key={index} src={image} alt={`Attachment ${index + 1}`} className="mb-2 max-h-64 w-auto rounded-lg border border-white/20 object-contain" />
           ))}
@@ -145,10 +145,10 @@ function MessageBubble({ message, isStreaming, onCopy, onRegenerate, onContinue,
 
   // ---- Assistant message: full-width vertical stack ----
   return (
-    <div className="animate-rise w-full min-w-0">
+    <div className="mobile-assistant-message animate-rise w-full min-w-0">
       {message.model && (
-        <div className="mb-1.5 flex items-center gap-1.5 text-xs text-muted">
-          <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[var(--assistant-identity)] ring-1 ring-line">
+        <div className="mobile-assistant-identity mb-1.5 flex items-center gap-1.5 text-xs text-muted">
+          <div className="mobile-assistant-badge flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-surface-2 text-[var(--assistant-identity)] ring-1 ring-line">
             <span className="font-display text-[9px] font-bold">V</span>
           </div>
           <span className="truncate font-medium text-fg/80" title={`${message.model}${message.routeReason ? ` · ${message.routeReason}` : ''}`}>Vedix Assistant</span>

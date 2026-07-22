@@ -172,12 +172,12 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, o
   };
 
   return (
-    <div ref={composerRef} className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-2 pb-[max(.5rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-6">
+    <div ref={composerRef} className="mobile-composer-shell absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-bg via-bg/95 to-transparent px-2 pb-[max(.5rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-6">
       <div className="mx-auto w-full max-w-[860px]">
         <p className="sr-only" aria-live="polite">{attachmentStatus}</p>
         {/* Compact Sources and image previews. */}
         {(attachments.length > 0 || documents.length > 0) && (
-          <div className="scroll-thin mb-2 flex max-w-full items-center gap-2 overflow-x-auto pb-1">
+          <div className="mobile-attachment-strip scroll-thin mb-2 flex max-w-full items-center gap-2 overflow-x-auto pb-1">
             {hasReadyDocs && <button
               type="button"
               onClick={() => setUseRag(!useRag)}
@@ -209,7 +209,7 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, o
             })}
 
             {attachments.map((attachment) => (
-              <span key={attachment.id} className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-line bg-surface p-1.5 pr-2">
+              <span key={attachment.id} className="mobile-attachment-chip inline-flex shrink-0 items-center gap-2 rounded-xl border border-line bg-surface p-1.5 pr-2">
                 {attachment.kind === 'image' ? <button type="button" onClick={() => window.open(attachment.previewUrl, '_blank')} aria-label={`Preview ${attachment.name}`}><img src={attachment.previewUrl} alt="" className="h-10 w-10 rounded-lg object-cover" /></button> : <FileText size={24} className="text-brand-400" />}
                 <span className="max-w-32 truncate text-xs text-muted">{attachment.name}<small className={`block ${attachment.status === 'error' ? 'text-red-500' : 'text-faint'}`}>{Math.max(1, Math.round(attachment.size / 1024))} KB · {attachment.status}</small></span>
                 {attachment.status === 'error' && <button type="button" aria-label={`Retry ${attachment.name}`} onClick={() => { setAttachments((current) => current.filter((item) => item.id !== attachment.id)); processAttachment(attachment.file, attachment.name); }} className="flex h-6 w-6 items-center justify-center rounded-md text-muted hover:bg-surface-2"><RotateCcw size={13} /></button>}
@@ -234,7 +234,7 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, o
           }}
           onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setDragActive(false); }}
           onDrop={(event) => { setDragActive(false); onImageDrop(event); }}
-          className="elevated-surface relative flex items-end gap-1 rounded-[22px] p-2 transition focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] sm:gap-2"
+          className="mobile-composer elevated-surface relative flex items-end gap-1 rounded-[22px] p-2 transition focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] sm:gap-2"
         >
           {dragActive && <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-[22px] border-2 border-dashed border-brand-400 bg-bg/90 text-sm font-medium text-brand-500" role="status">Drop images to attach</div>}
           <button
@@ -242,7 +242,7 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, o
             onClick={onOpenSources}
             title="Add or manage sources"
             aria-label="Add or manage sources"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg"
+            className="mobile-composer-control flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg"
           >
             <Paperclip size={18} />
           </button>
@@ -252,7 +252,7 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, o
             onClick={() => imageInputRef.current?.click()}
             title="Attach an image (the AI will look at it)"
             aria-label="Attach an image"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg"
+            className="mobile-composer-control flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-fg"
           >
             <ImageIcon size={18} />
           </button>
@@ -306,7 +306,7 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, o
                   : 'Ask anything…  (Enter to send, Shift+Enter for newline)'
             }
             aria-label="Message"
-            className="scroll-thin max-h-[200px] min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-base leading-6 text-fg placeholder:text-faint focus:outline-none"
+            className="mobile-composer-input scroll-thin max-h-[200px] min-w-0 flex-1 resize-none bg-transparent px-1 py-2 text-base leading-6 text-fg placeholder:text-faint focus:outline-none"
           />
 
           {isStreaming ? (
@@ -314,7 +314,7 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, o
               type="button"
               onClick={onStop}
               title="Stop generating"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-fg transition hover:bg-line"
+              className="mobile-send-button flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-fg transition hover:bg-line"
             >
               <Square size={16} className="fill-current" />
             </button>
@@ -323,7 +323,7 @@ export default function Composer({ onSend, onStop, isStreaming, onOpenSources, o
               type="submit"
               disabled={(!value.trim() && !attachments.length) || attachments.some((item) => item.status === 'processing')}
               title="Send"
-              className="brand-grad flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+              className="mobile-send-button brand-grad flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <ArrowUp size={18} />
             </button>

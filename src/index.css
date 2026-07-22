@@ -362,3 +362,267 @@ html.dark [data-plan='pro'] { --bg:#080a0d; --surface:#0f1217; --surface-2:#151a
   .mobile-citations a { padding: 0.125rem 0.5rem; font-size: 10px; }
   .mobile-composer-pad { padding-left: 0.5rem; padding-right: 0.5rem; }
 }
+
+/* Mobile chat shell. Kept below 768px so the desktop workspace is unchanged. */
+@media (max-width: 767px) {
+  .mobile-chat-header {
+    height: calc(56px + env(safe-area-inset-top, 0px));
+    min-height: calc(56px + env(safe-area-inset-top, 0px));
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-inline: 6px;
+    gap: 2px;
+    isolation: isolate;
+    background: transparent;
+    border-color: color-mix(in srgb, var(--line) 48%, transparent);
+    box-shadow: 0 5px 18px color-mix(in srgb, var(--shadow-color) 30%, transparent), inset 0 -1px 0 rgba(255,255,255,.018);
+  }
+
+  .mobile-chat-header::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--bg) 68%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(145%);
+    backdrop-filter: blur(22px) saturate(145%);
+  }
+
+  .mobile-header-control,
+  .mobile-profile-control,
+  .mobile-model-picker,
+  .mobile-composer-control,
+  .mobile-send-button {
+    min-width: 44px;
+    min-height: 44px;
+    transition-duration: 180ms;
+  }
+
+  .mobile-header-control,
+  .mobile-profile-control,
+  .mobile-model-picker {
+    border-radius: 14px;
+  }
+
+  .mobile-model-picker {
+    max-width: min(46vw, 176px);
+    padding-inline: 10px;
+    background: color-mix(in srgb, var(--surface-2) 84%, transparent);
+  }
+
+  .mobile-profile-control { padding-inline: 7px; }
+  .mobile-profile-control > svg:last-child { display: none; }
+
+  .mobile-model-menu {
+    inset-inline: 8px;
+    top: auto;
+    bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    width: auto;
+    max-height: min(76dvh, 620px);
+    padding: 8px;
+    border-radius: 24px;
+    background: color-mix(in srgb, var(--elevated) 94%, transparent);
+    box-shadow: 0 -16px 60px color-mix(in srgb, var(--shadow-color) 88%, transparent), inset 0 1px 0 rgba(255,255,255,.065);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    backdrop-filter: blur(24px) saturate(140%);
+    animation: mobile-sheet-in 200ms cubic-bezier(.2,.75,.25,1) both;
+    overscroll-behavior: contain;
+  }
+  .mobile-model-menu button { min-height: 44px; }
+
+  .mobile-empty-state {
+    min-height: 100%;
+    justify-content: flex-start;
+    max-width: 620px;
+    padding: 12px 14px calc(var(--composer-height, 9rem) + 12px);
+  }
+
+  .mobile-hero-icon {
+    width: 38px;
+    height: 38px;
+    margin-bottom: 9px;
+    border-radius: 13px;
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--accent-primary) 18%, transparent), inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .mobile-hero-icon svg { width: 22px; height: 22px; }
+
+  .mobile-hero-title {
+    font-size: 28px;
+    line-height: 1.12;
+    letter-spacing: -.025em;
+  }
+
+  .mobile-hero-subtitle {
+    margin-top: 4px;
+    font-size: 15px;
+    line-height: 1.45;
+  }
+
+  .mobile-suggestions {
+    margin-top: 15px;
+    gap: 8px;
+  }
+
+  .mobile-suggestion {
+    min-height: 44px;
+    padding: 9px 13px;
+    border-color: color-mix(in srgb, var(--line) 38%, transparent);
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.4;
+    font-weight: 450;
+    letter-spacing: -.006em;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--surface-2) 78%, transparent), color-mix(in srgb, var(--surface) 64%, var(--accent-soft)));
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--shadow-color) 26%, transparent), inset 0 1px 0 rgba(255,255,255,.055);
+    transition: transform 180ms ease, border-color 180ms ease, background-color 180ms ease;
+  }
+
+  .mobile-suggestion:active { transform: scale(.975); background: color-mix(in srgb, var(--surface-hover) 86%, transparent); box-shadow: 0 3px 10px color-mix(in srgb, var(--shadow-color) 22%, transparent); }
+  .mobile-motto { margin-top: 13px; font-size: 11px; }
+
+  .mobile-composer-shell {
+    padding: 9px 9px max(8px, env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, var(--bg) 35%, color-mix(in srgb, var(--bg) 86%, transparent) 72%, transparent);
+  }
+
+  .mobile-composer {
+    gap: 1px;
+    padding: 3px;
+    border-radius: 21px;
+    border-color: color-mix(in srgb, var(--line-2) 65%, transparent);
+    background: color-mix(in srgb, var(--elevated) 88%, transparent);
+    box-shadow: 0 18px 46px var(--shadow-color), inset 0 1px 0 rgba(255,255,255,.065);
+    -webkit-backdrop-filter: blur(24px) saturate(145%);
+    backdrop-filter: blur(24px) saturate(145%);
+    transition: border-color 180ms ease, box-shadow 180ms ease;
+  }
+
+  .mobile-composer:focus-within {
+    border-color: color-mix(in srgb, var(--accent-primary) 42%, var(--line));
+    box-shadow: 0 20px 52px var(--shadow-color), 0 0 0 1px color-mix(in srgb, var(--accent-primary) 16%, transparent), inset 0 1px 0 rgba(255,255,255,.075);
+  }
+
+  .mobile-composer-control {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+  }
+
+  .mobile-composer-control svg { width: 17px; height: 17px; }
+
+  .mobile-composer-input {
+    min-height: 44px;
+    padding: 9px 3px;
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  .mobile-send-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--accent-primary) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.22);
+  }
+
+  .mobile-send-button:active,
+  .mobile-composer-control:active,
+  .mobile-header-control:active { transform: scale(.94); }
+
+  .mobile-attachment-strip { margin-bottom: 7px; gap: 7px; }
+  .mobile-attachment-chip {
+    min-height: 44px;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.045);
+  }
+  .mobile-attachment-chip img { width: 34px; height: 34px; border-radius: 10px; object-fit: cover; }
+
+  .mobile-message-thread {
+    gap: 15px;
+    padding: 12px 12px calc(var(--composer-height, 9rem) + 14px);
+  }
+
+  .mobile-user-message { gap: 4px; }
+  .mobile-user-bubble {
+    max-width: 86%;
+    padding: 8px 11px;
+    border-radius: 19px 19px 6px 19px;
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--shadow-color) 38%, transparent), inset 0 1px 0 rgba(255,255,255,.12);
+  }
+
+  .mobile-user-bubble img { max-height: 180px; object-fit: cover; }
+  .mobile-assistant-message { min-width: 0; }
+  .mobile-assistant-identity { margin-bottom: 5px; gap: 7px; }
+  .mobile-assistant-badge {
+    width: 22px; height: 22px; border-radius: 8px;
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 24%, var(--line));
+    background: linear-gradient(145deg, color-mix(in srgb, var(--accent-soft) 76%, var(--surface-2)), var(--surface));
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-primary) 18%, transparent), inset 0 1px 0 rgba(255,255,255,.1);
+  }
+
+  .mobile-action-row {
+    min-height: 44px;
+    margin-top: 6px;
+    gap: 2px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+  }
+  .mobile-action-row::-webkit-scrollbar { display: none; }
+  .mobile-action-row button {
+    min-width: 44px;
+    min-height: 44px;
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    border: 1px solid color-mix(in srgb, var(--line) 42%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface-2) 62%, transparent);
+    transition: transform 170ms ease, background-color 170ms ease, border-color 170ms ease;
+  }
+  .mobile-action-row button:active { transform: scale(.95); background: var(--surface-hover); border-color: var(--line-2); }
+
+  .prose-chat { font-size: 15px; line-height: 1.56; }
+  .prose-chat p { margin-block: .48rem; }
+  .prose-chat pre { max-width: 100%; margin-block: .6rem; border-radius: 14px; font-size: 13px; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+  .prose-chat table { min-width: 24rem; font-size: 12px; border-radius: 12px; }
+
+  .mobile-drawer-backdrop {
+    background: rgba(3, 6, 13, .54);
+    -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px);
+    animation: mobile-backdrop-in 180ms ease-out both;
+  }
+  .mobile-sidebar-drawer {
+    border-color: color-mix(in srgb, var(--line) 58%, transparent);
+    background: color-mix(in srgb, var(--elevated) 96%, transparent);
+    box-shadow: 18px 0 56px rgba(0,0,0,.28), inset -1px 0 0 rgba(255,255,255,.035);
+    -webkit-backdrop-filter: blur(24px) saturate(135%); backdrop-filter: blur(24px) saturate(135%);
+    overscroll-behavior: contain; touch-action: pan-y;
+    animation: mobile-drawer-in 210ms cubic-bezier(.2,.75,.25,1) both;
+  }
+  .mobile-sidebar-drawer > button:first-child { top: max(8px, env(safe-area-inset-top, 0px)); }
+}
+
+@keyframes mobile-sheet-in { from { opacity: 0; transform: translateY(18px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes mobile-drawer-in { from { transform: translateX(-20px); opacity: .75; } to { transform: translateX(0); opacity: 1; } }
+@keyframes mobile-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+
+@media (min-width: 480px) and (max-width: 767px) {
+  .mobile-suggestions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 360px) {
+  .mobile-empty-state { padding-inline: 12px; }
+  .mobile-model-picker { max-width: 42vw; }
+  .mobile-composer-shell { padding-inline: 6px; }
+  .mobile-composer { padding-inline: 3px; }
+}
+
+@media (max-width: 767px) and (max-height: 650px) {
+  .mobile-empty-state { padding-top: 7px; }
+  .mobile-hero-icon { width: 34px; height: 34px; margin-bottom: 6px; }
+  .mobile-hero-icon svg { width: 19px; height: 19px; }
+  .mobile-hero-title { font-size: 25px; }
+  .mobile-hero-subtitle { font-size: 14px; }
+  .mobile-suggestions { margin-top: 10px; gap: 6px; }
+  .mobile-motto { margin-top: 8px; }
+}
