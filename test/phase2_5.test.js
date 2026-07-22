@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { canContinueResponse, completionNotice } from '../src/features/chat/completionState.js';
+import { normalizeRemoteMessage } from '../src/lib/messageNormalization.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -51,6 +52,44 @@ test('manual continuation is offered only for completed incomplete assistant bub
   assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'complete' }), false);
   assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'incomplete', pending: true }), false);
   assert.equal(canContinueResponse({ role: 'user', completionStatus: 'incomplete' }), false);
+});
+
+test('planned semantic partial uses the existing continuation action', () => {
+  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'partial' }), true);
+  assert.equal(canContinueResponse({ role: 'assistant', hasRemainingContent: true }), true);
+  assert.match(completionNotice({ completionStatus: 'partial' }), /organized into sections/i);
+});
+
+test('persisted planned partial remains continuable after conversation reload', () => {
+  const hydrated = normalizeRemoteMessage({
+    id: 'assistant-1', role: 'assistant', completionStatus: 'partial',
+    responsePlan: {
+      sections: ['Entity', 'DTO', 'Repository', 'Service'],
+      firstSegmentEnd: 3, segmentIndex: 1, totalSegments: 2,
+    },
+  });
+  assert.equal(hydrated.hasRemainingContent, true);
+  assert.equal(hydrated.segmentIndex, 1);
+  assert.equal(hydrated.totalSegments, 2);
+  assert.deepEqual(hydrated.completedSections, []);
+  assert.deepEqual(hydrated.remainingSections, ['Service']);
+  assert.equal(canContinueResponse(hydrated), true);
+});
+
+test('planned continuation notice wins over legacy incomplete metadata', () => {
+  assert.match(completionNotice({
+    role: 'assistant', completionStatus: 'incomplete', hasRemainingContent: true,
+  }), /organized into sections/i);
+});
+
+test('mobile assistant footer separates primary actions from icon actions and token metadata', () => {
+  const bubble = readFileSync(resolve(ROOT, 'src/features/chat/MessageBubble.jsx'), 'utf-8');
+  const css = readFileSync(resolve(ROOT, 'src/index.css'), 'utf-8');
+  assert.match(bubble, /mobile-action-primary/);
+  assert.match(bubble, /mobile-action-secondary/);
+  assert.match(bubble, /mobile-token-count/);
+  assert.match(css, /\.mobile-action-row\s*\{[^}]*flex-direction:\s*column/s);
+  assert.match(css, /\.mobile-action-secondary\s*\{[^}]*display:\s*flex/s);
 });
 
 // ---- Typography system ----

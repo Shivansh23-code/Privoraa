@@ -540,6 +540,103 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(false, done.get("tailTrimmed"));
     }
 
+    @Test
+    void plannedFirstSegmentPersistsPartialAndEmitsOneDone() throws Exception {
+        String prompt = "Create a complete Spring Boot CRUD API including Entity, DTO, Repository, Service, "
+                + "Controller, Exception Handling, Validation, Security Configuration, JWT, and Maven dependencies.";
+        provider.enqueue("m1", segment("## Entity\n```java\nclass Entity {}\n```\n\nAssigned sections complete.", "stop", 20, 12));
+        CapturingEmitter emitter = new CapturingEmitter();
+        service().stream("user-1", new ChatRequest("conversation-1", "auto", "general",
+                prompt, false, null, null), emitter);
+
+        Map<String, Object> done = emitter.awaitDone();
+        assertEquals("partial", done.get("completionStatus"));
+        assertEquals("PLANNED_SEGMENTATION", done.get("finalizationReason"));
+        assertEquals(true, done.get("hasRemainingContent"));
+        assertEquals(1, done.get("segmentIndex"));
+        assertEquals(1, emitter.count("done"));
+        assertTrue(provider.requests.getFirst().stream().anyMatch(message ->
+                message.get("content").toString().contains("Reserve for the next response")));
+        verify(conversations).addAssistantMessage(eq("conversation-1"), anyString(), anyString(),
+                anyString(), anyString(), anyInt(), anyInt(), eq("partial"), eq("openrouter"), anyString());
+    }
+
+    @Test
+    void plannedContinuationUpdatesSameMessageAndCompletesWithoutRepeatingSections() throws Exception {
+        String prompt = "Create a complete Spring Boot CRUD API including Entity, DTO, Repository, Service, "
+                + "Controller, Exception Handling, Validation, Security Configuration, JWT, and Maven dependencies.";
+        SemanticResponsePlanner planner = new SemanticResponsePlanner();
+        SemanticResponsePlanner.Plan plan = planner.plan(prompt, 4096);
+        Conversation conversation = Conversation.builder().id("conversation-1").mode("general").build();
+        Message target = Message.builder().id("assistant-1").conversation(conversation)
+                .role(MessageRole.ASSISTANT).content("Completed first segment.\n")
+                .responsePlanJson(planner.write(plan)).modelUsed("m1").selectedProvider("openrouter").build();
+        when(conversations.requireOwnedAssistant("user-1", "conversation-1", "assistant-1")).thenReturn(target);
+        when(conversations.messages("conversation-1")).thenReturn(List.of(target));
+        provider.enqueue("m1", segment("Remaining sections complete.", "stop", 15, 6));
+
+        ChatRequest request = new ChatRequest("conversation-1", "m1", "general", "Continue exactly",
+                false, null, null, null, null, null, true, "assistant-1", target.getContent());
+        CapturingEmitter emitter = new CapturingEmitter();
+        service().stream("user-1", request, emitter);
+        Map<String, Object> done = emitter.awaitDone();
+
+        assertEquals("complete", done.get("completionStatus"));
+        assertEquals(false, done.get("hasRemainingContent"));
+        assertEquals(2, done.get("segmentIndex"));
+        assertEquals(1, emitter.count("done"));
+        String continuationInstruction = provider.requests.getFirst().getLast().get("content").toString();
+        assertTrue(continuationInstruction.contains("Do not repeat completed content"));
+        assertTrue(continuationInstruction.contains(plan.remainingSections().getFirst()));
+        verify(conversations, never()).addUserMessage(anyString(), anyString(), any(), any(), any(), anyList(), any());
+        verify(conversations, never()).addAssistantMessage(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyInt(), anyInt(), any(), any());
+        verify(conversations).updateAssistantMessage(eq("user-1"), eq("conversation-1"), eq("assistant-1"),
+                eq("Completed first segment.\nRemaining sections complete."), anyString(), anyString(), anyString(),
+                anyInt(), anyInt(), eq("complete"), eq("openrouter"), anyString());
+    }
+
+    @Test
+    void plannedFinalSegmentMayAutoContinueAfterTokenLimitWithoutLosingPlanOrMessageIdentity() throws Exception {
+        String prompt = "Create a complete API including Entity, DTO, Repository, Service, Controller, "
+                + "Exception Handling, Validation, Security, JWT, and Dependencies.";
+        SemanticResponsePlanner planner = new SemanticResponsePlanner();
+        SemanticResponsePlanner.Plan first = planner.plan(prompt, 4096);
+        Conversation conversation = Conversation.builder().id("conversation-1").mode("general").build();
+        Message target = Message.builder().id("assistant-1").conversation(conversation)
+                .role(MessageRole.ASSISTANT).content("First segment. ")
+                .responsePlanJson(planner.write(first)).modelUsed("m1").selectedProvider("openrouter").build();
+        when(conversations.requireOwnedAssistant("user-1", "conversation-1", "assistant-1")).thenReturn(target);
+        when(conversations.messages("conversation-1")).thenReturn(List.of(target));
+        provider.enqueue("m1", segment("Remaining section", "length", 11, 3));
+        provider.enqueue("m1", segment("Remaining section complete.", "stop", 12, 4));
+
+        ChatRequest request = new ChatRequest("conversation-1", "m1", "general", "Continue exactly",
+                false, null, null, null, null, null, true, "assistant-1", target.getContent());
+        CapturingEmitter emitter = new CapturingEmitter();
+        service().stream("user-1", request, emitter);
+        Map<String, Object> done = emitter.awaitDone();
+
+        assertEquals("complete", done.get("completionStatus"));
+        assertEquals("complete", done.get("finalizationReason"));
+        assertEquals("m1", done.get("model"));
+        assertEquals(23, done.get("promptTokens"));
+        assertEquals(7, done.get("completionTokens"));
+        assertEquals(2, done.get("segments"));
+        assertEquals(1, emitter.count("done"));
+        assertEquals(2, provider.requests.size());
+        verify(conversations, never()).addUserMessage(anyString(), anyString(), any(), any(), any(), anyList(), any());
+        verify(conversations, never()).addAssistantMessage(anyString(), anyString(), anyString(), anyString(),
+                anyString(), anyInt(), anyInt(), any(), any());
+        verify(conversations).updateAssistantMessage(eq("user-1"), eq("conversation-1"), eq("assistant-1"),
+                eq("First segment. Remaining section complete."), eq("m1"), anyString(), anyString(),
+                eq(23), eq(7), eq("complete"), eq("openrouter"), argThat(json -> {
+                    SemanticResponsePlanner.Plan persisted = planner.read(json);
+                    return persisted != null && persisted.segmentIndex() == 2
+                            && !persisted.hasRemainingContent();
+                }));
+    }
+
     // --------------------------------------------------------------- helpers
 
     private CapturingEmitter run(boolean useRag, List<String> chain) {
@@ -566,7 +663,8 @@ class ChatServiceStreamingIntegrationTest {
                 new PrivacyPolicyEvaluator(), scored,
                 new ChatOutputProperties(2048, 6144, 8192, 12288, 8192, 10240, 4096, 4096, 512),
                 registry, continuation,
-                new ChatCompletionRepairProperties(true, 1, 512));
+                new ChatCompletionRepairProperties(true, 1, 512),
+                new SemanticResponsePlanner());
     }
 
     private static Flux<StreamEvent> segment(String text, String finish, int prompt, int completion) {

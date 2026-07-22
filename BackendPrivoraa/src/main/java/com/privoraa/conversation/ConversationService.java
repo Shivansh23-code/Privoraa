@@ -207,11 +207,21 @@ public class ConversationService {
     public Message addAssistantMessage(String conversationId, String content, String model,
                                        String category, String routeReason, int promptTokens,
                                        int completionTokens, String completionStatus, String provider) {
+        return addAssistantMessage(conversationId, content, model, category, routeReason, promptTokens,
+                completionTokens, completionStatus, provider, null);
+    }
+
+    @Transactional
+    public Message addAssistantMessage(String conversationId, String content, String model,
+                                       String category, String routeReason, int promptTokens,
+                                       int completionTokens, String completionStatus, String provider,
+                                       String responsePlanJson) {
         Conversation convo = conversationRepository.getReferenceById(conversationId);
         Message message = Message.builder().conversation(convo).role(MessageRole.ASSISTANT)
                 .content(content).modelUsed(model).category(category).routeReason(routeReason)
                 .promptTokens(promptTokens).completionTokens(completionTokens)
-                .completionStatus(completionStatus).selectedProvider(provider).build();
+                .completionStatus(completionStatus).selectedProvider(provider)
+                .responsePlanJson(responsePlanJson).build();
         return messageRepository.save(message);
     }
 
@@ -237,6 +247,15 @@ public class ConversationService {
                                           String content, String model, String category, String routeReason,
                                           int promptTokens, int completionTokens, String completionStatus,
                                           String provider) {
+        return updateAssistantMessage(userId, conversationId, messageId, content, model, category,
+                routeReason, promptTokens, completionTokens, completionStatus, provider, null);
+    }
+
+    @Transactional
+    public Message updateAssistantMessage(String userId, String conversationId, String messageId,
+                                          String content, String model, String category, String routeReason,
+                                          int promptTokens, int completionTokens, String completionStatus,
+                                          String provider, String responsePlanJson) {
         Message message = requireOwnedAssistant(userId, conversationId, messageId);
         message.setContent(content);
         message.setModelUsed(model);
@@ -246,6 +265,7 @@ public class ConversationService {
         message.setCompletionTokens(completionTokens);
         message.setCompletionStatus(completionStatus);
         if (provider != null) message.setSelectedProvider(provider);
+        if (responsePlanJson != null) message.setResponsePlanJson(responsePlanJson);
         return messageRepository.save(message);
     }
 

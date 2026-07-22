@@ -82,3 +82,15 @@ test('finalizationReason preserved in patch', () => {
   const patch = finalContentPatch({ finalizationReason: 'structurally complete' });
   assert.equal(patch.finalizationReason, 'structurally complete');
 });
+
+test('planned segmentation metadata is preserved in the terminal patch', () => {
+  const patch = finalContentPatch({
+    completionStatus: 'partial', finalizationReason: 'PLANNED_SEGMENTATION',
+    hasRemainingContent: true, segmentIndex: 1, totalSegments: 2,
+    completedSections: ['Entity'], remainingSections: ['Security'],
+  });
+  assert.equal(patch.hasRemainingContent, true);
+  assert.equal(patch.segmentIndex, 1);
+  assert.equal(patch.totalSegments, 2);
+  assert.deepEqual(patch.remainingSections, ['Security']);
+});
