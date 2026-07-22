@@ -610,57 +610,29 @@ html.dark [data-plan='pro'] { --bg:#080a0d; --surface:#0f1217; --surface-2:#151a
   }
 
   .mobile-action-row {
-    min-height: 44px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
     margin-top: 6px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 6px;
     overflow: visible;
   }
   .mobile-continue-row,
   .mobile-action-primary {
     display: flex;
-    width: 100%;
-    min-width: 0;
+    width: auto;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
   }
-  .mobile-continue-row { min-height: 44px; }
-  .mobile-action-row > button,
-  .mobile-continue-row > button,
-  .mobile-action-primary > button,
-  .assistant-overflow-trigger {
-    min-width: 44px;
-    min-height: 44px;
-    flex: 0 0 auto;
-    padding: 7px 10px;
-    border: 1px solid color-mix(in srgb, var(--line) 42%, transparent);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--surface-2) 62%, transparent);
-    transition: transform 170ms ease, background-color 170ms ease, border-color 170ms ease;
-  }
-  .mobile-action-primary > button,
-  .mobile-action-primary .mobile-icon-action {
-    width: 44px;
-    padding: 0;
-    justify-content: center;
-  }
-  .mobile-action-primary > button { border-radius: 50%; }
-  .mobile-action-label { display: none; }
-  .mobile-action-primary svg { width: 15px; height: 15px; }
   .mobile-continue-action {
-    border-color: color-mix(in srgb, var(--accent-primary) 30%, transparent) !important;
-    background: color-mix(in srgb, var(--accent-soft) 72%, transparent) !important;
+    font-size: 12px;
   }
+  .mobile-action-primary svg { width: 14px; height: 14px; }
   .mobile-token-count {
     flex: 0 0 auto;
     padding-inline: 6px 2px;
     white-space: nowrap;
   }
-  .mobile-action-row > button:active,
-  .mobile-continue-row > button:active,
-  .mobile-action-primary > button:active,
-  .assistant-overflow-trigger:active { transform: scale(.95); background: var(--surface-hover); border-color: var(--line-2); }
 
   .prose-chat { font-size: 15px; line-height: 1.56; }
   .prose-chat p { margin-block: .48rem; }

@@ -49,7 +49,7 @@ export default function AssistantOverflowMenu({ items }) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setPhase(open ? 'closing' : 'open')}
-        className="mobile-icon-action assistant-overflow-trigger rounded-md p-1.5 text-muted/70 transition hover:bg-surface-2 hover:text-fg"
+        className="assistant-overflow-trigger rounded-md p-1.5 text-muted/70 transition hover:bg-surface-2 hover:text-fg"
       >
         <MoreHorizontal size={13} />
       </button>
