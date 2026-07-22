@@ -1,4 +1,4 @@
-import { apiFetch } from './apiClient';
+import { apiFetch, ApiError } from './apiClient';
 import { getToken } from './apiClient';
 
 export function isAuthenticated() {
@@ -75,7 +75,9 @@ export async function deleteRemoteConversation(id) {
     await apiFetch(`/conversations/${id}`, { method: 'DELETE' });
     return ok(null);
   } catch (err) {
-    return fail(err instanceof Error ? err.message : 'Failed to delete conversation');
+    const message = err instanceof Error ? err.message : 'Failed to delete conversation';
+    const status = err instanceof ApiError ? err.status : undefined;
+    return { success: false, data: null, error: message, ...(status !== undefined ? { status } : {}) };
   }
 }
 

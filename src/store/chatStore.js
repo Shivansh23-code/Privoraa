@@ -7,6 +7,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { DEFAULT_MODE } from '../lib/modes';
 import { chatStorage, wireVaultPersistence } from './chatPersist';
+import { deleteRemoteConversation, isAuthenticated } from '../lib/chatSync';
+import { abortControllers } from '../lib/streamRegistry';
 
 const uid = () =>
   typeof crypto !== 'undefined' && crypto.randomUUID
@@ -69,13 +71,73 @@ export const useChatStore = create(
 
       selectConversation: (id) => set({ currentId: id }),
 
-      deleteConversation: (id) =>
+      // transient set of conversation ids currently being deleted (guards against
+      // duplicate clicks and pullRemote re-adding the conversation mid-flight)
+      deletingConversationIds: {},
+
+      deleteConversation: async (id) => {
+        const state = get();
+
+        if (state.deletingConversationIds[id]) return;
+
+        const convo = state.conversations.find((c) => c.id === id);
+        if (!convo) return;
+
+        set((s) => ({
+          deletingConversationIds: { ...s.deletingConversationIds, [id]: true },
+        }));
+
+        // Abort any active network/SSE request for this conversation.
+        if (abortControllers[id]) {
+          abortControllers[id].abort();
+          delete abortControllers[id];
+        }
+
+        if (state.streamingConversations[id]) {
+          get().clearConversationStreaming(id);
+        }
+
+        // Unauthenticated: remove locally, nothing to sync.
+        if (!isAuthenticated()) {
+          set((s) => {
+            const conversations = s.conversations.filter((c) => c.id !== id);
+            const currentId =
+              s.currentId === id ? conversations[0]?.id ?? null : s.currentId;
+            return { conversations, currentId };
+          });
+          set((s) => {
+            const { [id]: _, ...rest } = s.deletingConversationIds;
+            return { deletingConversationIds: rest };
+          });
+          return;
+        }
+
+        // Authenticated: delete remotely FIRST, then remove locally only on
+        // confirmation.  This guarantees the conversation is never removed from
+        // persisted state before the backend confirms — a page refresh during
+        // the request leaves the conversation intact in localStorage *and* on
+        // the server, so the next sync cycle will not "resurrect" it.
+        const result = await deleteRemoteConversation(id);
+
+        if (result.status === 404 || result.success) {
+          set((s) => {
+            const conversations = s.conversations.filter((c) => c.id !== id);
+            const currentId =
+              s.currentId === id ? conversations[0]?.id ?? null : s.currentId;
+            return { conversations, currentId };
+          });
+        } else {
+          const errorMessage = result.status === 401
+            ? 'Your session has expired. Please sign in again.'
+            : result.error;
+          set({ syncStatus: 'error', syncError: errorMessage });
+        }
+
         set((s) => {
-          const conversations = s.conversations.filter((c) => c.id !== id);
-          const currentId =
-            s.currentId === id ? conversations[0]?.id ?? null : s.currentId;
-          return { conversations, currentId };
-        }),
+          const { [id]: _, ...rest } = s.deletingConversationIds;
+          return { deletingConversationIds: rest };
+        });
+      },
 
       renameConversation: (id, title) =>
         set((s) => ({
@@ -100,6 +162,7 @@ export const useChatStore = create(
 
       /* ------------------------------ messages ---------------------------- */
       addMessage: (conversationId, message) => {
+        if (get().deletingConversationIds?.[conversationId]) return null;
         const id = message.id || uid();
         const full = {
           id,
@@ -125,7 +188,8 @@ export const useChatStore = create(
         return id;
       },
 
-      appendToMessage: (conversationId, messageId, delta) =>
+      appendToMessage: (conversationId, messageId, delta) => {
+        if (get().deletingConversationIds?.[conversationId]) return;
         set((s) => ({
           conversations: s.conversations.map((c) =>
             c.id === conversationId
@@ -137,9 +201,10 @@ export const useChatStore = create(
                 }
               : c
           ),
-        })),
-
-      updateMessage: (conversationId, messageId, patch) =>
+        }));
+      },
+      updateMessage: (conversationId, messageId, patch) => {
+        if (get().deletingConversationIds?.[conversationId]) return;
         set((s) => ({
           conversations: s.conversations.map((c) =>
             c.id === conversationId
@@ -152,10 +217,12 @@ export const useChatStore = create(
                 }
               : c
           ),
-        })),
+        }));
+      },
 
       // Drop an assistant message and everything after it (for "regenerate").
-      truncateAfter: (conversationId, messageId) =>
+      truncateAfter: (conversationId, messageId) => {
+        if (get().deletingConversationIds?.[conversationId]) return;
         set((s) => ({
           conversations: s.conversations.map((c) => {
             if (c.id !== conversationId) return c;
@@ -164,7 +231,8 @@ export const useChatStore = create(
               ? c
               : { ...c, messages: c.messages.slice(0, idx) };
           }),
-        })),
+        }));
+      },
 
       /* --------------------------- ui selections -------------------------- */
       setModel: (model) => set({ model }),

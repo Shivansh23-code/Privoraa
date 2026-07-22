@@ -82,7 +82,10 @@ public class ConversationService {
     @Transactional
     public void delete(String userId, String id) {
         Conversation convo = requireOwned(userId, id);
+        messageRepository.deleteAllByConversationId(id);
+        messageRepository.flush();
         conversationRepository.delete(convo);
+        conversationRepository.flush();
     }
 
     /**
