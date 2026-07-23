@@ -44,6 +44,9 @@ export const useChatStore = create(
       // transient (not persisted) — per-conversation streaming state for parallel chats
       streamingConversations: {}, // { [conversationId]: { streamingMessageId } }
 
+      // transient — per-conversation zero-content provider error with retry payload
+      generationErrors: {}, // { [conversationId]: { message, retryPayload } }
+
       // cross-device sync state (transient)
       syncStatus: 'idle', // 'idle' | 'syncing' | 'error' | 'synced'
       syncError: null, // string | null
@@ -220,6 +223,21 @@ export const useChatStore = create(
         }));
       },
 
+      // Remove a single message by id.
+      removeMessage: (conversationId, messageId) => {
+        if (get().deletingConversationIds?.[conversationId]) return;
+        set((s) => ({
+          conversations: s.conversations.map((c) => {
+            if (c.id !== conversationId) return c;
+            return {
+              ...c,
+              messages: c.messages.filter((m) => m.id !== messageId),
+              updatedAt: now(),
+            };
+          }),
+        }));
+      },
+
       // Drop an assistant message and everything after it (for "regenerate").
       truncateAfter: (conversationId, messageId) => {
         if (get().deletingConversationIds?.[conversationId]) return;
@@ -276,6 +294,21 @@ export const useChatStore = create(
         set((s) => {
           const { [conversationId]: _, ...rest } = s.streamingConversations;
           return { streamingConversations: rest };
+        }),
+
+      setGenerationError: (conversationId, error) =>
+        set((s) => ({
+          generationErrors: {
+            ...s.generationErrors,
+            [conversationId]: error,
+          },
+        })),
+
+      clearGenerationError: (conversationId) =>
+        set((s) => {
+          if (!conversationId) return { generationErrors: {} };
+          const { [conversationId]: _, ...rest } = s.generationErrors;
+          return { generationErrors: rest };
         }),
 
       setUseRag: (useRag) => set({ useRag }),

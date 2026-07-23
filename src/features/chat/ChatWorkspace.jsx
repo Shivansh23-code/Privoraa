@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X, PanelLeftOpen, Loader2 } from 'lucide-react';
+import { X, PanelLeftOpen, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 
 import Sidebar from './Sidebar';
 import ChatHeader from './ChatHeader';
@@ -221,7 +221,9 @@ export default function ChatWorkspace() {
   const convo = conversations.find((c) => c.id === currentId) || null;
   const messages = convo?.messages ?? [];
 
-  const { send, stop, regenerate, editPrompt, continueResponse } = useChat(models);
+  const { send, stop, regenerate, editPrompt, continueResponse, retryGeneration } = useChat(models);
+  const allGenerationErrors = useChatStore((s) => s.generationErrors);
+  const generationError = currentId ? allGenerationErrors?.[currentId] : null;
   const localLlm = useLocalLlm();
   const { user } = useUserAuth();
   const plan = (user?.plan || 'FREE').toLowerCase(); // drives per-plan dashboard theming
@@ -447,8 +449,38 @@ export default function ChatWorkspace() {
           />
         )}
 
+        {generationError && currentId && convo && (
+          <div className="mx-auto flex w-full max-w-[760px] items-start gap-3 px-4 pb-2 lg:max-w-[860px] lg:px-0">
+            <div className="flex w-full items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm">
+              <AlertTriangle size={15} className="mt-0.5 shrink-0 text-red-500" />
+              <span className="flex-1 text-red-600 dark:text-red-400">
+                {generationError.model
+                  ? `${generationError.model} is temporarily unavailable or rate-limited. Please retry or choose another model.`
+                  : generationError.message || 'Generation failed. Please try again.'}
+              </span>
+              <button
+                onClick={() => retryGeneration(currentId)}
+                className="flex shrink-0 items-center gap-1 rounded-md bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-500/25 dark:text-red-400"
+              >
+                <RefreshCw size={12} />
+                Retry
+              </button>
+              <button
+                onClick={() => useChatStore.getState().clearGenerationError(currentId)}
+                className="flex shrink-0 items-center rounded-md px-1.5 py-1 text-xs text-red-500/60 transition hover:text-red-500"
+                aria-label="Dismiss error"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+
         <Composer
-          onSend={send}
+          onSend={(text, image, images, attachments) => {
+            if (currentId) useChatStore.getState().clearGenerationError(currentId);
+            send(text, image, images, attachments);
+          }}
           onStop={() => stop(convo?.id)}
           isStreaming={isStreaming}
           onOpenSources={() => setSourcesOpen(true)}

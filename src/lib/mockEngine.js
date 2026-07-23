@@ -116,6 +116,16 @@ const sleep = (ms, signal) =>
   });
 
 /**
+ * Dev-only fault injection, active only when the backend is unreachable.
+ * Set via globalThis.__FAULT__ before the chat starts:
+ *   "beforeContent"  — simulate Gemini 429 before first token
+ *   "afterToken"     — simulate error after one emitted token
+ *   "allFail"        — simulate all candidates failing (no successful stream)
+ */
+const faultMode = () =>
+  typeof globalThis !== 'undefined' ? globalThis.__FAULT__ : undefined;
+
+/**
  * Simulate a streaming chat completion.
  * Mirrors chatService.streamChat's callback contract.
  */
@@ -124,6 +134,13 @@ export async function mockStreamChat(
   { onMeta, onToken, onDone, onError, signal }
 ) {
   try {
+    const fault = faultMode();
+    if (fault === 'beforeContent' || fault === 'allFail') {
+      await sleep(120, signal);
+      onError?.(new Error('Fault injection: simulated provider error before content'));
+      return;
+    }
+
     await sleep(280, signal); // "thinking" before first token
 
     onMeta?.({
@@ -139,6 +156,11 @@ export async function mockStreamChat(
     const tokens = tokenize(body);
     let completionTokens = 0;
     for (const tok of tokens) {
+      if (fault === 'afterToken' && completionTokens >= 1) {
+        await sleep(14 + Math.min(40, tok.length * 6), signal);
+        onError?.(new Error('Fault injection: simulated provider error after partial content'));
+        return;
+      }
       await sleep(14 + Math.min(40, tok.length * 6), signal);
       completionTokens += 1;
       onToken?.(tok);

@@ -1,6 +1,7 @@
 import { apiFetch, ApiError } from './apiClient';
 import { getToken } from './apiClient';
 import { normalizeRemoteMessage } from './messageNormalization.js';
+import { isLegacyEmptyAssistant } from '../features/chat/completionState.js';
 
 export function isAuthenticated() {
   return !!getToken();
@@ -36,7 +37,8 @@ export async function fetchRemoteConversationDetail(id) {
   try {
     const data = await apiFetch(`/conversations/${id}`);
     if (!data) return fail('Conversation not found');
-    const messages = Array.isArray(data.messages) ? data.messages.map(normalizeRemoteMessage) : [];
+    const messages = Array.isArray(data.messages)
+      ? data.messages.map(normalizeRemoteMessage).filter(m => !isLegacyEmptyAssistant(m)) : [];
     return ok({ ...data, messages });
   } catch (err) {
     return fail(err instanceof Error ? err.message : 'Failed to fetch conversation detail');

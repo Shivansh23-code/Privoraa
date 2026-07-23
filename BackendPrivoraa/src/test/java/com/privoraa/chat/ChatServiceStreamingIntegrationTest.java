@@ -10,12 +10,14 @@ import com.privoraa.common.ApiException;
 import com.privoraa.config.ChatCompletionRepairProperties;
 import com.privoraa.config.ChatContinuationProperties;
 import com.privoraa.config.ChatOutputProperties;
+import com.privoraa.config.FallbackProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.conversation.Conversation;
 import com.privoraa.conversation.ConversationService;
 import com.privoraa.conversation.Message;
 import com.privoraa.conversation.MessageRole;
 import com.privoraa.llm.*;
+import com.privoraa.llm.ProviderHealthTracker;
 import com.privoraa.model.ModelCatalogService;
 import com.privoraa.rag.DocumentService;
 import com.privoraa.rag.RagContext;
@@ -681,7 +683,9 @@ class ChatServiceStreamingIntegrationTest {
                 new ChatOutputProperties(2048, 6144, 8192, 12288, 8192, 10240, 4096, 4096, 512),
                 registry, continuation,
                 new ChatCompletionRepairProperties(true, 1, 512),
-                new SemanticResponsePlanner());
+                new SemanticResponsePlanner(),
+                mock(ProviderHealthTracker.class),
+                new FallbackProperties(null, null, null, null, true, 4));
     }
 
     private static Flux<StreamEvent> segment(String text, String finish, int prompt, int completion) {
