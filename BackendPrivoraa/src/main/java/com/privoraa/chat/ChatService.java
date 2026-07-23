@@ -183,19 +183,23 @@ public class ChatService {
         private int modelIndex;
         private String activeModel;
         private int unknownContinuations;
+        private LlmProvider activeProvider;
+        private List<String> activeChain;
 
         StreamSession(SseEmitter emitter, Prepared prepared, String requestId, String userId) {
             this.emitter = emitter;
             this.prepared = prepared;
             this.requestId = requestId;
             this.userId = userId;
+            this.activeProvider = prepared.provider();
+            this.activeChain = prepared.chain();
             emitter.onTimeout(this::cancel);
             emitter.onError(ignored -> cancel());
             emitter.onCompletion(this::cancel);
         }
 
         void start() {
-            activeModel = prepared.chain().getFirst();
+            activeModel = activeChain.getFirst();
             if (prepared.continuation()) accumulated.append(prepared.existingContent());
             log.info("Chat stream started requestId={} provider={} model={}",
                     requestId, prepared.provider().id(), activeModel);
@@ -279,19 +283,39 @@ public class ChatService {
 
         private void onError(Throwable err, boolean emitted, boolean continuation) {
             if (cancelled.get() || finalized.get()) return;
-            if (!continuation && !emitted && accumulated.isEmpty() && modelIndex + 1 < prepared.chain().size()) {
+            if (!continuation && !emitted && accumulated.isEmpty() && modelIndex + 1 < activeChain.size()) {
                 String previous = activeModel;
-                activeModel = prepared.chain().get(++modelIndex);
+                activeModel = activeChain.get(++modelIndex);
                 segments--;
                 send(emitter, "model_switch", Map.of("from", nameOf(previous), "to", nameOf(activeModel),
                         "reason", "Previous model failed before emitting content"));
                 log.warn("Model failed before output requestId={} provider={} fromModel={} toModel={}",
-                        requestId, prepared.provider().id(), previous, activeModel);
+                        requestId, activeProvider.id(), previous, activeModel);
+                runSegment(prepared.messages(), false);
+                return;
+            }
+            // Cross-provider fallback: try fallback provider when chain is exhausted
+            if (!continuation && !emitted && accumulated.isEmpty()
+                    && modelIndex + 1 >= activeChain.size()
+                    && prepared.fallbackProvider() != null
+                    && activeProvider != prepared.fallbackProvider()) {
+                String previous = activeProvider.id() + "/" + activeModel;
+                activeProvider = prepared.fallbackProvider();
+                activeChain = prepared.fallbackChain();
+                activeModel = activeChain.getFirst();
+                modelIndex = -1;
+                segments--;
+                send(emitter, "meta", Map.of("model", nameOf(activeModel),
+                        "category", prepared.routed().category(),
+                        "reason", "Fallback to " + nameOf(activeModel),
+                        "provider", activeProvider.id()));
+                log.warn("Cross-provider fallback requestId={} fromProvider={} model={} toProvider={} model={}",
+                        requestId, previous, activeModel, activeProvider.id(), activeModel);
                 runSegment(prepared.messages(), false);
                 return;
             }
             log.warn("Provider stream failed requestId={} provider={} model={} content={} segment={} errorType={}",
-                    requestId, prepared.provider().id(), activeModel,
+                    requestId, activeProvider.id(), activeModel,
                     !accumulated.isEmpty(), segments, err.getClass().getSimpleName());
             state = StreamState.FAILED;
             finish(err instanceof java.util.concurrent.TimeoutException ? "timeout" : "provider_error",
@@ -462,6 +486,13 @@ public class ChatService {
 
         private void finish(String reason, String completionStatus, boolean aborted) {
             if (!finalized.compareAndSet(false, true)) return;
+            // Zero-content failure: skip persistence, emit error instead of done
+            if (accumulated.isEmpty() && !"complete".equals(completionStatus) && !aborted) {
+                send(emitter, "error", Map.of("message",
+                        "The AI model failed to produce a response. Please try again."));
+                emitter.complete();
+                return;
+            }
             int completion = totalCompletionTokens.get();
             if (completion == 0 && !accumulated.isEmpty()) {
                 completion = Math.max(1, accumulated.length() / 4);
@@ -481,7 +512,7 @@ public class ChatService {
             boolean exhausted = incomplete && (segments >= continuationProps.maxSegments()
                     || totalCompletionTokens.get() >= continuationProps.maxTotalCompletionTokens());
             Message persisted = persistAssistant(userId, prepared, nameOf(activeModel), finalContent,
-                    prompt, completion, completionStatus);
+                    prompt, completion, completionStatus, activeProvider.id());
             Map<String, Object> payload = donePayload(nameOf(activeModel), prepared, prompt, completion, reason);
             payload.put("completionStatus", completionStatus);
             payload.put("finalContent", finalContent);
@@ -510,7 +541,7 @@ public class ChatService {
                             + "accumulatedLength={} finalContentLength={} completionEventContentLength={} "
                             + "persistedAssistantLength={} rawFinishReason={} normalizedFinishReason={} "
                             + "completionStatus={} segments={}",
-                    requestId, prepared.conversationId(), persisted == null ? null : persisted.getId(), prepared.provider().id(), activeModel,
+                    requestId, prepared.conversationId(), persisted == null ? null : persisted.getId(), activeProvider.id(), activeModel,
                     rawContent.length(), finalContent.length(), finalContent.length(),
                     persisted == null || persisted.getContent() == null ? finalContent.length() : persisted.getContent().length(),
                     reason, classified.normalized(), completionStatus, segments);
@@ -565,7 +596,7 @@ public class ChatService {
                 ? result.completionTokens() : Math.max(1, result.content().length() / 4);
 
         Message saved = persistAssistant(userId, p, usedModel, result.content(), promptTokens,
-                completionTokens, null);
+                completionTokens, null, p.provider().id());
         String registryId = p.scoredResult() != null ? p.scoredResult().registryId() : null;
         String pricingTier = p.scoredResult() != null ? p.scoredResult().pricingTier().name() : null;
         String topology = p.scoredResult() != null ? p.scoredResult().topology().name() : null;
@@ -640,6 +671,8 @@ public class ChatService {
         boolean offline = "ollama".equals(provider.id());
 
         ScoredRoutingResult scoredResult = null;
+        LlmProvider fallbackProvider = null;
+        List<String> fallbackChain = List.of();
         Routed routed;
         if (offline) {
             routed = offlineRouter.resolve(req.model(), req.content(), mode, useRag, req.hasImage(),
@@ -650,6 +683,18 @@ public class ChatService {
                 routed = scoredResult.toRouted();
                 if (scoredResult.provider() == com.privoraa.ai.registry.ModelProvider.GEMINI) {
                     provider = providers.byId("gemini");
+                    if (isAuto(req.model())) {
+                        try {
+                            LlmProvider orProvider = providers.byId("openrouter");
+                            if (orProvider != null) {
+                                Routed fallbackRouted = resolveLegacy(req, mode, useRag);
+                                fallbackProvider = orProvider;
+                                fallbackChain = fallbackRouted.chain();
+                            }
+                        } catch (Exception e) {
+                            log.debug("Could not register fallback provider", e);
+                        }
+                    }
                 }
             } catch (ScoredRoutingException e) {
                 scoredResult = null;
@@ -679,6 +724,16 @@ public class ChatService {
                             .filter(model -> model != null && !model.isBlank())
                             .filter(model -> !"gemini-2.0-flash".equals(model))
                             .distinct().toList());
+            try {
+                LlmProvider orProvider = providers.byId("openrouter");
+                if (orProvider != null) {
+                    Routed fallbackRouted = resolveLegacy(req, mode, useRag);
+                    fallbackProvider = orProvider;
+                    fallbackChain = fallbackRouted.chain();
+                }
+            } catch (Exception e) {
+                log.debug("Could not register fallback provider", e);
+            }
         }
 
         // Dry-run: log what scored routing would have chosen (no execution impact).
@@ -733,7 +788,8 @@ public class ChatService {
         String existing = continuationTarget == null ? "" : continuationTarget.getContent();
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
                 routed.chain(), provider, options, scoredResult, continuationTarget != null,
-                continuationTarget == null ? null : continuationTarget.getId(), existing, responsePlan);
+                continuationTarget == null ? null : continuationTarget.getId(), existing, responsePlan,
+                fallbackProvider, fallbackChain);
     }
 
     /** The provider for this request: the picker's choice, else the server default. */
@@ -743,26 +799,27 @@ public class ChatService {
     }
 
     private Message persistAssistant(String userId, Prepared p, String modelName, String content,
-                                     int promptTokens, int completionTokens, String completionStatus) {
+                                     int promptTokens, int completionTokens, String completionStatus,
+                                     String providerId) {
         String planJson = responsePlanner.write(p.responsePlan());
         if (p.continuation()) {
             if (planJson == null) {
                 return conversations.updateAssistantMessage(userId, p.conversationId(), p.targetAssistantMessageId(),
                         content, modelName, p.routed().category(), p.routed().reason(), promptTokens,
-                        completionTokens, completionStatus, p.provider().id());
+                        completionTokens, completionStatus, providerId);
             }
             return conversations.updateAssistantMessage(userId, p.conversationId(), p.targetAssistantMessageId(),
                     content, modelName, p.routed().category(), p.routed().reason(), promptTokens,
-                    completionTokens, completionStatus, p.provider().id(), planJson);
+                    completionTokens, completionStatus, providerId, planJson);
         }
         if (planJson == null) {
             return conversations.addAssistantMessage(p.conversationId(), content, modelName,
                     p.routed().category(), p.routed().reason(), promptTokens, completionTokens,
-                    completionStatus, p.provider().id());
+                    completionStatus, providerId);
         }
         return conversations.addAssistantMessage(p.conversationId(), content, modelName,
                 p.routed().category(), p.routed().reason(), promptTokens, completionTokens,
-                completionStatus, p.provider().id(), planJson);
+                completionStatus, providerId, planJson);
     }
 
     private Map<String, Object> metaPayload(String modelName, Prepared p) {
@@ -892,6 +949,8 @@ public class ChatService {
             boolean continuation,
             String targetAssistantMessageId,
             String existingContent,
-            SemanticResponsePlanner.Plan responsePlan
+            SemanticResponsePlanner.Plan responsePlan,
+            LlmProvider fallbackProvider,
+            List<String> fallbackChain
     ) {}
 }

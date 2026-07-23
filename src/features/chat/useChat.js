@@ -56,7 +56,9 @@ export function useChat(catalog) {
         || `chat-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const runKey = `${conversationId}:${assistantId}:${requestId}`;
       streamRunsRef.current[runKey] = {
-        conversationId, assistantId, requestId, content: isContinuation ? existingContent : '',
+        conversationId, assistantId, requestId,
+        baseContent: isContinuation ? existingContent : '',
+        runContent: '',
       };
       s.setConversationStreaming(conversationId, assistantId, requestId);
 
@@ -99,6 +101,7 @@ export function useChat(catalog) {
             category: meta.category,
             routeReason: meta.reason,
             citations: meta.citations,
+            ...(meta.provider ? { selectedProvider: meta.provider } : {}),
           });
         },
         onToken: (delta) => {
@@ -109,11 +112,12 @@ export function useChat(catalog) {
             store.getState().updateMessage(conversationId, assistantId, { pending: false });
           }
           store.getState().appendToMessage(conversationId, assistantId, delta);
-          streamRunsRef.current[runKey].content += delta;
+          streamRunsRef.current[runKey].runContent += delta;
         },
-        onDone: (usage) =>
+        onDone: (usage) => {
+          const { baseContent = '', runContent = '' } = streamRunsRef.current[runKey] || {};
           finalize({
-            ...finalContentPatch(usage, streamRunsRef.current[runKey]?.content || ''),
+            ...finalContentPatch(usage, baseContent, runContent),
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
             // Only overwrite citations when this path actually carries them (the
@@ -124,9 +128,18 @@ export function useChat(catalog) {
             completionStatus: usage.completionStatus,
             segments: usage.segments,
             continued: usage.continued,
+            totalSegments: usage.totalSegments,
             tokenCountEstimated: usage.tokenCountEstimated,
-          }),
-        onError: (err) => finalize({ error: err.message || 'Something went wrong.' }),
+          });
+        },
+        onError: (err) => {
+          const run = streamRunsRef.current[runKey];
+          const hasContent = run && (run.baseContent || run.runContent);
+          if (!hasContent && !isContinuation) {
+            store.getState().truncateAfter(conversationId, assistantId);
+          }
+          finalize({ error: err.message || 'Something went wrong.' });
+        },
       };
 
       // Browser-direct local Ollama: if the user picked an offline model and has
