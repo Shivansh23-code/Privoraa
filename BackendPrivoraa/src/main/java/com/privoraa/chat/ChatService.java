@@ -294,8 +294,28 @@ public class ChatService {
                     requestId, prepared.provider().id(), activeModel,
                     !accumulated.isEmpty(), segments, err.getClass().getSimpleName());
             state = StreamState.FAILED;
+            if (!(err instanceof java.util.concurrent.TimeoutException)
+                    && !emitted && accumulated.isEmpty()) {
+                failBeforeContent(err);
+                return;
+            }
             finish(err instanceof java.util.concurrent.TimeoutException ? "timeout" : "provider_error",
                     "incomplete", false);
+        }
+
+        /**
+         * A provider rejection before the first token is a failed request, not an
+         * incomplete assistant response. Emitting {@code done} here would persist
+         * an empty assistant message and mark it continuable in the client.
+         */
+        private void failBeforeContent(Throwable err) {
+            if (!finalized.compareAndSet(false, true)) return;
+            log.info("Chat stream rejected before content requestId={} conversationId={} provider={} model={} "
+                            + "errorType={}",
+                    requestId, prepared.conversationId(), prepared.provider().id(), activeModel,
+                    err.getClass().getSimpleName());
+            send(emitter, "error", Map.of("message", friendly(err)));
+            emitter.complete();
         }
 
         private void onSegmentComplete(String rawReason) {

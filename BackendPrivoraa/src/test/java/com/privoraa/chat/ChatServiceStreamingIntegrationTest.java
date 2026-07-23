@@ -6,6 +6,7 @@ import com.privoraa.ai.registry.ModelRegistry;
 import com.privoraa.ai.registry.ModelRegistryProperties;
 import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.chat.dto.ChatRequest;
+import com.privoraa.common.ApiException;
 import com.privoraa.config.ChatCompletionRepairProperties;
 import com.privoraa.config.ChatContinuationProperties;
 import com.privoraa.config.ChatOutputProperties;
@@ -361,6 +362,22 @@ class ChatServiceStreamingIntegrationTest {
         assertEquals(1, emitter.count("done"));
         verify(conversations, times(1)).addAssistantMessage(anyString(), eq("Kept. More."), anyString(),
                 anyString(), anyString(), anyInt(), anyInt(), eq("incomplete"), eq("openrouter"));
+    }
+
+    @Test
+    void providerErrorBeforeContentEmitsErrorWithoutPersistingEmptyAssistant() throws Exception {
+        provider.enqueue("m1", Flux.error(new ApiException(
+                org.springframework.http.HttpStatus.BAD_GATEWAY,
+                "The Gemini service is temporarily rate limited. Please try again shortly.")));
+
+        CapturingEmitter emitter = run(false, List.of("m1"));
+
+        assertTrue(emitter.awaitEvent("error"));
+        assertEquals(0, emitter.count("done"));
+        assertEquals("The Gemini service is temporarily rate limited. Please try again shortly.",
+                emitter.data("error").get("message"));
+        verify(conversations, never()).addAssistantMessage(anyString(), anyString(), anyString(),
+                anyString(), anyString(), anyInt(), anyInt(), any(), any());
     }
 
     @Test
