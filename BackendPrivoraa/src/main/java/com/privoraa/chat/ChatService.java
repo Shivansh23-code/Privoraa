@@ -1,7 +1,6 @@
 package com.privoraa.chat;
 
 import com.privoraa.ai.classification.ExecutionTarget;
-import com.privoraa.ai.classification.ExecutionTarget;
 import com.privoraa.ai.classification.PrivacyPolicyEvaluator;
 import com.privoraa.ai.classification.PrivacyPolicyViolationException;
 import com.privoraa.ai.classification.RequestClassification;
@@ -57,7 +56,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -200,6 +198,7 @@ public class ChatService {
         private volatile LlmProvider currentProvider;
         private List<String> openrouterFallbackChain;
         private int openrouterFallbackIndex;
+        private Object previous;
 
         StreamSession(SseEmitter emitter, Prepared prepared, String requestId, String userId) {
             this.emitter = emitter;
@@ -327,13 +326,6 @@ public class ChatService {
                         "provider", activeProvider.id()));
                 log.warn("Cross-provider fallback requestId={} fromProvider={} model={} toProvider={} model={}",
                         requestId, previous, activeModel, activeProvider.id(), activeModel);
-                runSegment(prepared.messages(), false);
-                return;
-            }
-            log.warn("Provider stream failed requestId={} provider={} model={} content={} segment={} errorType={}",
-                    requestId, activeProvider.id(), activeModel,
-                    !accumulated.isEmpty(), segments, err.getClass().getSimpleName());
-                        requestId, currentProvider.id(), previous, activeModel);
                 runSegment(prepared.messages(), false);
                 return;
             }
@@ -642,7 +634,6 @@ public class ChatService {
                     || totalCompletionTokens.get() >= continuationProps.maxTotalCompletionTokens());
             Message persisted = persistAssistant(userId, prepared, nameOf(activeModel), finalContent,
                     prompt, completion, completionStatus, activeProvider.id());
-                    prompt, completion, completionStatus, currentProvider.id());
             Map<String, Object> payload = donePayload(nameOf(activeModel), prepared, prompt, completion, reason);
             payload.put("completionStatus", completionStatus);
             payload.put("finalContent", finalContent);
@@ -672,7 +663,6 @@ public class ChatService {
                             + "persistedAssistantLength={} rawFinishReason={} normalizedFinishReason={} "
                             + "completionStatus={} segments={}",
                     requestId, prepared.conversationId(), persisted == null ? null : persisted.getId(), activeProvider.id(), activeModel,
-                    requestId, prepared.conversationId(), persisted == null ? null : persisted.getId(), currentProvider.id(), activeModel,
                     rawContent.length(), finalContent.length(), finalContent.length(),
                     persisted == null || persisted.getContent() == null ? finalContent.length() : persisted.getContent().length(),
                     reason, classified.normalized(), completionStatus, segments);
@@ -920,8 +910,7 @@ public class ChatService {
         return new Prepared(conversationId, mode, routed, rag, messages, promptTokens,
                 routed.chain(), provider, options, scoredResult, continuationTarget != null,
                 continuationTarget == null ? null : continuationTarget.getId(), existing, responsePlan,
-                fallbackProvider, fallbackChain);
-                classification);
+                fallbackProvider, fallbackChain, classification);
     }
 
     /** The provider for this request: the picker's choice, else the server default. */
@@ -1089,7 +1078,8 @@ public class ChatService {
             String existingContent,
             SemanticResponsePlanner.Plan responsePlan,
             LlmProvider fallbackProvider,
-            List<String> fallbackChain
+            List<String> fallbackChain,
             RequestClassification classification
     ) {}
 }
+
