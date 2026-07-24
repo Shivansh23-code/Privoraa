@@ -6,15 +6,18 @@ import com.privoraa.ai.registry.ModelRegistry;
 import com.privoraa.ai.registry.ModelRegistryProperties;
 import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.chat.dto.ChatRequest;
+import com.privoraa.common.ApiException;
 import com.privoraa.config.ChatCompletionRepairProperties;
 import com.privoraa.config.ChatContinuationProperties;
 import com.privoraa.config.ChatOutputProperties;
+import com.privoraa.config.FallbackProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.conversation.Conversation;
 import com.privoraa.conversation.ConversationService;
 import com.privoraa.conversation.Message;
 import com.privoraa.conversation.MessageRole;
 import com.privoraa.llm.*;
+import com.privoraa.llm.ProviderHealthTracker;
 import com.privoraa.model.ModelCatalogService;
 import com.privoraa.rag.DocumentService;
 import com.privoraa.rag.RagContext;
@@ -364,7 +367,23 @@ class ChatServiceStreamingIntegrationTest {
     }
 
     @Test
-    void providerTimeoutEmitsErrorWhenNoContentProduced() throws Exception {
+    void providerErrorBeforeContentEmitsErrorWithoutPersistingEmptyAssistant() throws Exception {
+        provider.enqueue("m1", Flux.error(new ApiException(
+                org.springframework.http.HttpStatus.BAD_GATEWAY,
+                "The Gemini service is temporarily rate limited. Please try again shortly.")));
+
+        CapturingEmitter emitter = run(false, List.of("m1"));
+
+        assertTrue(emitter.awaitEvent("error"));
+        assertEquals(0, emitter.count("done"));
+        assertEquals("The Gemini service is temporarily rate limited. Please try again shortly.",
+                emitter.data("error").get("message"));
+        verify(conversations, never()).addAssistantMessage(anyString(), anyString(), anyString(),
+                anyString(), anyString(), anyInt(), anyInt(), any(), any());
+    }
+
+    @Test
+    void providerTimeoutHasDistinctFinalizationReason() throws Exception {
         continuation = new ChatContinuationProperties(true, 3, 4096, 24000, 1, 600);
         provider.enqueue("m1", Flux.never());
         CapturingEmitter emitter = run(false, List.of("m1"));
@@ -664,7 +683,9 @@ class ChatServiceStreamingIntegrationTest {
                 new ChatOutputProperties(2048, 6144, 8192, 12288, 8192, 10240, 4096, 4096, 512),
                 registry, continuation,
                 new ChatCompletionRepairProperties(true, 1, 512),
-                new SemanticResponsePlanner());
+                new SemanticResponsePlanner(),
+                mock(ProviderHealthTracker.class),
+                new FallbackProperties(null, null, null, null, true, 4));
     }
 
     private static Flux<StreamEvent> segment(String text, String finish, int prompt, int completion) {

@@ -8,9 +8,11 @@ import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.chat.dto.ChatRequest;
 import com.privoraa.config.ChatOutputProperties;
 import com.privoraa.config.ChatContinuationProperties;
+import com.privoraa.config.FallbackProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.conversation.ConversationService;
 import com.privoraa.llm.LlmProviderResolver;
+import com.privoraa.llm.ProviderHealthTracker;
 import com.privoraa.model.ModelCatalogService;
 import com.privoraa.rag.DocumentService;
 import com.privoraa.rag.RagService;
@@ -55,7 +57,9 @@ class ChatPrivacyBoundaryTest {
                 mock(ModelRegistry.class),
                 new ChatContinuationProperties(true, 3, 4096, 24000, 120, 600),
                 new com.privoraa.config.ChatCompletionRepairProperties(true, 1, 512),
-                new SemanticResponsePlanner());
+                new SemanticResponsePlanner(),
+                mock(ProviderHealthTracker.class),
+                new FallbackProperties(null, null, null, null, true, 4));
 
         ChatRequest request = new ChatRequest(null, "auto", "general",
                 "Do not send this to the cloud", false, null, "openrouter");

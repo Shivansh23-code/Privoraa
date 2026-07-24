@@ -1,7 +1,11 @@
 /** Flatten persisted response-plan metadata into the live message shape used by chat UI. */
 export function normalizeRemoteMessage(message = {}) {
   const plan = message.responsePlan;
-  if (!plan || typeof plan !== 'object') return message;
+  const base = {
+    ...message,
+    persisted: true,
+  };
+  if (!plan || typeof plan !== 'object') return base;
   const sections = Array.isArray(plan.sections) ? plan.sections : [];
   const boundary = Number.isInteger(plan.firstSegmentEnd) ? plan.firstSegmentEnd : sections.length;
   const segmentIndex = Number.isInteger(plan.segmentIndex) ? plan.segmentIndex : undefined;
@@ -12,7 +16,7 @@ export function normalizeRemoteMessage(message = {}) {
     ? plan.remainingSections
     : segmentIndex > 1 ? [] : sections.slice(boundary);
   return {
-    ...message,
+    ...base,
     segmentIndex,
     totalSegments: Number.isInteger(plan.totalSegments) ? plan.totalSegments : undefined,
     completedSections,

@@ -1,7 +1,9 @@
 package com.privoraa.chat;
 
 import com.privoraa.ai.classification.ExecutionTarget;
+import com.privoraa.ai.classification.ExecutionTarget;
 import com.privoraa.ai.classification.PrivacyPolicyEvaluator;
+import com.privoraa.ai.classification.PrivacyPolicyViolationException;
 import com.privoraa.ai.classification.RequestClassification;
 import com.privoraa.ai.classification.RequestClassificationInput;
 import com.privoraa.ai.classification.RequestClassifier;
@@ -15,15 +17,19 @@ import com.privoraa.conversation.Message;
 import com.privoraa.conversation.dto.MessageDto;
 import com.privoraa.catalog.ActiveModelService;
 import com.privoraa.ai.registry.ModelDescriptor;
+import com.privoraa.ai.registry.ModelProvider;
 import com.privoraa.ai.registry.ModelRegistry;
 import com.privoraa.config.ChatContinuationProperties;
 import com.privoraa.config.ChatCompletionRepairProperties;
 import com.privoraa.config.ChatOutputProperties;
+import com.privoraa.config.FallbackProperties;
 import com.privoraa.config.GeminiProperties;
 import com.privoraa.llm.ChatOptions;
 import com.privoraa.llm.ChatResult;
 import com.privoraa.llm.LlmProvider;
 import com.privoraa.llm.LlmProviderResolver;
+import com.privoraa.llm.ProviderHealthTracker;
+import com.privoraa.llm.RetryableErrorClassifier;
 import com.privoraa.model.ModelCatalogService;
 import com.privoraa.model.ModelDto;
 import com.privoraa.ratelimit.RateLimitService;
@@ -82,6 +88,8 @@ public class ChatService {
     private final ChatContinuationProperties continuationProps;
     private final ChatCompletionRepairProperties repairProps;
     private final SemanticResponsePlanner responsePlanner;
+    private final ProviderHealthTracker healthTracker;
+    private final FallbackProperties fallbackProps;
 
     @Autowired
     public ChatService(RateLimitService rateLimit, ConversationService conversations, ModelRouter router,
@@ -92,7 +100,9 @@ public class ChatService {
                        ChatOutputProperties outputProps, ModelRegistry registry,
                        ChatContinuationProperties continuationProps,
                        ChatCompletionRepairProperties repairProps,
-                       SemanticResponsePlanner responsePlanner) {
+                       SemanticResponsePlanner responsePlanner,
+                       ProviderHealthTracker healthTracker,
+                       FallbackProperties fallbackProps) {
         this.rateLimit = rateLimit;
         this.conversations = conversations;
         this.router = router;
@@ -112,6 +122,8 @@ public class ChatService {
         this.continuationProps = continuationProps;
         this.repairProps = repairProps;
         this.responsePlanner = responsePlanner;
+        this.healthTracker = healthTracker;
+        this.fallbackProps = fallbackProps;
     }
 
     // ----------------------------------------------------------------- streaming
@@ -185,6 +197,9 @@ public class ChatService {
         private int unknownContinuations;
         private LlmProvider activeProvider;
         private List<String> activeChain;
+        private volatile LlmProvider currentProvider;
+        private List<String> openrouterFallbackChain;
+        private int openrouterFallbackIndex;
 
         StreamSession(SseEmitter emitter, Prepared prepared, String requestId, String userId) {
             this.emitter = emitter;
@@ -193,6 +208,7 @@ public class ChatService {
             this.userId = userId;
             this.activeProvider = prepared.provider();
             this.activeChain = prepared.chain();
+            this.currentProvider = prepared.provider();
             emitter.onTimeout(this::cancel);
             emitter.onError(ignored -> cancel());
             emitter.onCompletion(this::cancel);
@@ -202,7 +218,7 @@ public class ChatService {
             activeModel = activeChain.getFirst();
             if (prepared.continuation()) accumulated.append(prepared.existingContent());
             log.info("Chat stream started requestId={} provider={} model={}",
-                    requestId, prepared.provider().id(), activeModel);
+                    requestId, currentProvider.id(), activeModel);
             send(emitter, "meta", metaPayload(nameOf(activeModel), prepared));
             runSegment(prepared.continuation() ? continuationMessages() : prepared.messages(),
                     prepared.continuation());
@@ -227,9 +243,9 @@ public class ChatService {
                     "maxOutputTokens", segmentOptions.maxTokens()));
             log.info("Chat segment request requestId={} conversationId={} provider={} model={} segment={} "
                             + "requestedMaxOutputTokens={} promptTokenEstimate={}",
-                    requestId, prepared.conversationId(), prepared.provider().id(), activeModel, segments,
+                    requestId, prepared.conversationId(), currentProvider.id(), activeModel, segments,
                     segmentOptions.maxTokens(), promptBuilder.estimatePromptTokens(messages));
-            Disposable subscription = prepared.provider().streamChat(activeModel, messages, segmentOptions)
+            Disposable subscription = currentProvider.streamChat(activeModel, messages, segmentOptions)
                     .timeout(Duration.ofSeconds(continuationProps.timeoutSeconds()))
                     .subscribeOn(Schedulers.boundedElastic())
                     .subscribe(event -> {
@@ -317,9 +333,121 @@ public class ChatService {
             log.warn("Provider stream failed requestId={} provider={} model={} content={} segment={} errorType={}",
                     requestId, activeProvider.id(), activeModel,
                     !accumulated.isEmpty(), segments, err.getClass().getSimpleName());
+                        requestId, currentProvider.id(), previous, activeModel);
+                runSegment(prepared.messages(), false);
+                return;
+            }
+            RetryableErrorClassifier.Category cat = RetryableErrorClassifier.classify(err);
+            if (cat == RetryableErrorClassifier.Category.NON_RETRYABLE_CANCELLED) {
+                cancel();
+                return;
+            }
+            if (RetryableErrorClassifier.isRetryable(err)) {
+                java.time.Duration retryAfter = RetryableErrorClassifier.extractRetryAfter(err);
+                healthTracker.recordRetryableFailure(currentProvider.id(), activeModel, cat, retryAfter);
+            } else {
+                healthTracker.recordNonRetryableFailure(currentProvider.id(), activeModel);
+            }
+            if (RetryableErrorClassifier.isRetryable(err)
+                    && !continuation && !emitted && accumulated.isEmpty()
+                    && "gemini".equals(currentProvider.id()) && isAuto(prepared.routed().modelId())) {
+                if (tryAutoFallback(err)) return;
+            }
+            log.warn("Provider stream failed requestId={} provider={} model={} content={} segment={} errorType={} "
+                            + "retryable={}",
+                    requestId, currentProvider.id(), activeModel,
+                    !accumulated.isEmpty(), segments, err.getClass().getSimpleName(),
+                    RetryableErrorClassifier.isRetryable(err));
             state = StreamState.FAILED;
+            if (!(err instanceof java.util.concurrent.TimeoutException)
+                    && !emitted && accumulated.isEmpty()) {
+                failBeforeContent(err);
+                return;
+            }
             finish(err instanceof java.util.concurrent.TimeoutException ? "timeout" : "provider_error",
                     "incomplete", false);
+        }
+
+        /**
+         * A provider rejection before the first token is a failed request, not an
+         * incomplete assistant response. Emitting {@code done} here would persist
+         * an empty assistant message and mark it continuable in the client.
+         */
+        private void failBeforeContent(Throwable err) {
+            if (RetryableErrorClassifier.isRetryable(err)
+                    && "gemini".equals(currentProvider.id()) && isAuto(prepared.routed().modelId())) {
+                if (tryAutoFallback(err)) return;
+            }
+            if (!finalized.compareAndSet(false, true)) return;
+            log.info("Chat stream rejected before content requestId={} conversationId={} provider={} model={} "
+                            + "errorType={}",
+                    requestId, prepared.conversationId(), currentProvider.id(), activeModel,
+                    err.getClass().getSimpleName());
+            send(emitter, "error", Map.of("message", friendly(err)));
+            emitter.complete();
+        }
+
+        private boolean tryAutoFallback(Throwable originalError) {
+            if (!fallbackProps.enabled()) return false;
+            if (!isAuto(prepared.routed().modelId())) return false;
+            if (openrouterFallbackChain == null) {
+                openrouterFallbackChain = findAutoFallbackModels();
+                openrouterFallbackIndex = 0;
+            }
+            LlmProvider openrouter = providers.byId("openrouter");
+            while (openrouterFallbackIndex < openrouterFallbackChain.size()) {
+                String candidate = openrouterFallbackChain.get(openrouterFallbackIndex++);
+                if (!healthTracker.isHealthy("openrouter", candidate)) {
+                    log.info("Auto fallback skipping unhealthy model provider=openrouter model={}", candidate);
+                    continue;
+                }
+                if (!isFallbackAllowedForPrivacy()) {
+                    log.info("Auto fallback skipping candidate provider=openrouter model={} reason=privacy_policy",
+                            candidate);
+                    continue;
+                }
+                String previous = activeModel;
+                String previousProvider = currentProvider.id();
+                activeModel = candidate;
+                currentProvider = openrouter;
+                segments--;
+                send(emitter, "model_switch", Map.of("from", nameOf(previous), "to", nameOf(activeModel),
+                        "reason", "Gemini failed before content; falling back to OpenRouter"));
+                log.warn("Auto fallback requestId={} fromProvider={} fromModel={} toProvider=openrouter toModel={}",
+                        requestId, previousProvider, previous, candidate);
+                runSegment(prepared.messages(), false);
+                return true;
+            }
+            log.warn("Auto fallback exhausted all candidates requestId={} originalErrorType={}",
+                    requestId, originalError.getClass().getSimpleName());
+            return false;
+        }
+
+        private boolean isFallbackAllowedForPrivacy() {
+            try {
+                privacyPolicy.requireAllowed(prepared.classification(), ExecutionTarget.CLOUD_PROVIDER);
+                return true;
+            } catch (PrivacyPolicyViolationException e) {
+                return false;
+            }
+        }
+
+        private List<String> findAutoFallbackModels() {
+            return registry.currentSnapshot().models().stream()
+                    .filter(m -> m.provider() == ModelProvider.OPENROUTER)
+                    .filter(m -> m.selectable())
+                    .filter(m -> m.streamingSupported())
+                    .filter(m -> m.pricingTier() != com.privoraa.ai.registry.PricingTier.PAID
+                            && m.pricingTier() != com.privoraa.ai.registry.PricingTier.UNKNOWN)
+                    .sorted((a, b) -> {
+                        int byPrice = a.pricingTier().compareTo(b.pricingTier());
+                        if (byPrice != 0) return byPrice;
+                        return b.source().compareTo(a.source());
+                    })
+                    .map(ModelDescriptor::providerModelId)
+                    .distinct()
+                    .limit(4)
+                    .toList();
         }
 
         private void onSegmentComplete(String rawReason) {
@@ -343,7 +471,7 @@ public class ChatService {
             log.info("Chat segment complete requestId={} conversationId={} provider={} model={} segment={} "
                             + "completionTokens={} rawFinishReason={} normalizedFinishReason={} accumulatedLength={} "
                             + "continuationDecision={} continuationStopReason={}",
-                    requestId, prepared.conversationId(), prepared.provider().id(), activeModel, segments,
+                    requestId, prepared.conversationId(), currentProvider.id(), activeModel, segments,
                     totalCompletionTokens.get(), finish.raw(), finish.normalized(), accumulated.length(), continueNow,
                     continueNow ? "continuing" : continuationStopReason(finish, incomplete));
             if (continueNow) {
@@ -393,7 +521,7 @@ public class ChatService {
             AtomicInteger providerCompletion = new AtomicInteger();
             ChatOptions options = prepared.options().withMaxTokens(repairProps.maxOutputTokens());
 
-            Disposable subscription = prepared.provider().streamChat(activeModel, messages, options)
+            Disposable subscription = currentProvider.streamChat(activeModel, messages, options)
                     .subscribeOn(Schedulers.boundedElastic())
                     .subscribe(event -> {
                         if (cancelled.get()) return;
@@ -493,6 +621,7 @@ public class ChatService {
                 emitter.complete();
                 return;
             }
+            healthTracker.recordSuccess(currentProvider.id(), activeModel);
             int completion = totalCompletionTokens.get();
             if (completion == 0 && !accumulated.isEmpty()) {
                 completion = Math.max(1, accumulated.length() / 4);
@@ -513,6 +642,7 @@ public class ChatService {
                     || totalCompletionTokens.get() >= continuationProps.maxTotalCompletionTokens());
             Message persisted = persistAssistant(userId, prepared, nameOf(activeModel), finalContent,
                     prompt, completion, completionStatus, activeProvider.id());
+                    prompt, completion, completionStatus, currentProvider.id());
             Map<String, Object> payload = donePayload(nameOf(activeModel), prepared, prompt, completion, reason);
             payload.put("completionStatus", completionStatus);
             payload.put("finalContent", finalContent);
@@ -542,6 +672,7 @@ public class ChatService {
                             + "persistedAssistantLength={} rawFinishReason={} normalizedFinishReason={} "
                             + "completionStatus={} segments={}",
                     requestId, prepared.conversationId(), persisted == null ? null : persisted.getId(), activeProvider.id(), activeModel,
+                    requestId, prepared.conversationId(), persisted == null ? null : persisted.getId(), currentProvider.id(), activeModel,
                     rawContent.length(), finalContent.length(), finalContent.length(),
                     persisted == null || persisted.getContent() == null ? finalContent.length() : persisted.getContent().length(),
                     reason, classified.normalized(), completionStatus, segments);
@@ -790,12 +921,19 @@ public class ChatService {
                 routed.chain(), provider, options, scoredResult, continuationTarget != null,
                 continuationTarget == null ? null : continuationTarget.getId(), existing, responsePlan,
                 fallbackProvider, fallbackChain);
+                classification);
     }
 
     /** The provider for this request: the picker's choice, else the server default. */
     private LlmProvider resolveProvider(ChatRequest req) {
         String id = req.providerId();
         return id != null ? providers.byId(id) : providers.active();
+    }
+
+    private Message persistAssistant(String userId, Prepared p, String modelName, String content,
+                                     int promptTokens, int completionTokens, String completionStatus) {
+        return persistAssistant(userId, p, modelName, content, promptTokens, completionTokens, completionStatus,
+                p.provider().id());
     }
 
     private Message persistAssistant(String userId, Prepared p, String modelName, String content,
@@ -952,5 +1090,6 @@ public class ChatService {
             SemanticResponsePlanner.Plan responsePlan,
             LlmProvider fallbackProvider,
             List<String> fallbackChain
+            RequestClassification classification
     ) {}
 }

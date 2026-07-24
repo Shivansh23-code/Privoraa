@@ -8,6 +8,7 @@ import { retrieveContext } from '../../lib/ragService';
 import { retrieveVaultContext, retrieveMemory } from '../../lib/vectorStore';
 import { isUnlocked } from '../../lib/vaultBridge';
 import { finalContentPatch } from './finalContent';
+import { hasPersistedAssistantIdentity } from './completionState';
 import { assistantRunPlan, manualContinuationOptions } from './continuationMode';
 import { truncateRemoteConversation } from '../../lib/chatSync';
 import { abortControllers } from '../../lib/streamRegistry';
@@ -26,6 +27,7 @@ export function useChat(catalog) {
       existingContent = '', image = null, images = null, attachments = [], modelOverride, providerOverride,
     } = {}) => {
       const s = store.getState();
+      s.clearGenerationError(conversationId);
       const requestModel = modelOverride || s.model;
       const requestProvider = providerOverride || s.modelProvider;
       const convo = s.conversations.find((c) => c.id === conversationId);
@@ -117,7 +119,8 @@ export function useChat(catalog) {
         onDone: (usage) => {
           const { baseContent = '', runContent = '' } = streamRunsRef.current[runKey] || {};
           finalize({
-            ...finalContentPatch(usage, baseContent, runContent),
+            ...finalContentPatch(usage, streamRunsRef.current[runKey]?.content || ''),
+            persisted: true,
             promptTokens: usage.promptTokens,
             completionTokens: usage.completionTokens,
             // Only overwrite citations when this path actually carries them (the
@@ -130,15 +133,37 @@ export function useChat(catalog) {
             continued: usage.continued,
             totalSegments: usage.totalSegments,
             tokenCountEstimated: usage.tokenCountEstimated,
-          });
-        },
+          }),
         onError: (err) => {
-          const run = streamRunsRef.current[runKey];
-          const hasContent = run && (run.baseContent || run.runContent);
-          if (!hasContent && !isContinuation) {
-            store.getState().truncateAfter(conversationId, assistantId);
+          if (finalized) return;
+          if (!isActive()) return;
+          const messageContent = streamRunsRef.current[runKey]?.content || '';
+          const hasContent = isContinuation
+            ? messageContent.length > (existingContent || '').length
+            : messageContent.length > 0;
+          finalized = true;
+          if (!hasContent) {
+            const s = store.getState();
+            s.removeMessage(conversationId, assistantId);
+            if (err?.name !== 'AbortError') {
+              s.setGenerationError(conversationId, {
+                message: err?.message || 'Something went wrong.',
+                model: requestModel,
+                requestId,
+                retryPayload: {
+                  content,
+                  model: requestModel,
+                  provider: requestProvider,
+                  image,
+                  images,
+                  attachments,
+                  userMessageId,
+                },
+              });
+            }
+            return;
           }
-          finalize({ error: err.message || 'Something went wrong.' });
+          finalize({ error: err?.message || 'Something went wrong.' });
         },
       };
 
@@ -229,9 +254,41 @@ export function useChat(catalog) {
           );
         }
       } catch (err) {
-        // Any transport throw not already routed through onError still finalizes
-        // the bubble (an AbortError is handled by the finally below).
-        if (err?.name !== 'AbortError') finalize({ error: err?.message || 'Something went wrong.' });
+        if (err?.name === 'AbortError') return;
+        if (finalized) return;
+        const isCurrent = () => {
+          const state = store.getState();
+          const active = state.streamingConversations[conversationId];
+          return streamRunsRef.current[runKey]
+            && active?.streamingMessageId === assistantId
+            && active?.requestId === requestId;
+        };
+        if (!isCurrent()) return;
+        const messageContent = streamRunsRef.current[runKey]?.content || '';
+        const hasContent = isContinuation
+          ? messageContent.length > (existingContent || '').length
+          : messageContent.length > 0;
+        finalized = true;
+        if (!hasContent) {
+          const s = store.getState();
+          s.removeMessage(conversationId, assistantId);
+          s.setGenerationError(conversationId, {
+            message: err?.message || 'Something went wrong.',
+            model: requestModel,
+            requestId,
+            retryPayload: {
+              content,
+              model: requestModel,
+              provider: requestProvider,
+              image,
+              images,
+              attachments,
+              userMessageId,
+            },
+          });
+        } else {
+          finalize({ error: err?.message || 'Something went wrong.' });
+        }
       } finally {
         // Stop ends the stream without an onDone — finalize so the bubble doesn't
         // stay stuck "responding". finalize() is idempotent.
@@ -312,11 +369,29 @@ export function useChat(catalog) {
   const continueResponse = useCallback((conversationId, assistantMessageId) => {
     const convo = store.getState().conversations.find((item) => item.id === conversationId);
     const message = convo?.messages.find((item) => item.id === assistantMessageId && item.role === 'assistant');
-    if (!message) return;
+    if (!message || !hasPersistedAssistantIdentity(message)) return;
     run(conversationId,
       'Continue exactly from where the previous response stopped. Do not restart, repeat, introduce, or summarize. Complete the unfinished sentence or structure and finish the original answer.',
       manualContinuationOptions(message));
   }, [run, store]);
 
-  return { send, stop, regenerate, editPrompt, continueResponse };
+  const retryGeneration = useCallback((conversationId) => {
+    const s = store.getState();
+    const error = s.generationErrors?.[conversationId];
+    if (!error) return;
+    const currentStreaming = s.streamingConversations?.[conversationId];
+    if (currentStreaming && error.requestId !== currentStreaming.requestId) return;
+    s.clearGenerationError(conversationId);
+    const p = error.retryPayload;
+    run(conversationId, p.content, {
+      isRegenerate: true,
+      image: p.image || null,
+      images: p.images || null,
+      attachments: p.attachments || [],
+      modelOverride: p.model,
+      providerOverride: p.provider,
+    });
+  }, [run, store]);
+
+  return { send, stop, regenerate, editPrompt, continueResponse, retryGeneration };
 }

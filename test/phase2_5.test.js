@@ -47,27 +47,30 @@ test('aborted messages show no incomplete notice regardless of finishReason', ()
 // ---- Continue and Regenerate remain separate ----
 
 test('manual continuation is offered only for completed incomplete assistant bubbles', () => {
-  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'incomplete' }), true);
-  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'limit_reached' }), true);
-  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'complete' }), false);
-  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'incomplete', pending: true }), false);
-  assert.equal(canContinueResponse({ role: 'user', completionStatus: 'incomplete' }), false);
+  assert.equal(canContinueResponse({ id: 'a1', role: 'assistant', content: 'Some text', persisted: true, completionStatus: 'incomplete' }), true);
+  assert.equal(canContinueResponse({ id: 'a2', role: 'assistant', content: 'Some text', persisted: true, completionStatus: 'limit_reached' }), true);
+  assert.equal(canContinueResponse({ id: 'a3', role: 'assistant', content: 'Some text', persisted: true, completionStatus: 'complete' }), false);
+  assert.equal(canContinueResponse({ id: 'a4', role: 'assistant', content: 'Some text', persisted: true, completionStatus: 'incomplete', pending: true }), false);
+  assert.equal(canContinueResponse({ role: 'user', content: 'Some text', persisted: true, completionStatus: 'incomplete' }), false);
+  assert.equal(canContinueResponse({ id: 'a7', role: 'assistant', persisted: true, completionStatus: 'incomplete' }), false);
+  assert.equal(canContinueResponse({ id: 'a8', role: 'assistant', content: '', persisted: true, completionStatus: 'incomplete' }), false);
 });
 
 test('planned semantic partial uses the existing continuation action', () => {
-  assert.equal(canContinueResponse({ role: 'assistant', completionStatus: 'partial' }), true);
-  assert.equal(canContinueResponse({ role: 'assistant', hasRemainingContent: true }), true);
+  assert.equal(canContinueResponse({ id: 'a5', role: 'assistant', content: 'Some text', persisted: true, completionStatus: 'partial' }), true);
+  assert.equal(canContinueResponse({ id: 'a6', role: 'assistant', content: 'Some text', persisted: true, completionStatus: 'partial', hasRemainingContent: true }), true);
   assert.match(completionNotice({ completionStatus: 'partial' }), /organized into sections/i);
 });
 
 test('persisted planned partial remains continuable after conversation reload', () => {
   const hydrated = normalizeRemoteMessage({
-    id: 'assistant-1', role: 'assistant', completionStatus: 'partial',
+    id: 'assistant-1', role: 'assistant', content: 'Some text', completionStatus: 'partial',
     responsePlan: {
       sections: ['Entity', 'DTO', 'Repository', 'Service'],
       firstSegmentEnd: 3, segmentIndex: 1, totalSegments: 2,
     },
   });
+  assert.equal(hydrated.persisted, true);
   assert.equal(hydrated.hasRemainingContent, true);
   assert.equal(hydrated.segmentIndex, 1);
   assert.equal(hydrated.totalSegments, 2);
@@ -88,7 +91,8 @@ test('mobile assistant footer separates primary actions from icon actions and to
   assert.match(bubble, /mobile-action-primary/);
   assert.match(bubble, /AssistantOverflowMenu/);
   assert.match(bubble, /mobile-token-count/);
-  assert.match(css, /\.mobile-action-row\s*\{[^}]*flex-direction:\s*column/s);
+  assert.match(css, /\.mobile-action-row\s*\{[^}]*flex-direction:\s*row/s);
+  assert.match(css, /\.mobile-action-row[^}]*flex-wrap:\s*wrap/s);
   assert.match(css, /\.mobile-action-primary\s*\{[^}]*display:\s*flex/s);
 });
 
