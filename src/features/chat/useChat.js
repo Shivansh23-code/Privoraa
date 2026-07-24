@@ -133,7 +133,8 @@ export function useChat(catalog) {
             continued: usage.continued,
             totalSegments: usage.totalSegments,
             tokenCountEstimated: usage.tokenCountEstimated,
-          }),
+          });
+        },
         onError: (err) => {
           if (finalized) return;
           if (!isActive()) return;
