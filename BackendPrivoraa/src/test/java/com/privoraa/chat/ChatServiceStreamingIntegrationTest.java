@@ -386,9 +386,9 @@ class ChatServiceStreamingIntegrationTest {
     void providerTimeoutHasDistinctFinalizationReason() throws Exception {
         continuation = new ChatContinuationProperties(true, 3, 4096, 24000, 1, 600);
         provider.enqueue("m1", Flux.never());
-        Map<String, Object> done = run(false, List.of("m1")).awaitDone();
-        assertEquals("timeout", done.get("finalizationReason"));
-        assertEquals(1, done.get("segments"));
+        CapturingEmitter emitter = run(false, List.of("m1"));
+        assertTrue(emitter.awaitEvent("error"));
+        assertEquals(0, emitter.count("done"));
     }
 
     // ---- Cancellation ----
